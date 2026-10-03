@@ -3,6 +3,9 @@ import streamlit as st
 from google import genai
 from google.genai import types
 
+from models import MODELS, get_model
+from providers import ask_provider
+
 from prompts import (
     SYSTEM_PROMPT,
     WELCOME_MESSAGE_TEMPLATE,
@@ -391,7 +394,7 @@ def render_header(subtitle):
 
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 
-MODEL_NAME = "gemini-3.5-flash"
+MODEL_NAME = "gemini-3.8-flash"
 
 
 @st.cache_resource
@@ -407,7 +410,7 @@ gemini_client = get_gemini_client()
 # -----------------------------
 
 def ask_gemini(parts):
-    max_attempts = 3
+    max_attempts = 2
 
     for attempt in range(max_attempts):
         try:
@@ -417,26 +420,42 @@ def ask_gemini(parts):
         except Exception as error:
             error_text = str(error)
 
-            if "503" in error_text or "UNAVAILABLE" in error_text:
+            if (
+                "503" in error_text
+                or "UNAVAILABLE" in error_text
+                or "429" in error_text
+                or "RESOURCE_EXHAUSTED" in error_text
+            ):
                 if attempt < max_attempts - 1:
-                    time.sleep(2 ** attempt)
+                    time.sleep(2)
                     continue
 
-                return (
-                    "⚠️ Gemini is temporarily busy right now. "
-                    "Please try again in a few seconds."
-                )
+                # Fallback to a lower-latency Gemini model
+                try:
+                    fallback_chat = gemini_client.chats.create(
+                        model="gemini-3.5-flash-lite",
+                        config=types.GenerateContentConfig(
+                            system_instruction=SYSTEM_PROMPT,
+                            thinking_config=types.ThinkingConfig(
+                                thinking_level="low"
+                            ),
+                            max_output_tokens=1200,
+                        ),
+                    )
+
+                    fallback_response = fallback_chat.send_message(parts)
+                    return fallback_response.text
+
+                except Exception:
+                    return (
+                        "⚠️ Gemini is temporarily unavailable. "
+                        "Please try again in a few seconds."
+                    )
 
             if "401" in error_text or "UNAUTHENTICATED" in error_text:
                 return (
                     "🔐 There is a problem authenticating with Gemini. "
                     "Please check the API configuration."
-                )
-
-            if "429" in error_text or "RESOURCE_EXHAUSTED" in error_text:
-                return (
-                    "⏳ Gemini is temporarily rate-limited. "
-                    "Please wait a moment and try again."
                 )
 
             return (
@@ -500,11 +519,14 @@ if "onboarded" not in st.session_state:
 
             else:
                 st.session_state.name = name.strip()
-
                 st.session_state.chat = gemini_client.chats.create(
                     model=MODEL_NAME,
                     config=types.GenerateContentConfig(
-                        system_instruction=SYSTEM_PROMPT
+                    system_instruction=SYSTEM_PROMPT,
+                    thinking_config=types.ThinkingConfig(
+                    thinking_level="low"
+                        ),
+                        max_output_tokens=1200,
                     ),
                 )
 
@@ -521,6 +543,31 @@ if "onboarded" not in st.session_state:
 # -----------------------------
 
 render_header(f"Welcome, {st.session_state.name} — upload an image or ask a question")
+
+# -----------------------------
+# AI model selector
+# -----------------------------
+
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "Gemini 3.8 Flash"
+
+selected_model_name = st.selectbox(
+    "AI Model",
+    options=list(MODELS.keys()),
+    index=list(MODELS.keys()).index(
+        st.session_state.selected_model
+    ),
+)
+
+st.session_state.selected_model = selected_model_name
+
+selected_model = get_model(selected_model_name)
+
+st.caption(
+    f"🏢 {selected_model['provider']}  •  "
+    f"{'👁️ Vision' if selected_model['vision'] else '💬 Text'}  •  "
+    f"{selected_model['status']}"
+)
 
 
 # -----------------------------
@@ -583,12 +630,18 @@ if user_input:
 
     parts = []
 
+    # Data used by Groq/Sarvam providers
+    provider_prompt = ""
+    photo_bytes = None
+    photo_mime_type = None
+
 
     # Handle image
 
     if photo is not None:
 
         photo_bytes = photo.getvalue()
+        photo_mime_type = photo.type
 
         add_message(
             "user",
@@ -614,31 +667,64 @@ if user_input:
             text,
         )
 
-        parts.append(text)
+        provider_prompt = (
+            text
+            + "\n\n"
+            + "Answer this as a concise electronics assistant. "
+            + "For this simple question, use no more than 80 words. "
+            + "Give only the essential explanation. "
+            + "Do not add a table, detailed classifications, formulas, "
+            + "applications, or extended examples unless specifically asked."
+        )
+
+        parts.append(provider_prompt)
 
 
     # Image without a question
 
     elif photo is not None:
 
-        parts.append(
-            """
-            Analyze this electronics image.
+        provider_prompt = """
+        Analyze this electronics image.
 
-            Identify the component, circuit, schematic,
-            or setup if possible.
+        Identify the component, circuit, schematic,
+        or setup if possible.
 
-            Explain what it is, its function, how it
-            works, and important connections.
-            """
-        )
+        Explain what it is, its function, how it
+        works, and important connections.
+        """
+
+        parts.append(provider_prompt)
 
 
-    # Ask Gemini
+    # Ask selected AI model
 
-    with st.spinner("Analyzing... 🔍"):
+    with st.spinner(
+        f"Analyzing with {selected_model_name}... 🔍"
+    ):
 
-        answer = ask_gemini(parts)
+        if selected_model["provider"] == "Gemini":
+
+            answer = ask_gemini(parts)
+
+        else:
+
+            if photo is not None and not selected_model["vision"]:
+
+                answer = (
+                    f"⚠️ {selected_model_name} does not support "
+                    "image analysis. Please select a vision model."
+                )
+
+            else:
+
+                answer = ask_provider(
+                    provider=selected_model["provider"],
+                    model_id=selected_model["model_id"],
+                    prompt=provider_prompt,
+                    image_bytes=photo_bytes,
+                    mime_type=photo_mime_type,
+                )
 
 
     add_message(
