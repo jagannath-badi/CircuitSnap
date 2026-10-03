@@ -308,6 +308,30 @@ div[data-testid="stChatMessage"] div[data-testid="stImage"] img {
     max-width: 100%;
 }
 
+/* -------- AI model selector -------- */
+div[data-testid="stSelectbox"] {
+    margin-bottom: 0.15rem;
+}
+
+div[data-testid="stSelectbox"] label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--cs-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.25rem;
+}
+
+div[data-testid="stSelectbox"] > div > div {
+    min-height: 2.4rem;
+}
+
+div[data-testid="stCaptionContainer"] {
+    margin-top: -0.15rem;
+    margin-bottom: 0.35rem;
+}
+
+
 /* -------- Chat input (styling hook only) -------- */
 div[data-testid="stChatInput"] {
     background: var(--cs-surface-elev);
@@ -381,7 +405,7 @@ def render_header(subtitle):
         f'</div>'
         f'<div class="cs-status">'
         f'<span class="cs-status-dot"></span>'
-        f'Gemini Vision Ready'
+        f'Multi-Model Vision Ready'
         f'</div>'
         f'</div>',
         unsafe_allow_html=True,
@@ -544,31 +568,6 @@ if "onboarded" not in st.session_state:
 
 render_header(f"Welcome, {st.session_state.name} — upload an image or ask a question")
 
-# -----------------------------
-# AI model selector
-# -----------------------------
-
-if "selected_model" not in st.session_state:
-    st.session_state.selected_model = "Gemini 3.8 Flash"
-
-selected_model_name = st.selectbox(
-    "AI Model",
-    options=list(MODELS.keys()),
-    index=list(MODELS.keys()).index(
-        st.session_state.selected_model
-    ),
-)
-
-st.session_state.selected_model = selected_model_name
-
-selected_model = get_model(selected_model_name)
-
-st.caption(
-    f"🏢 {selected_model['provider']}  •  "
-    f"{'👁️ Vision' if selected_model['vision'] else '💬 Text'}  •  "
-    f"{selected_model['status']}"
-)
-
 
 # -----------------------------
 # Display conversation history
@@ -605,6 +604,31 @@ else:
 
     for message in st.session_state.messages:
         render_message(message)
+
+# -----------------------------
+# AI model selector
+# -----------------------------
+
+if "selected_model" not in st.session_state:
+    st.session_state.selected_model = "Gemini 3.8 Flash"
+
+selected_model_name = st.selectbox(
+    "AI Model",
+    options=list(MODELS.keys()),
+    index=list(MODELS.keys()).index(
+        st.session_state.selected_model
+    ),
+)
+
+st.session_state.selected_model = selected_model_name
+
+selected_model = get_model(selected_model_name)
+
+st.caption(
+    f"🏢 {selected_model['provider']}  •  "
+    f"{'👁️ Vision' if selected_model['vision'] else '💬 Text'}  •  "
+    f"{selected_model['status']}"
+)
 
 
 # -----------------------------
