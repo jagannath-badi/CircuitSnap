@@ -18,6 +18,7 @@ MODELS = {
     "fallback_models": [
         "gemini-3.7-flash",
     ],
+    "fallback_provider": "Groq",
     "vision": True,
     "reasoning": True,
     "status": "Recommended",

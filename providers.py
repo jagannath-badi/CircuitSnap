@@ -9,12 +9,14 @@ allowing the user to switch providers without losing context.
 """
 
 import base64
+import re
 
 import streamlit as st
 from google import genai
 from google.genai import types
 from groq import Groq
 
+from models import get_model
 from prompts import SYSTEM_PROMPT
 
 
@@ -278,28 +280,328 @@ def ask_groq(
 # PROVIDER DISPATCHER
 # ============================================================
 
-def _is_transient_error(error):
-    """
-    Return True when the provider failure is temporary
-    and another attempt may succeed.
-    """
+def _exception_chain(error):
+    """Yield an exception and its wrapped causes without looping."""
 
-    error_text = str(error).lower()
+    seen = set()
+    current = error
 
-    transient_terms = (
-        "503",
-        "502",
-        "500",
-        "service unavailable",
-        "temporarily unavailable",
-        "high demand",
-        "timeout",
-        "timed out",
-        "connection reset",
-        "connection error",
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        yield current
+        current = current.__cause__ or current.__context__
+
+
+def _status_code(error):
+    """Read an HTTP status from common SDK exception attributes."""
+
+    candidates = (
+        error,
+        getattr(error, "response", None),
     )
 
-    return any(term in error_text for term in transient_terms)
+    for candidate in candidates:
+        if candidate is None:
+            continue
+
+        for attribute in ("status_code", "status", "code"):
+            value = getattr(candidate, attribute, None)
+
+            if hasattr(value, "value"):
+                value = value.value
+
+            if isinstance(value, int) and not isinstance(value, bool):
+                return value
+
+            match = re.search(r"\b\d{3}\b", str(value or ""))
+
+            if match:
+                return int(match.group(0))
+
+    return None
+
+
+def _classify_provider_error(error):
+    """
+    Classify known provider failures.
+
+    Unknown exceptions are intentionally left unclassified so callers
+    can surface programming errors instead of masking them as API errors.
+    """
+
+    for current_error in _exception_chain(error):
+        status = _status_code(current_error)
+
+        if status == 408 or 500 <= (status or 0) <= 599:
+            return "temporary_unavailability"
+
+        error_text = re.sub(r"[_-]+", " ", str(current_error).lower())
+        error_name = type(current_error).__name__.lower()
+        error_module = type(current_error).__module__.lower()
+        provider_exception = (
+            error_module.startswith(
+                ("google.genai", "groq", "openai", "httpx", "httpcore", "requests", "urllib3")
+            )
+            or any(
+                term in error_name
+                for term in (
+                    "apierror",
+                    "apiresponse",
+                    "clienterror",
+                    "servererror",
+                    "serviceunavailable",
+                    "badrequest",
+                    "invalidargument",
+                    "notfound",
+                    "ratelimit",
+                    "authentication",
+                    "permissiondenied",
+                )
+            )
+        )
+
+        missing_secret = (
+            isinstance(current_error, KeyError)
+            and str(current_error).strip("'\" ").upper()
+            in {"GEMINI_API_KEY", "GROQ_API_KEY"}
+        )
+        secret_lookup_failure = (
+            "secret" in error_name
+            and any(term in error_name for term in ("missing", "notfound"))
+        )
+
+        if (
+            missing_secret
+            or secret_lookup_failure
+            or status in {401, 403}
+            or any(
+                term in error_text
+                for term in (
+                    "api key",
+                    "api_key",
+                    "api-key",
+                    "invalid key",
+                    "authentication",
+                    "unauthenticated",
+                    "unauthorized",
+                    "permission denied",
+                    "forbidden",
+                    "401",
+                    "403",
+                )
+            )
+            or any(
+                term in error_name
+                for term in (
+                    "authentication",
+                    "permissiondenied",
+                    "forbidden",
+                )
+            )
+        ):
+            return "authentication_configuration"
+
+        if (
+            any(
+                term in error_text
+                for term in (
+                    "model not found",
+                    "model does not exist",
+                    "unknown model",
+                    "invalid model",
+                    "unsupported model",
+                    "model not supported",
+                    "model unavailable",
+                    "no such model",
+                )
+            )
+            or (provider_exception and "not found" in error_text)
+            or "notfound" in error_name
+            or status == 404
+        ):
+            return "invalid_model"
+
+        if (
+            any(
+                term in error_text
+                for term in (
+                    "invalid request",
+                    "bad request",
+                    "invalid argument",
+                    "unsupported parameter",
+                )
+            )
+            or any(
+                term in error_name
+                for term in ("badrequest", "invalidargument")
+            )
+            or status in {400, 422}
+        ):
+            return "invalid_request"
+
+        if status == 429 or any(
+            term in error_text
+            for term in (
+                "quota",
+                "rate limit",
+                "resource exhausted",
+                "too many requests",
+                "429",
+            )
+        ) or "ratelimit" in error_name:
+            return "rate_limited"
+
+        if (
+            isinstance(current_error, (TimeoutError, ConnectionError))
+            or any(
+                term in error_name
+                for term in (
+                    "timeout",
+                    "connectionerror",
+                    "connecterror",
+                    "connecttimeout",
+                    "readtimeout",
+                    "apiconnection",
+                    "serviceunavailable",
+                    "internalserver",
+                    "badgateway",
+                    "gatewaytimeout",
+                    "servererror",
+                )
+            )
+            or (
+                provider_exception
+                and (
+                    any(
+                        term in error_text
+                        for term in (
+                            "timed out",
+                            "timeout",
+                            "deadline exceeded",
+                            "service unavailable",
+                            "temporarily unavailable",
+                            "internal server error",
+                            "bad gateway",
+                            "gateway timeout",
+                            "connection reset",
+                            "connection refused",
+                            "connection error",
+                            "connection aborted",
+                            "remote disconnected",
+                            "network is unreachable",
+                            "network error",
+                            "temporary failure",
+                        )
+                    )
+                    or re.search(r"\b5\d{2}\b", error_text)
+                )
+            )
+        ):
+            return "temporary_unavailability"
+
+        if status is not None and 400 <= status < 500:
+            return "invalid_request"
+
+    return None
+
+
+def _is_transient_error(error):
+    """Return whether a known provider failure is safe to retry/fallback."""
+
+    return _classify_provider_error(error) == "temporary_unavailability"
+
+
+def _format_provider_error(
+    provider,
+    error=None,
+    *,
+    error_type=None,
+    model_id=None,
+):
+    """Format categorized provider failures without exposing raw errors."""
+
+    error_type = error_type or (
+        _classify_provider_error(error)
+        if error is not None
+        else None
+    )
+
+    if error_type == "authentication_configuration":
+        return (
+            f"🔐 {provider} authentication or configuration failed. "
+            "Check the configured API key and model access."
+        )
+
+    if error_type == "invalid_model":
+        model_label = f" ({model_id})" if model_id else ""
+        return (
+            f"⚠️ The {provider} model{model_label} is invalid or unavailable. "
+            "Check the model configuration and access."
+        )
+
+    if error_type == "invalid_request":
+        return (
+            f"⚠️ {provider} rejected this request. "
+            "Check the request format and the selected model's supported inputs."
+        )
+
+    if error_type == "rate_limited":
+        return (
+            f"⚠️ {provider} is rate-limited or its quota is exhausted. "
+            "Please try again later or switch providers."
+        )
+
+    if error_type == "temporary_unavailability":
+        return (
+            f"⏳ {provider} is temporarily unavailable. "
+            "Please try again shortly."
+        )
+
+    if error_type == "fallback_exhausted":
+        return (
+            "⏳ Gemini and its configured fallback providers remained "
+            "temporarily unavailable after all attempts. Please try again later."
+        )
+
+    if error_type == "unsupported_provider":
+        return f"⚠️ Unsupported provider configuration: {provider}."
+
+    return f"⚠️ {provider} could not complete the request."
+
+
+def _provider_result(
+    answer,
+    provider,
+    model_id,
+    *,
+    status="success",
+    error_type=None,
+    fallback_used=False,
+    attempts=1,
+):
+    return {
+        "answer": answer,
+        "provider": provider,
+        "model_id": model_id,
+        "status": status,
+        "error_type": error_type,
+        "fallback_used": fallback_used,
+        "attempts": attempts,
+    }
+
+
+def _attempt_provider(call):
+    """Run a provider call, re-raising failures outside known API classes."""
+
+    try:
+        return True, call(), None, None
+    except Exception as error:
+        error_type = _classify_provider_error(error)
+
+        if error_type is None:
+            raise
+
+        return False, None, error, error_type
 
 
 def ask_provider(
@@ -309,272 +611,251 @@ def ask_provider(
     history=None,
     image_bytes=None,
     mime_type=None,
+    return_metadata=False,
 ):
     """
     Send a request to the selected provider.
 
-    Reliability strategy:
-
-    Gemini 3.8
-        ↓ temporary failure
-    Retry once
-        ↓ still failing
-    Gemini 3.7
-        ↓ still failing
-    Groq
+    By default this returns the answer string for compatibility. Set
+    return_metadata=True to also receive the provider/model that responded.
     """
+
+    def deliver(result):
+        return result if return_metadata else result["answer"]
+
+    def failure(
+        failed_provider,
+        failed_model,
+        error,
+        error_type,
+        *,
+        fallback_used,
+        attempts,
+    ):
+        return deliver(
+            _provider_result(
+                _format_provider_error(
+                    failed_provider,
+                    error,
+                    error_type=error_type,
+                    model_id=failed_model,
+                ),
+                failed_provider,
+                failed_model,
+                status="error",
+                error_type=error_type,
+                fallback_used=fallback_used,
+                attempts=attempts,
+            )
+        )
+
+    def success(
+        answer,
+        successful_provider,
+        successful_model,
+        *,
+        fallback_used,
+        attempts,
+    ):
+        return deliver(
+            _provider_result(
+                answer,
+                successful_provider,
+                successful_model,
+                fallback_used=fallback_used,
+                attempts=attempts,
+            )
+        )
 
     # ========================================================
     # GEMINI
     # ========================================================
 
     if provider == "Gemini":
+        gemini_config = get_model("Gemini")
+        attempts = 1
+        fallback_used = False
 
-        # ----------------------------------------------------
-        # Primary Gemini model
-        # ----------------------------------------------------
-
-        try:
-            return ask_gemini(
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: ask_gemini(
                 model_id=model_id,
                 prompt=prompt,
                 history=history,
                 image_bytes=image_bytes,
                 mime_type=mime_type,
             )
+        )
 
-        except Exception as primary_error:
-
-            print(
-                f"\n[CircuitSnap] Gemini primary error:"
-                f"\nType: {type(primary_error).__name__}"
-                f"\nMessage: {primary_error}\n"
+        if success_flag:
+            return success(
+                answer, "Gemini", model_id,
+                fallback_used=fallback_used, attempts=attempts,
             )
 
-            # ------------------------------------------------
-            # Only fallback for temporary failures
-            # ------------------------------------------------
+        if error_type != "temporary_unavailability":
+            return failure(
+                "Gemini", model_id, error, error_type,
+                fallback_used=fallback_used, attempts=attempts,
+            )
 
-            if not _is_transient_error(primary_error):
-                return _format_provider_error(
-                    provider="Gemini",
-                    error=primary_error,
-                )
+        # Retry the selected Gemini model once after a transient failure.
+        attempts += 1
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: ask_gemini(
+                model_id=model_id,
+                prompt=prompt,
+                history=history,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+            )
+        )
 
-            # ------------------------------------------------
-            # Retry primary model once
-            # ------------------------------------------------
+        if success_flag:
+            return success(
+                answer, "Gemini", model_id,
+                fallback_used=fallback_used, attempts=attempts,
+            )
 
-            try:
-                print(
-                    "[CircuitSnap] Retrying Gemini primary model..."
-                )
+        if error_type != "temporary_unavailability":
+            return failure(
+                "Gemini", model_id, error, error_type,
+                fallback_used=fallback_used, attempts=attempts,
+            )
 
-                return ask_gemini(
-                    model_id=model_id,
-                    prompt=prompt,
-                    history=history,
-                    image_bytes=image_bytes,
-                    mime_type=mime_type,
-                )
-
-            except Exception as retry_error:
-
-                print(
-                    f"\n[CircuitSnap] Gemini retry failed:"
-                    f"\nType: {type(retry_error).__name__}"
-                    f"\nMessage: {retry_error}\n"
-                )
-
-            # ------------------------------------------------
-            # Gemini fallback model
-            # ------------------------------------------------
-
-            fallback_model = "gemini-3.7-flash"
-
-            try:
-                print(
-                    f"[CircuitSnap] Trying Gemini fallback: "
-                    f"{fallback_model}"
-                )
-
-                return ask_gemini(
+        # The registry keeps these models internal to provider fallback.
+        for fallback_model in gemini_config.get("fallback_models", []):
+            fallback_used = True
+            attempts += 1
+            success_flag, answer, error, error_type = _attempt_provider(
+                lambda fallback_model=fallback_model: ask_gemini(
                     model_id=fallback_model,
                     prompt=prompt,
                     history=history,
                     image_bytes=image_bytes,
                     mime_type=mime_type,
                 )
+            )
 
-            except Exception as fallback_error:
-
-                print(
-                    f"\n[CircuitSnap] Gemini fallback failed:"
-                    f"\nType: {type(fallback_error).__name__}"
-                    f"\nMessage: {fallback_error}\n"
+            if success_flag:
+                return success(
+                    answer, "Gemini", fallback_model,
+                    fallback_used=fallback_used, attempts=attempts,
                 )
 
-            # ------------------------------------------------
-            # Final fallback → Groq
-            # ------------------------------------------------
-
-            try:
-                print(
-                    "[CircuitSnap] Falling back to Groq..."
+            if error_type != "temporary_unavailability":
+                return failure(
+                    "Gemini", fallback_model, error, error_type,
+                    fallback_used=fallback_used, attempts=attempts,
                 )
 
-                return ask_groq(
-                    model_id="qwen/qwen3.8-27b",
-                    prompt=prompt,
-                    history=history,
-                    image_bytes=image_bytes,
-                    mime_type=mime_type,
-                )
+        fallback_provider = gemini_config.get("fallback_provider")
 
-            except Exception as groq_error:
-
-                print(
-                    f"\n[CircuitSnap] Groq fallback failed:"
-                    f"\nType: {type(groq_error).__name__}"
-                    f"\nMessage: {groq_error}\n"
+        if not fallback_provider:
+            return deliver(
+                _provider_result(
+                    _format_provider_error(
+                        "Gemini", error_type="fallback_exhausted"
+                    ),
+                    "Gemini",
+                    model_id,
+                    status="error",
+                    error_type="fallback_exhausted",
+                    fallback_used=fallback_used,
+                    attempts=attempts,
                 )
+            )
 
-                return _format_provider_error(
-                    provider="Gemini",
-                    error=primary_error,
-                )
+        fallback_config = get_model(fallback_provider)
+        fallback_model = fallback_config["model_id"]
+        fallback_used = True
+        attempts += 1
+
+        fallback_call = {
+            "Groq": ask_groq,
+            "Gemini": ask_gemini,
+        }.get(fallback_provider)
+
+        if fallback_call is None:
+            raise ValueError(
+                f"Unsupported fallback provider configured: {fallback_provider}"
+            )
+
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: fallback_call(
+                model_id=fallback_model,
+                prompt=prompt,
+                history=history,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+            )
+        )
+
+        if success_flag:
+            return success(
+                answer, fallback_provider, fallback_model,
+                fallback_used=fallback_used, attempts=attempts,
+            )
+
+        if error_type != "temporary_unavailability":
+            return failure(
+                fallback_provider, fallback_model, error, error_type,
+                fallback_used=fallback_used, attempts=attempts,
+            )
+
+        return deliver(
+            _provider_result(
+                _format_provider_error(
+                    fallback_provider,
+                    error,
+                    error_type="fallback_exhausted",
+                    model_id=fallback_model,
+                ),
+                fallback_provider,
+                fallback_model,
+                status="error",
+                error_type="fallback_exhausted",
+                fallback_used=fallback_used,
+                attempts=attempts,
+            )
+        )
 
     # ========================================================
     # GROQ
     # ========================================================
 
     if provider == "Groq":
-
-        try:
-            return ask_groq(
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: ask_groq(
                 model_id=model_id,
                 prompt=prompt,
                 history=history,
                 image_bytes=image_bytes,
                 mime_type=mime_type,
             )
+        )
 
-        except Exception as exc:
-
-            print(
-                f"\n[CircuitSnap] Groq error:"
-                f"\nType: {type(exc).__name__}"
-                f"\nMessage: {exc}\n"
+        if success_flag:
+            return success(
+                answer, "Groq", model_id,
+                fallback_used=False, attempts=1,
             )
 
-            return _format_provider_error(
-                provider="Groq",
-                error=exc,
-            )
-
-    # ========================================================
-    # UNKNOWN PROVIDER
-    # ========================================================
-
-    return (
-        f"⚠️ Unsupported provider: {provider}"
-    )
-
-
-# ============================================================
-# ERROR HANDLING
-# ============================================================
-
-def _format_provider_error(provider, error):
-    """
-    Convert provider/API failures into a useful user-facing
-    message without exposing unnecessary implementation details.
-    """
-
-    error_text = str(error).lower()
-
-    # --------------------------------------------------------
-    # Authentication / API key
-    # --------------------------------------------------------
-
-    if (
-        "api key" in error_text
-        or "authentication" in error_text
-        or "unauthenticated" in error_text
-        or "401" in error_text
-    ):
-        return (
-            f"🔐 {provider} authentication failed. "
-            "Please check the configured API key."
+        return failure(
+            "Groq", model_id, error, error_type,
+            fallback_used=False, attempts=1,
         )
 
-    # --------------------------------------------------------
-    # Quota / rate limiting
-    # --------------------------------------------------------
-
-    if (
-        "quota" in error_text
-        or "rate limit" in error_text
-        or "resource exhausted" in error_text
-        or "429" in error_text
-    ):
-        return (
-            f"⚠️ {provider} is temporarily rate-limited. "
-            "Please try again in a moment or switch to another model."
+    return deliver(
+        _provider_result(
+            _format_provider_error(
+                provider,
+                error_type="unsupported_provider",
+            ),
+            provider,
+            model_id,
+            status="error",
+            error_type="unsupported_provider",
+            fallback_used=False,
+            attempts=0,
         )
-
-    # --------------------------------------------------------
-    # Temporary server / availability problems
-    # --------------------------------------------------------
-
-    if (
-        "503" in error_text
-        or "502" in error_text
-        or "500" in error_text
-        or "service unavailable" in error_text
-        or "temporarily unavailable" in error_text
-        or "high demand" in error_text
-        or "timeout" in error_text
-        or "timed out" in error_text
-    ):
-        return (
-            f"⏳ {provider} is temporarily unavailable. "
-            "Please try again in a moment."
-        )
-
-    # --------------------------------------------------------
-    # Permission / access
-    # --------------------------------------------------------
-
-    if (
-        "permission denied" in error_text
-        or "forbidden" in error_text
-        or "403" in error_text
-    ):
-        return (
-            f"🔒 {provider} denied access to the selected model. "
-            "Check that the API key or project has access to this model."
-        )
-
-    # --------------------------------------------------------
-    # Model genuinely not found
-    # --------------------------------------------------------
-
-    if (
-        "model not found" in error_text
-        or "not found" in error_text
-        or "404" in error_text
-    ):
-        return (
-            f"⚠️ The selected {provider} model could not be found. "
-            "Please verify the model configuration."
-        )
-
-    # --------------------------------------------------------
-    # Generic provider failure
-    # --------------------------------------------------------
-
-    return (
-        f"⚠️ CircuitSnap couldn't get a response from {provider}. "
-        "Please try again."
     )

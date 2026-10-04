@@ -18,6 +18,7 @@ The engine does NOT communicate with Streamlit UI directly.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -102,6 +103,22 @@ class RequestContext:
 # Intent detection
 # ============================================================
 
+EXAM_MARK_PATTERN = re.compile(r"\b(?:5|10)(?:\s*-\s*|\s+)marks?\b")
+
+
+def has_exam_mark_request(text: str) -> bool:
+    """Recognize 5- or 10-mark exam wording without matching measurements."""
+
+    for match in EXAM_MARK_PATTERN.finditer(text):
+        # In phrases such as "5 marks of voltage drop", marks describes a
+        # measurement context rather than the requested answer length.
+        if re.match(r"\s+of\b", text[match.end():]):
+            continue
+        return True
+
+    return False
+
+
 def detect_intent(user_text: str) -> str:
     """
     Detect the user's likely task from their wording.
@@ -112,10 +129,16 @@ def detect_intent(user_text: str) -> str:
     to determine intent.
     """
 
-    text = user_text.lower().strip()
+    text = " ".join(user_text.lower().split())
 
     if not text:
         return "general"
+
+    def matches_any(terms):
+        return any(
+            re.search(rf"\b{re.escape(term.strip())}\b", text)
+            for term in terms
+        )
 
     # --------------------------------------------------------
     # Exam
@@ -125,15 +148,13 @@ def detect_intent(user_text: str) -> str:
         "exam",
         "write in exam",
         "exam answer",
-        "5 marks",
-        "10 marks",
         "short note",
         "long answer",
         "define and explain",
         "advantages and applications",
     )
 
-    if any(term in text for term in exam_terms):
+    if matches_any(exam_terms) or has_exam_mark_request(text):
         return "exam"
 
     # --------------------------------------------------------
@@ -148,7 +169,7 @@ def detect_intent(user_text: str) -> str:
         "questions examiner",
     )
 
-    if any(term in text for term in viva_terms):
+    if matches_any(viva_terms):
         return "viva"
 
     # --------------------------------------------------------
@@ -167,7 +188,7 @@ def detect_intent(user_text: str) -> str:
         "lab record",
     )
 
-    if any(term in text for term in lab_terms):
+    if matches_any(lab_terms):
         return "lab"
 
     # --------------------------------------------------------
@@ -191,7 +212,7 @@ def detect_intent(user_text: str) -> str:
         "why isnt",
     )
 
-    if any(term in text for term in troubleshooting_terms):
+    if matches_any(troubleshooting_terms):
         return "troubleshoot"
 
     # --------------------------------------------------------
@@ -209,7 +230,7 @@ def detect_intent(user_text: str) -> str:
         "how do i check",
     )
 
-    if any(term in text for term in testing_terms):
+    if matches_any(testing_terms):
         return "test"
 
     # --------------------------------------------------------
@@ -228,7 +249,7 @@ def detect_intent(user_text: str) -> str:
         "numerical",
     )
 
-    if any(term in text for term in calculation_terms):
+    if matches_any(calculation_terms):
         return "calculate"
 
     # --------------------------------------------------------
@@ -244,7 +265,7 @@ def detect_intent(user_text: str) -> str:
         "which is better",
     )
 
-    if any(term in text for term in comparison_terms):
+    if matches_any(comparison_terms):
         return "compare"
 
     # --------------------------------------------------------
@@ -260,7 +281,7 @@ def detect_intent(user_text: str) -> str:
         "important points",
     )
 
-    if any(term in text for term in summary_terms):
+    if matches_any(summary_terms):
         return "summarize"
 
     # --------------------------------------------------------
@@ -278,7 +299,7 @@ def detect_intent(user_text: str) -> str:
         "name the component",
     )
 
-    if any(term in text for term in identification_terms):
+    if matches_any(identification_terms):
         return "identify"
 
     # --------------------------------------------------------
@@ -298,10 +319,59 @@ def detect_intent(user_text: str) -> str:
     "meaning of",
 )
 
-    if any(term in text for term in explain_terms):
+    if matches_any(explain_terms):
         return "explain"
 
     return "general"
+
+
+# ============================================================
+# Image context reuse
+# ============================================================
+
+IMAGE_CONTEXT_REFERENCE_PATTERNS = (
+    r"\b(?:this|that|these|those|it|its|they|them)\b",
+    r"\b(?:the|my)\s+(?:image|photo|picture|component|circuit|schematic|board|setup|resistor|capacitor|diode|transistor|sensor|ic)\b",
+    r"\b(?:shown|pictured|visible|in the (?:image|photo|picture))\b",
+    r"\b(?:pin|terminal)(?:\s+number)?\s+\w+\b",
+    r"\b(?:the|its|this|that)\s+(?:value|marking|label|part number|color code)\b",
+    r"\bwhat about\b",
+)
+
+
+def references_previous_image(user_text: str) -> bool:
+    """Return whether the request explicitly refers to prior visual context."""
+
+    text = " ".join(user_text.lower().split())
+
+    return any(
+        re.search(pattern, text)
+        for pattern in IMAGE_CONTEXT_REFERENCE_PATTERNS
+    )
+
+
+def select_request_image_context(
+    *,
+    user_text: str,
+    current_image_bytes: Optional[bytes] = None,
+    current_mime_type: Optional[str] = None,
+    previous_image_context: Optional[dict] = None,
+) -> tuple[Optional[bytes], Optional[str]]:
+    """Choose a new upload or an explicitly referenced previous image."""
+
+    if current_image_bytes is not None:
+        return current_image_bytes, current_mime_type
+
+    if (
+        previous_image_context
+        and references_previous_image(user_text)
+    ):
+        return (
+            previous_image_context.get("image_bytes"),
+            previous_image_context.get("mime_type"),
+        )
+
+    return None, None
 
 
 # ============================================================
@@ -442,6 +512,64 @@ def select_workflow(
 
 
 # ============================================================
+# Contextual follow-up routing
+# ============================================================
+
+CONTEXTUAL_FOLLOW_UP_PATTERNS = (
+    r"\b(?:go|dig)\s+deeper\b",
+    r"\b(?:give|add|provide)\s+(?:me\s+)?(?:some\s+)?(?:more|further)\s+detail\b",
+    r"\bmore\s+(?:technical\s+)?detail\b",
+    r"\b(?:what about|and what about)\b",
+    r"\b(?:in more detail|in more depth)\b",
+    r"\b(?:explain|describe)\s+(?:it|that)\s+(?:more\s+)?(?:technically|mathematically)\b",
+    r"\bexplain\s+this\s+(?:technically|mathematically)\b",
+)
+
+
+def is_contextual_follow_up(user_text: str) -> bool:
+    """Return whether the wording clearly asks to continue a prior topic."""
+
+    text = " ".join(user_text.casefold().split())
+    return any(
+        re.search(pattern, text)
+        for pattern in CONTEXTUAL_FOLLOW_UP_PATTERNS
+    )
+
+
+def infer_previous_workflow(
+    conversation_history: Optional[list[dict]],
+) -> Optional[str]:
+    """Find the most recent substantive user request's workflow."""
+
+    for message in reversed(conversation_history or []):
+        if message.get("role") != "user":
+            continue
+
+        previous_text = str(message.get("content", "")).strip()
+        if not previous_text:
+            continue
+
+        previous_intent = detect_intent(previous_text)
+        if previous_intent == "general":
+            # Continue across earlier generic follow-ups, but stop at an
+            # unrelated general request so stale topics are not inherited.
+            if is_contextual_follow_up(previous_text):
+                continue
+            return None
+
+        previous_input_type = infer_input_type_hint(
+            user_text=previous_text,
+            has_image=True,
+        )
+        return select_workflow(
+            intent=previous_intent,
+            input_type=previous_input_type,
+        )
+
+    return None
+
+
+# ============================================================
 # Detail level
 # ============================================================
 
@@ -451,7 +579,35 @@ def determine_detail_level(user_text: str) -> str:
     word limit.
     """
 
-    text = user_text.lower()
+    text = " ".join(user_text.casefold().split())
+
+    depth_phrases = (
+        "technical",
+        "technically",
+        "technical explanation",
+        "technical detail",
+        "technical details",
+        "detailed",
+        "in detail",
+        "in depth",
+        "in-depth",
+        "deep",
+        "deeply",
+        "deeper",
+        "deep dive",
+        "advanced",
+        "comprehensive",
+        "thorough",
+        "step by step",
+        "step-by-step",
+        "everything about",
+    )
+
+    if any(
+        re.search(rf"\b{re.escape(phrase)}\b", text)
+        for phrase in depth_phrases
+    ):
+        return "detailed"
 
     if any(
         phrase in text
@@ -468,26 +624,10 @@ def determine_detail_level(user_text: str) -> str:
     if any(
         phrase in text
         for phrase in (
-            "deep",
-            "deeply",
-            "detailed",
-            "in detail",
-            "in depth",
-            "thorough",
-            "everything about",
-        )
-    ):
-        return "detailed"
-
-    if any(
-        phrase in text
-        for phrase in (
             "exam answer",
             "exam",
-            "5 marks",
-            "10 marks",
         )
-    ):
+    ) or has_exam_mark_request(text):
         return "exam"
 
     return "normal"
@@ -513,9 +653,15 @@ def build_evidence_rules(
 
     return [
         "Separate visible evidence from inference.",
-        "Use CONFIRMED only for information directly supported by the image.",
-        "Use LIKELY for reasonable but uncertain interpretations.",
-        "Use CANNOT CONFIRM when the image is insufficient.",
+        "For relevant image-derived factual claims, explicitly label them CONFIRMED, LIKELY, or CANNOT CONFIRM.",
+        "Use CONFIRMED only when markings or color bands and their order are clear; use LIKELY when a candidate is supported but moderately uncertain.",
+        "If low resolution, blur, occlusion, or uncertain band count/order prevents a reliable resistor decode, use CANNOT CONFIRM, request a clearer close-up, and do not force a single value.",
+        "Use CANNOT CONFIRM for facts that require a measurement, datasheet, or information not visible in the image.",
+        "Label uncertain image-derived claims with the explicit uppercase LIKELY label; lowercase 'likely' is not a substitute and uncertain claims must not appear under a CONFIRMED heading.",
+        "Apply confidence labels only to image-derived claims, not unrelated technical background.",
+        "Never invent a standards name or number, organization, certification, citation, datasheet reference, or other source designation; include one only if explicitly provided in the request/context or known with high confidence and directly relevant.",
+        "For resistor color-band analysis, describe the observed bands and decoded nominal value or tolerance; do not add a standards citation unless the user explicitly asks for one.",
+        "Do not treat a standards/reference claim in an earlier assistant message as verification.",
         "Do not invent exact part numbers, values, pinouts, ratings, or datasheet specifications.",
         "Do not assume electrical continuity from physical proximity.",
         "Do not claim a circuit is electrically correct unless the image supports that conclusion.",
@@ -697,6 +843,7 @@ def build_context(
     user_text: str,
     has_image: bool = False,
     conversation_history: Optional[list[dict]] = None,
+    previous_visual_context: Optional[dict] = None,
 ) -> RequestContext:
     """
     Build the internal CircuitSnap request context.
@@ -709,10 +856,26 @@ def build_context(
         has_image=has_image,
     )
 
+    if has_image and input_hint == "unknown" and previous_visual_context:
+        previous_input_type = previous_visual_context.get("input_type")
+        if previous_input_type in INPUT_TYPES - {"unknown"}:
+            input_hint = previous_input_type
+
     workflow = select_workflow(
         intent=intent,
         input_type=input_hint,
     )
+
+    if (
+        not has_image
+        and intent in {"general", "explain"}
+        and is_contextual_follow_up(user_text)
+    ):
+        previous_workflow = infer_previous_workflow(
+            conversation_history
+        )
+        if previous_workflow:
+            workflow = previous_workflow
 
     detail_level = determine_detail_level(
         user_text
@@ -726,6 +889,12 @@ def build_context(
         conversation_history or []
     )
 
+    image_context = ""
+    if has_image and previous_visual_context:
+        image_context = str(
+            previous_visual_context.get("summary") or ""
+        ).strip()[:2000]
+
     return RequestContext(
         user_text=user_text.strip(),
         has_image=has_image,
@@ -733,6 +902,7 @@ def build_context(
         intent=intent,
         workflow=workflow,
         detail_level=detail_level,
+        image_context=image_context,
         conversation_context=conversation_context,
         evidence_rules=evidence_rules,
     )
@@ -833,6 +1003,40 @@ Visually determine the most appropriate input category:
 - unknown
 
 Do not blindly trust the textual hint if the image contradicts it.
+
+For relevant factual claims derived from this image, explicitly use
+the labels CONFIRMED, LIKELY, or CANNOT CONFIRM. Clearly readable
+markings or unambiguous color bands and their order may CONFIRM a
+decoded nominal value. If a candidate is supported but moderately
+uncertain, use LIKELY and state what is unclear. If low resolution,
+blur, occlusion, or uncertain band count/order prevents a reliable
+resistor decode, use CANNOT CONFIRM, request a clearer close-up, and do
+not force a single value from a merely plausible band sequence. Mark
+uncertain visual claims using the explicit uppercase LIKELY label;
+lowercase "likely" is not a substitute. Do not place uncertain claims
+under a CONFIRMED heading. An image alone cannot confirm an exact
+measured value or an unshown rating. Do not apply these labels to
+unrelated technical background or force them when no relevant
+uncertainty exists.
+
+Never invent a standards name or number, organization, certification,
+citation, datasheet reference, or other source designation. Include a
+reference only when it is explicitly provided by the request or prior
+context, or when you know it with high confidence and it is directly
+relevant. A previous assistant message does not verify a reference. If
+uncertain, omit it. For resistor color-band analysis, explain the
+observed bands and decoded nominal value or tolerance; do not add a
+standards citation unless the user explicitly asks for one.
+"""
+
+        if context.image_context:
+            image_instruction += f"""
+
+Previous visual context from this conversation:
+{context.image_context}
+
+Use this as context, then verify visual claims against the attached
+image and retain appropriate uncertainty.
 """
 
     return f"""
@@ -957,6 +1161,7 @@ def prepare_request(
     user_text: str,
     has_image: bool = False,
     conversation_history: Optional[list[dict]] = None,
+    previous_visual_context: Optional[dict] = None,
 ) -> tuple[RequestContext, str]:
     """
     Prepare a CircuitSnap request for the selected provider.
@@ -969,6 +1174,7 @@ def prepare_request(
         user_text=user_text,
         has_image=has_image,
         conversation_history=conversation_history,
+        previous_visual_context=previous_visual_context,
     )
 
     prompt = build_engine_prompt(context)
@@ -984,6 +1190,7 @@ def run_engine(
     conversation_history: Optional[list[dict]] = None,
     image_bytes: Optional[bytes] = None,
     mime_type: Optional[str] = None,
+    previous_visual_context: Optional[dict] = None,
 ):
     """
     Main CircuitSnap backend entry point.
@@ -1006,17 +1213,19 @@ def run_engine(
         user_text=user_text,
         has_image=has_image,
         conversation_history=conversation_history,
+        previous_visual_context=previous_visual_context,
     )
 
-    answer = ask_provider(
+    provider_result = ask_provider(
         provider=provider,
         model_id=model_id,
         prompt=prompt,
         image_bytes=image_bytes,
         mime_type=mime_type,
+        return_metadata=True,
     )
 
     return {
-        "answer": answer,
+        **provider_result,
         "context": context,
     }

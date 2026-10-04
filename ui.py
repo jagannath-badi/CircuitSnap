@@ -43,55 +43,22 @@ def load_styles():
 # Header
 # ============================================================
 
-def render_header(model_name=None):
-    """
-    Render the responsive CircuitSnap header.
-
-    Desktop:
-        logo + branding              model status
-
-    Mobile:
-        compact logo + branding       status dot
-    """
-
-    safe_model = html.escape(
-        str(model_name)
-    ) if model_name else ""
-
-    status_html = ""
-
-    if safe_model:
-        status_html = f"""
-        <div class="cs-status">
-            <span class="cs-status-dot"></span>
-            <span>{safe_model}</span>
-        </div>
-        """
-
+def render_header():
+    """Render the workspace identity without duplicating composer controls."""
     st.html(
-        f"""
+        """
         <header class="cs-header">
-
             <div class="cs-header-left">
-
-                <div class="cs-logo">
-                    🔧
-                </div>
-
-                <div>
+                <div class="cs-logo" aria-hidden="true">CS</div>
+                <div class="cs-brand-copy">
                     <div class="cs-header-title">
                         CircuitSnap
                     </div>
-
                     <div class="cs-header-subtitle">
-                        AI electronics assistant for ECE students
+                        Electronics workspace
                     </div>
                 </div>
-
             </div>
-
-            {status_html}
-
         </header>
         """
     )
@@ -101,26 +68,27 @@ def render_header(model_name=None):
 # Hero
 # ============================================================
 
-def render_hero():
+def render_hero(name=None):
     """Render the main empty-state hero."""
 
+    greeting = (
+        f"Welcome, {html.escape(str(name))}."
+        if name
+        else "Your electronics workspace."
+    )
+
     st.html(
-        """
+        f"""
         <section class="cs-hero">
-
-            <div class="cs-hero-icon">
-                ⚡
-            </div>
-
+            <div class="cs-eyebrow">CircuitSnap · for ECE students</div>
+            <p class="cs-hero-greeting">{greeting}</p>
             <h1 class="cs-hero-title">
-                Understand electronics.
+                Work through the circuit.
             </h1>
-
             <p class="cs-hero-text">
-                Upload a component, circuit, schematic, or lab setup —
-                or simply ask an electronics question.
+                Identify components, understand schematics, debug a lab setup,
+                or ask a question. Start with a prompt or attach an image below.
             </p>
-
         </section>
         """
     )
@@ -132,16 +100,13 @@ def render_hero():
 
 QUICK_ACTIONS = {
     "Identify a component": {
-        "icon": "🔍",
         "prompt": (
             "Identify the main electronic component in this image. "
             "Explain what it does and mention anything important "
             "that can or cannot be confirmed."
         ),
     },
-
     "Explain a circuit": {
-        "icon": "🔌",
         "prompt": (
             "Analyze this circuit and explain its main function "
             "and how the visible components work together. "
@@ -149,18 +114,14 @@ QUICK_ACTIONS = {
             "the image."
         ),
     },
-
     "Debug my lab setup": {
-        "icon": "🧪",
         "prompt": (
             "Analyze this electronics lab setup and identify "
             "any clearly visible connection or component issues. "
             "Separate confirmed observations from uncertain ones."
         ),
     },
-
     "Learn an ECE concept": {
-        "icon": "🧠",
         "prompt": (
             "Explain this electronics concept in a clear, "
             "ECE-student-friendly way. Start with the core idea "
@@ -191,13 +152,11 @@ def render_quick_actions():
     for index, (title, action) in enumerate(
         QUICK_ACTIONS.items()
     ):
-
         with columns[index % 2]:
-
             if st.button(
-                f"{action['icon']}  {title}",
+                title,
                 key=f"quick_action_{index}",
-                use_container_width=True,
+                width="stretch",
             ):
                 selected_prompt = action["prompt"]
 
@@ -229,7 +188,8 @@ def render_model_selector(
         options=model_names,
         index=default_index,
         label_visibility="collapsed",
-        key="model_selector",
+        key="selected_model",
+        help="Choose the provider for your next request.",
     )
 
 
@@ -256,56 +216,52 @@ def render_image_uploader():
 # Chat composer
 # ============================================================
 
-def render_chat_composer(model_names, current_model):
-    """Render the main CircuitSnap chat composer."""
+def render_chat_composer(
+    model_names,
+    current_model,
+    image_key="composer_image",
+    input_key="composer_message",
+):
+    """Render the fixed composer and its independent provider control."""
 
-    try:
-        default_index = model_names.index(current_model)
-    except ValueError:
-        default_index = 0
-
-    with st.form("chat_composer", clear_on_submit=True):
-
-        col_upload, col_message, col_model, col_send = st.columns(
-            [0.9, 6.8, 1.5, 0.8],
-            vertical_alignment="center",
-        )
-
-        with col_upload:
-            uploaded_file = st.file_uploader(
-                "Upload",
-                type=["png", "jpg", "jpeg", "webp"],
-                label_visibility="collapsed",
-                key="composer_image",
+    with st.container(key="cs-composer-shell"):
+        with st.form("chat_composer", clear_on_submit=False):
+            col_upload, col_message, col_send = st.columns(
+                [0.8, 8.0, 1.2],
+                vertical_alignment="center",
             )
 
-        with col_message:
-            user_input = st.text_input(
-                "Message",
-                placeholder="Ask CircuitSnap anything about electronics...",
-                label_visibility="collapsed",
-            )
+            with col_upload:
+                uploaded_file = st.file_uploader(
+                    "Attach image",
+                    type=["png", "jpg", "jpeg", "webp"],
+                    label_visibility="collapsed",
+                    key=image_key,
+                )
 
-        with col_model:
-            selected_model = st.selectbox(
-                "Model",
-                options=model_names,
-                index=default_index,
-                label_visibility="collapsed",
-                key="composer_model",
-            )
+            with col_message:
+                user_input = st.text_input(
+                    "Message",
+                    placeholder="Ask about a component, circuit, or concept…",
+                    label_visibility="collapsed",
+                    key=input_key,
+                )
 
-        with col_send:
-            submitted = st.form_submit_button(
-                "↑",
-                use_container_width=True,
-            )
+            with col_send:
+                submitted = st.form_submit_button(
+                    "Send message",
+                    width="stretch",
+                    help="Send message",
+                )
+
+        # Keep this outside the form so provider switches rerun immediately.
+        # CSS places this independent control into the same visual row.
+        render_model_selector(model_names, current_model)
 
     return (
         submitted,
         user_input,
         uploaded_file,
-        selected_model,
     )
 
 def render_image_preview(uploaded_file):
@@ -326,7 +282,7 @@ def render_image_preview(uploaded_file):
 
     st.image(
         uploaded_file,
-        use_container_width=True,
+        width="stretch",
     )
 
     st.markdown(
@@ -414,3 +370,33 @@ def render_footer():
         </div>
         """
     )
+
+
+def render_chat_message(message):
+    """Render one conversation message, including provider status metadata."""
+
+    role = message.get("role", "assistant")
+    content = message.get("content", "")
+    kind = message.get("kind", "text")
+    metadata = message.get("metadata") or {}
+
+    author = "You" if role == "user" else "CircuitSnap"
+    with st.chat_message(author):
+        author_class = "cs-message-user" if role == "user" else "cs-message-assistant"
+        st.markdown(
+            f'<div class="cs-message-author {author_class}">{author}</div>',
+            unsafe_allow_html=True,
+        )
+
+        if kind == "image":
+            st.image(content, width="stretch")
+        elif metadata.get("status") == "error":
+            st.error(content)
+        else:
+            st.markdown(content)
+
+        if metadata.get("fallback_used"):
+            actual_provider = html.escape(
+                str(metadata.get("provider") or "another provider")
+            )
+            st.caption(f"Fallback response · {actual_provider}")
