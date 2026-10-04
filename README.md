@@ -1,8 +1,15 @@
+
 # CircuitSnap 🔧
 
 > AI-powered electronics assistant for ECE students.
 
- **See → Understand → Explore → Learn**
+CircuitSnap is an AI-powered electronics assistant built specifically for Electronics and Telecommunication Engineering students.
+
+It helps students understand electronic components, circuits, schematics, physical lab setups, and ECE concepts through a single conversational interface with image analysis support.
+
+The core experience is:
+
+**See → Understand → Explore → Learn**
 
 ---
 
@@ -10,10 +17,9 @@
 
 ### 🔍 Identify Components
 
-Upload a photo of an electronic component and ask CircuitSnap to identify
-what can be reliably determined from the image.
+Upload an image of an electronic component and ask CircuitSnap what can be reliably determined from the image.
 
-It can explain:
+It can help with:
 
 - Component type
 - Function
@@ -22,64 +28,85 @@ It can explain:
 - Typical role in a circuit
 - Important precautions
 
-CircuitSnap avoids inventing exact part numbers or specifications when
-the image does not provide enough evidence.
+CircuitSnap is designed to avoid inventing exact part numbers or specifications when the available evidence is insufficient.
 
 ---
 
 ### 🔌 Explain Circuits
 
-Upload a circuit, schematic, or electronics setup.
+Upload a circuit diagram, schematic, breadboard, or electronics setup.
 
-CircuitSnap can explain:
+CircuitSnap can help explain:
 
 - Visible components
 - Visible connections
 - Circuit purpose
 - Basic working
-- Important relationships between components
+- Relationships between components
+- Relevant electronics concepts
 
-It distinguishes between what is clearly visible and what cannot be
-confirmed from the image.
+It distinguishes between what is clearly visible and what cannot be confirmed from the image.
 
 ---
 
-### 🧪 Debug a Lab Setup
+### 🧪 Troubleshoot Electronics
 
-Use an image of an electronics lab setup to look for clearly visible
-issues such as:
+Use CircuitSnap to investigate possible problems in an electronics setup.
 
-- Incorrect-looking wiring
+It can help identify:
+
+- Visible wiring concerns
 - Polarity concerns
-- Component placement problems
-- Possible connection issues
+- Component placement issues
+- Possible connection problems
+- Areas that require measurement or further inspection
 
-The system does not automatically claim that a circuit is electrically
-correct simply because the physical arrangement looks reasonable.
+A physical arrangement that looks correct is not automatically treated as proof of electrical continuity or circuit correctness.
+
+---
+
+### 🧰 Test Components
+
+CircuitSnap can provide practical guidance for checking common electronic components with tools such as a multimeter.
+
+The response can include:
+
+- Test procedure
+- Expected behavior
+- Measurements to take
+- Interpretation of results
+- Safety and handling precautions
+
+Actual measurements should always be verified with appropriate laboratory equipment.
 
 ---
 
 ### 🧠 Learn ECE Concepts
 
-Ask electronics questions in natural language.
+Ask electronics questions naturally.
 
-CircuitSnap can adapt its explanation depending on the request:
+CircuitSnap adapts the explanation to the request, for example:
 
 - Simple explanation
 - Technical explanation
-- Step-by-step calculation
+- Step-by-step derivation
+- Numerical calculation
+- Comparison
+- Practical explanation
 - Exam-style answer
-- Practical/lab explanation
+- Viva preparation
+
+Follow-up questions can continue from the existing conversation instead of starting from zero.
 
 ---
 
 ## 🎯 Accuracy First
 
-CircuitSnap is designed around a simple rule:
+CircuitSnap is designed around a simple principle:
 
 > **Accuracy is more important than confidence.**
 
-When analyzing an image, the assistant should distinguish between:
+When analyzing an image, the assistant can distinguish between:
 
 **CONFIRMED**
 
@@ -91,21 +118,24 @@ A reasonable interpretation that is not completely certain.
 
 **CANNOT CONFIRM**
 
-The image does not provide enough evidence.
+The available image or information is insufficient to determine the claim reliably.
 
-CircuitSnap should not invent:
+CircuitSnap is designed not to invent:
 
 - Exact component part numbers
-- Component values
-- Pin numbers
-- Pinouts
+- Unsupported component values
+- Pin numbers or pinouts
 - Electrical connections
 - Ratings
-- Datasheet specifications
+- Measurements
 - PCB traces
 - Circuit topology
+- Datasheet specifications
+- Unsupported standards or references
 
-When evidence is insufficient, it should say so.
+Visible physical arrangement is not automatically treated as proof of electrical connectivity.
+
+For important engineering decisions, measurements and component documentation should still be used for verification.
 
 ---
 
@@ -113,33 +143,50 @@ When evidence is insufficient, it should say so.
 
 CircuitSnap currently supports:
 
-| Model  | Provider | Purpose        |
-| ------ | -------- | -------------- |
-| Gemini | Google   | Recommended    |
-| Groq   | Groq     | Fast responses |
+| Model  | Provider | Vision |
+| ------ | -------- | ------ |
+| Gemini | Google   | ✅     |
+| Groq   | Groq     | ✅     |
 
-Both are used through CircuitSnap's provider layer.
+The model can be changed from the CircuitSnap composer without intentionally discarding the conversation history.
 
-The model can be changed without intentionally discarding the
-conversation history.
+CircuitSnap uses a provider layer so the application can work with supported AI providers through the same interface.
 
 ---
 
-## 🏗️ Architecture
+## 🧩 How CircuitSnap Works
 
 ```text
-                     CircuitSnap
-                          │
-                       app.py
-                          │
-        ┌─────────────────┼─────────────────┐
-        │                 │                 │
-        ▼                 ▼                 ▼
-      ui.py           models.py        providers.py
-        │                 │                 │
-        ▼                 ▼                 ├── Gemini
-   UI & styling      Model registry         └── Groq
-                          │
-                          ▼
-                     prompts.py
+                         CircuitSnap
+                              │
+                            app.py
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+      ui.py                engine.py            models.py
+        │                     │                     │
+        │                     ▼                     │
+        │              Request understanding       │
+        │              Intent / workflow           │
+        │              Context handling             │
+        │              Evidence rules               │
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ▼
+                        providers.py
+                         ┌────┴────┐
+                         ▼         ▼
+                      Gemini     Groq
+                         │         │
+                         └────┬────┘
+                              ▼
+                           Response
+                              │
+                              ▼
+                           Student
+```
+
+```
+
 ```
