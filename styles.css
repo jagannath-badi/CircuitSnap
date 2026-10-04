@@ -1,0 +1,1751 @@
+/* ============================================================
+   CircuitSnap — Responsive UI System
+   ============================================================ */
+
+:root {
+    --cs-bg: #070b10;
+    --cs-bg-soft: #0b1118;
+
+    --cs-surface: #101821;
+    --cs-surface-2: #151f2a;
+    --cs-surface-3: #1a2632;
+
+    --cs-border: #24313d;
+    --cs-border-bright: #304454;
+
+    --cs-text: #f5f7fa;
+    --cs-text-soft: #aab6c2;
+    --cs-text-muted: #6f7e8c;
+
+    --cs-cyan: #38bdf8;
+    --cs-cyan-bright: #67d5ff;
+    --cs-green: #22c55e;
+    --cs-orange: #f59e0b;
+
+    --cs-radius-sm: 8px;
+    --cs-radius-md: 12px;
+    --cs-radius-lg: 18px;
+
+    --cs-content-width: 860px;
+}
+
+
+/* ============================================================
+   GLOBAL
+   ============================================================ */
+
+.stApp {
+    background:
+        radial-gradient(
+            circle at 50% -12%,
+            rgba(56, 189, 248, 0.075),
+            transparent 34%
+        ),
+        linear-gradient(
+            180deg,
+            #080d13 0%,
+            #070b10 48%,
+            #060a0f 100%
+        );
+
+    color: var(--cs-text);
+    overflow-x: hidden;
+}
+
+
+/* Main Streamlit content area */
+
+.block-container {
+    width: calc(100% - 40px);
+    max-width: var(--cs-content-width);
+
+    margin: 0 auto;
+
+    padding-top: 1.25rem !important;
+    padding-bottom: 7rem !important;
+}
+
+
+/* Prevent Streamlit's default text colors from fighting theme */
+
+.stApp p,
+.stApp span,
+.stApp label,
+.stApp div {
+    color: var(--cs-text);
+}
+
+
+/* ============================================================
+   STREAMLIT CHROME
+   CircuitSnap owns the application header.
+   ============================================================ */
+
+/* Hide Streamlit's native top header / Deploy bar */
+header[data-testid="stHeader"] {
+    display: none !important;
+}
+
+/* Hide Streamlit menu */
+#MainMenu {
+    display: none !important;
+}
+
+/* Hide Streamlit footer */
+footer {
+    display: none !important;
+}
+
+/* Remove the space reserved for the native header */
+[data-testid="stAppViewContainer"] {
+    padding-top: 0 !important;
+}
+
+
+/* ============================================================
+   MAIN CONTENT POSITION
+   ============================================================ */
+
+.block-container {
+    width: calc(100% - 40px);
+    max-width: var(--cs-content-width);
+
+    margin: 0 auto;
+
+    padding-top: 1.2rem !important;
+    padding-bottom: 7rem !important;
+}
+
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+
+.cs-header {
+    position: relative;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    min-height: 70px;
+
+    padding: 14px 20px;
+    margin-bottom: 1.15rem;
+
+    box-sizing: border-box;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(19, 32, 43, 0.98),
+            rgba(8, 16, 23, 0.98)
+        );
+
+    border: 1px solid rgba(56, 189, 248, 0.16);
+    border-radius: 16px;
+
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.045);
+
+    overflow: hidden;
+}
+
+
+/* Top cyan highlight */
+
+.cs-header::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: 8%;
+
+    width: 84%;
+    height: 1px;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(56, 189, 248, 0.6),
+            transparent
+        );
+}
+
+
+/* Bottom accent */
+
+.cs-header::after {
+    content: "";
+
+    position: absolute;
+
+    left: 20px;
+    bottom: 0;
+
+    width: 90px;
+    height: 2px;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--cs-cyan),
+            transparent
+        );
+
+    box-shadow:
+        0 0 14px rgba(56, 189, 248, 0.55);
+}
+
+
+/* Header left */
+
+.cs-header-left {
+    display: flex;
+    align-items: center;
+
+    gap: 13px;
+
+    min-width: 0;
+}
+
+
+/* Logo */
+
+.cs-logo {
+    width: 42px;
+    height: 42px;
+
+    flex: 0 0 auto;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            145deg,
+            #182633,
+            #101820
+        );
+
+    border: 1px solid #2b4354;
+    border-radius: 11px;
+
+    font-size: 20px;
+
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 5px 18px rgba(0, 0, 0, 0.22);
+}
+
+
+/* Brand */
+
+.cs-header-title {
+    font-size: 1.02rem;
+    font-weight: 750;
+
+    line-height: 1.15;
+
+    letter-spacing: -0.02em;
+}
+
+
+.cs-header-subtitle {
+    margin-top: 4px;
+
+    color: var(--cs-text-soft) !important;
+
+    font-size: 0.80rem;
+    line-height: 1.25;
+
+    white-space: nowrap;
+}
+
+
+/* Model/status */
+
+.cs-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    flex: 0 0 auto;
+
+    padding: 7px 10px;
+
+    background: rgba(21, 31, 42, 0.88);
+
+    border: 1px solid var(--cs-border);
+    border-radius: 999px;
+
+    color: var(--cs-text-soft) !important;
+
+    font-size: 0.68rem;
+    white-space: nowrap;
+}
+
+
+.cs-status-dot {
+    width: 7px;
+    height: 7px;
+
+    flex: 0 0 auto;
+
+    border-radius: 50%;
+
+    background: var(--cs-green);
+
+    box-shadow:
+        0 0 10px rgba(34, 197, 94, 0.65);
+}
+
+
+/* ============================================================
+   HERO
+   ============================================================ */
+
+.cs-hero {
+    position: relative;
+
+    text-align: center;
+
+    padding:
+        2.2rem
+        1rem
+        1.2rem;
+}
+
+
+.cs-hero-icon {
+    width: 48px;
+    height: 48px;
+
+    margin: 0 auto 1rem;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        linear-gradient(
+            145deg,
+            #162735,
+            #0d151d
+        );
+
+    border: 1px solid rgba(56, 189, 248, 0.18);
+    border-radius: 14px;
+
+    font-size: 21px;
+
+    box-shadow:
+        0 10px 28px rgba(0, 0, 0, 0.25);
+}
+
+
+.cs-hero-title {
+    margin: 0;
+
+    font-size: clamp(
+        1.9rem,
+        4vw,
+        2.45rem
+    );
+
+    line-height: 1.1;
+
+    letter-spacing: -0.045em;
+
+    font-weight: 800;
+}
+
+
+.cs-hero-text {
+    max-width: 650px;
+
+    margin:
+        0.85rem
+        auto
+        0;
+
+    color: var(--cs-text-soft) !important;
+
+    font-size: 0.9rem;
+    line-height: 1.65;
+}
+
+
+/* ============================================================
+   SECTION LABEL
+   ============================================================ */
+
+.cs-section-label {
+    margin:
+        0.9rem
+        0
+        0.5rem;
+
+    color: var(--cs-text-muted) !important;
+
+    font-size: 0.68rem;
+    font-weight: 700;
+
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+}
+
+
+/* ============================================================
+   STREAMLIT BUTTONS / QUICK ACTIONS
+   ============================================================ */
+
+.stButton > button,
+button[kind="formSubmit"] {
+    min-height: 44px;
+
+    padding:
+        0.65rem
+        0.9rem;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(21, 31, 42, 0.96),
+            rgba(16, 24, 33, 0.96)
+        ) !important;
+
+    border: 1px solid var(--cs-border) !important;
+    border-radius: var(--cs-radius-md) !important;
+
+    color: var(--cs-text) !important;
+
+    font-size: 0.82rem !important;
+
+    transition:
+        border-color 160ms ease,
+        background 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+
+.stButton > button:hover,
+button[kind="formSubmit"]:hover {
+    background:
+        var(--cs-surface-2) !important;
+
+    border-color:
+        rgba(56, 189, 248, 0.38) !important;
+
+    transform: translateY(-1px);
+
+    box-shadow:
+        0 7px 20px rgba(0, 0, 0, 0.24);
+}
+
+
+/* Quick action text */
+
+.stButton > button {
+    white-space: pre-line !important;
+
+    text-align: left !important;
+
+    justify-content: flex-start !important;
+
+    line-height: 1.4 !important;
+}
+
+
+.stButton > button p {
+    width: 100% !important;
+
+    white-space: pre-line !important;
+
+    text-align: left !important;
+}
+
+
+/* ============================================================
+   MODEL SELECTOR
+   ============================================================ */
+
+div[data-testid="stSelectbox"] {
+    margin-bottom: 0.8rem;
+}
+
+
+div[data-testid="stSelectbox"] > div > div {
+    min-height: 2.6rem;
+
+    background:
+        var(--cs-surface-2);
+
+    border:
+        1px solid var(--cs-border);
+
+    border-radius:
+        var(--cs-radius-md);
+}
+
+
+/* ============================================================
+   NAME INPUT
+   ============================================================ */
+
+div[data-testid="stTextInput"] input {
+    background:
+        var(--cs-surface-2);
+
+    border:
+        1px solid var(--cs-border);
+
+    border-radius:
+        var(--cs-radius-sm);
+
+    color:
+        var(--cs-text);
+}
+
+
+div[data-testid="stTextInput"] input:focus {
+    border-color:
+        var(--cs-cyan);
+
+    box-shadow:
+        0 0 0 2px rgba(56, 189, 248, 0.10);
+}
+
+
+/* ============================================================
+   FORM
+   ============================================================ */
+
+div[data-testid="stForm"] {
+    width: 100%;
+    max-width: 650px;
+
+    margin:
+        0 auto;
+}
+
+
+/* ============================================================
+   IMAGE UPLOADER
+   ============================================================ */
+
+div[data-testid="stFileUploader"] {
+    width: 100%;
+
+    margin-top: 0.5rem;
+}
+
+
+div[data-testid="stFileUploader"] section {
+    background:
+        rgba(16, 24, 33, 0.72) !important;
+
+    border:
+        1px dashed rgba(56, 189, 248, 0.22) !important;
+
+    border-radius:
+        var(--cs-radius-lg) !important;
+}
+
+
+div[data-testid="stFileUploader"] section:hover {
+    border-color:
+        rgba(56, 189, 248, 0.48) !important;
+}
+
+div[data-testid="stFileUploader"] small {
+    font-size: 0.78rem !important;
+}
+
+
+/* ============================================================
+   IMAGE PREVIEW
+   ============================================================ */
+
+.cs-image-preview {
+    width: 100%;
+
+    margin:
+        0.6rem 0
+        1rem;
+
+    padding: 6px;
+
+    background:
+        var(--cs-surface);
+
+    border:
+        1px solid var(--cs-border);
+
+    border-radius:
+        var(--cs-radius-lg);
+
+    overflow: hidden;
+}
+
+
+/* ============================================================
+   CHAT
+   ============================================================ */
+
+div[data-testid="stChatMessage"] {
+    padding:
+        0.9rem
+        1rem;
+
+    border-radius:
+        var(--cs-radius-lg);
+}
+
+
+div[data-testid="stChatMessage"] p {
+    font-size: 0.9rem;
+    line-height: 1.65;
+}
+
+
+/* Chat input */
+
+div[data-testid="stChatInput"] {
+    border-radius: 15px;
+}
+
+
+div[data-testid="stChatInput"] textarea {
+    font-size: 0.88rem !important;
+}
+
+
+/* ============================================================
+   STATUS CARD
+   ============================================================ */
+
+.cs-card {
+    width: 100%;
+
+    box-sizing: border-box;
+
+    margin:
+        0.7rem 0;
+
+    padding:
+        0.95rem
+        1rem;
+
+    background:
+        var(--cs-surface);
+
+    border:
+        1px solid var(--cs-border);
+
+    border-radius:
+        var(--cs-radius-md);
+}
+
+
+.cs-card-title {
+    margin-bottom: 0.3rem;
+
+    font-weight: 700;
+}
+
+
+.cs-card-text {
+    color: var(--cs-text-soft) !important;
+
+    font-size: 0.82rem;
+    line-height: 1.55;
+}
+
+
+.cs-confirmed {
+    border-color:
+        rgba(34, 197, 94, 0.35);
+}
+
+
+.cs-likely {
+    border-color:
+        rgba(245, 158, 11, 0.35);
+}
+
+
+.cs-cannot-confirm {
+    border-color:
+        rgba(170, 182, 194, 0.25);
+}
+
+
+/* ============================================================
+   DIVIDER
+   ============================================================ */
+
+.cs-divider {
+    width: 100%;
+    height: 1px;
+
+    margin:
+        1rem 0;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            var(--cs-border),
+            transparent
+        );
+}
+
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.cs-footer {
+    padding:
+        1rem
+        0
+        0.5rem;
+
+    text-align: center;
+
+    color:
+        var(--cs-text-muted) !important;
+
+    font-size: 0.75rem;
+    line-height: 1.7;
+}
+
+
+.cs-footer strong {
+    color:
+        var(--cs-text-soft) !important;
+}
+
+
+/* ============================================================
+   ONBOARDING
+   ============================================================ */
+
+.cs-onboard-wrap {
+    max-width: 650px;
+
+    margin:
+        3rem
+        auto
+        1.4rem;
+
+    text-align: center;
+}
+
+
+.cs-onboard-wrap h1 {
+    margin-bottom: 0.7rem;
+
+    font-size:
+        clamp(
+            1.9rem,
+            5vw,
+            2.55rem
+        );
+
+    letter-spacing: -0.045em;
+}
+
+
+.cs-onboard-wrap p {
+    margin: 0;
+
+    color:
+        var(--cs-text-soft) !important;
+
+    font-size: 0.9rem;
+
+    line-height: 1.6;
+}
+
+
+/* ============================================================
+   TABLET — <= 900px
+   ============================================================ */
+
+@media (max-width: 900px) {
+
+    .block-container {
+        width: calc(100% - 32px);
+
+        max-width: 680px;
+
+        padding-top:
+            1rem !important;
+
+        padding-bottom:
+            6rem !important;
+    }
+
+
+    .cs-header {
+        min-height: 64px;
+
+        padding:
+            11px 15px;
+
+        margin-bottom:
+            0.8rem;
+    }
+
+
+    .cs-logo {
+        width: 38px;
+        height: 38px;
+
+        font-size: 18px;
+    }
+
+
+    .cs-header-subtitle {
+        font-size: 0.67rem;
+    }
+
+
+    .cs-status {
+        font-size: 0.62rem;
+    }
+
+
+    .cs-hero {
+        padding:
+            2rem
+            0.8rem
+            1.2rem;
+    }
+
+
+    .cs-hero-title {
+        font-size:
+            clamp(
+                1.75rem,
+                5vw,
+                2.15rem
+            );
+    }
+
+
+    .cs-hero-text {
+        max-width: 570px;
+
+        font-size: 0.84rem;
+    }
+
+
+    div[data-testid="stForm"] {
+        max-width: 100%;
+    }
+}
+
+
+/* ============================================================
+   DESKTOP — 901px to 1440px
+   ============================================================ */
+
+@media (min-width: 901px) and (max-width: 1440px) {
+
+    .block-container {
+        width:
+            calc(100% - 48px);
+
+        max-width:
+            820px;
+
+        padding-top:
+            1.6rem !important;
+
+        padding-bottom:
+            7rem !important;
+    }
+
+
+    .cs-header {
+        min-height: 68px;
+
+        padding:
+            14px 20px;
+    }
+
+
+    .cs-hero {
+        padding:
+            2.2rem
+            1rem
+            1.4rem;
+    }
+}
+
+
+/* ============================================================
+   LARGE DESKTOP — > 1440px
+   ============================================================ */
+
+@media (min-width: 1441px) {
+
+    .block-container {
+        width: 100%;
+
+        max-width:
+            900px;
+
+        padding-top:
+            1.8rem !important;
+
+        padding-bottom:
+            8rem !important;
+    }
+
+
+    .cs-header {
+        min-height: 72px;
+
+        padding:
+            16px 22px;
+
+        margin-bottom:
+            1.25rem;
+    }
+
+
+    .cs-hero {
+        padding-top:
+            3rem;
+    }
+
+
+    .cs-hero-title {
+        font-size:
+            2.5rem;
+    }
+
+
+    .cs-hero-text {
+        font-size:
+            0.92rem;
+    }
+}
+
+
+/* ============================================================
+   MOBILE — 381px to 600px
+   ============================================================ */
+
+@media (min-width: 381px) and (max-width: 600px) {
+
+    .block-container {
+        width:
+            calc(100% - 24px);
+
+        max-width: none;
+
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+
+        padding-top:
+            0.65rem !important;
+
+        padding-bottom:
+            5.5rem !important;
+    }
+
+
+    .cs-header {
+        min-height: 56px;
+
+        padding:
+            8px 10px;
+
+        margin-bottom:
+            0.5rem;
+
+        border-radius:
+            13px;
+    }
+
+
+    .cs-header-left {
+        gap: 8px;
+    }
+
+
+    .cs-logo {
+        width: 33px;
+        height: 33px;
+
+        border-radius: 9px;
+
+        font-size: 16px;
+    }
+
+
+    .cs-header-title {
+        font-size:
+            0.88rem;
+    }
+
+
+    .cs-header-subtitle {
+        max-width:
+            210px;
+
+        margin-top: 2px;
+
+        font-size:
+            0.57rem;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+    }
+
+
+    .cs-status {
+        padding:
+            6px 7px;
+
+        font-size: 0;
+    }
+
+
+    .cs-status-dot {
+        width: 7px;
+        height: 7px;
+    }
+
+
+    .cs-hero {
+        padding:
+            1.4rem
+            0.25rem
+            0.9rem;
+    }
+
+
+    .cs-hero-icon {
+        width: 40px;
+        height: 40px;
+
+        margin-bottom:
+            0.75rem;
+
+        border-radius:
+            11px;
+
+        font-size:
+            18px;
+    }
+
+
+    .cs-hero-title {
+        font-size:
+            clamp(
+                1.4rem,
+                7vw,
+                1.7rem
+            );
+    }
+
+
+    .cs-hero-text {
+        margin-top:
+            0.6rem;
+
+        font-size:
+            0.76rem;
+
+        line-height:
+            1.55;
+    }
+
+
+    .cs-section-label {
+        margin-top:
+            0.65rem;
+
+        font-size:
+            0.61rem;
+    }
+
+
+    .stButton > button {
+        min-height:
+            40px;
+
+        padding:
+            0.55rem
+            0.7rem;
+
+        font-size:
+            0.72rem !important;
+    }
+
+
+    div[data-testid="stSelectbox"] {
+        margin-bottom:
+            0.55rem;
+    }
+
+
+    div[data-testid="stSelectbox"] > div > div {
+        min-height:
+            2.25rem;
+    }
+
+
+    div[data-testid="stChatMessage"] {
+        padding:
+            0.65rem
+            0.7rem;
+    }
+
+
+    div[data-testid="stChatMessage"] p {
+        font-size:
+            0.78rem;
+
+        line-height:
+            1.5;
+    }
+
+
+    div[data-testid="stChatInput"] textarea {
+        font-size:
+            0.76rem !important;
+    }
+
+
+    .cs-footer {
+        font-size:
+            0.57rem;
+    }
+
+
+    .cs-onboard-wrap {
+        margin-top:
+            2rem;
+    }
+}
+
+
+/* ============================================================
+   SMALL MOBILE — <= 380px
+   ============================================================ */
+
+@media (max-width: 380px) {
+
+    .block-container {
+        width:
+            calc(100% - 16px);
+
+        max-width: none;
+
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+
+        padding-top:
+            0.45rem !important;
+
+        padding-bottom:
+            5rem !important;
+    }
+
+
+    .cs-header {
+        min-height:
+            52px;
+
+        padding:
+            7px 8px;
+
+        border-radius:
+            11px;
+    }
+
+
+    .cs-header-left {
+        gap:
+            7px;
+    }
+
+
+    .cs-logo {
+        width:
+            30px;
+
+        height:
+            30px;
+
+        font-size:
+            14px;
+    }
+
+
+    .cs-header-title {
+        font-size:
+            0.79rem;
+    }
+
+
+    .cs-header-subtitle {
+        display: none;
+    }
+
+
+    .cs-status {
+        padding:
+            5px 6px;
+    }
+
+
+    .cs-status-dot {
+        width:
+            6px;
+
+        height:
+            6px;
+    }
+
+
+    .cs-hero {
+        padding:
+            1.1rem
+            0
+            0.7rem;
+    }
+
+
+    .cs-hero-icon {
+        width:
+            36px;
+
+        height:
+            36px;
+
+        margin-bottom:
+            0.6rem;
+
+        font-size:
+            16px;
+    }
+
+
+    .cs-hero-title {
+        font-size:
+            1.28rem;
+    }
+
+
+    .cs-hero-text {
+        font-size:
+            0.7rem;
+    }
+
+
+    .stButton > button {
+        min-height:
+            38px;
+
+        font-size:
+            0.68rem !important;
+    }
+
+
+    div[data-testid="stChatMessage"] p {
+        font-size:
+            0.73rem;
+    }
+}
+
+/* ============================================================
+   CHAT COMPOSER — FIXED FOOTER
+   ============================================================ */
+
+/*
+   The composer is a normal Streamlit form containing:
+   + upload | message | model | send
+
+   We specifically target the form containing the file uploader
+   so the onboarding form is NOT affected.
+*/
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"]) {
+    position: fixed !important;
+
+    left: 50% !important;
+    bottom: 20px !important;
+
+    transform: translateX(-50%) !important;
+
+    width: min(
+        var(--cs-content-width),
+        calc(100vw - 48px)
+    ) !important;
+
+    max-width: var(--cs-content-width) !important;
+
+    margin: 0 !important;
+    padding: 0.55rem 0.65rem !important;
+
+    box-sizing: border-box !important;
+
+    background:
+        rgba(15, 22, 30, 0.97) !important;
+
+    border:
+        1px solid rgba(56, 189, 248, 0.16) !important;
+
+    border-radius: 16px !important;
+
+    box-shadow:
+        0 14px 40px rgba(0, 0, 0, 0.42),
+        0 0 0 1px rgba(255, 255, 255, 0.025);
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    z-index: 9999 !important;
+}
+
+
+/* ============================================================
+   COMPOSER COLUMNS
+   ============================================================ */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+[data-testid="column"] {
+    display: flex !important;
+
+    align-items: center !important;
+
+    min-width: 0 !important;
+
+    padding: 0 0.18rem !important;
+}
+
+
+/* + button column */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+[data-testid="column"]:nth-child(1) {
+    flex: 0 0 3rem !important;
+
+    width: 3rem !important;
+}
+
+
+/* message column */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+[data-testid="column"]:nth-child(2) {
+    flex: 1 1 auto !important;
+
+    width: auto !important;
+
+    min-width: 0 !important;
+}
+
+
+/* model column */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+[data-testid="column"]:nth-child(3) {
+    flex: 0 0 7.2rem !important;
+
+    width: 7.2rem !important;
+}
+
+
+/* send column */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+[data-testid="column"]:nth-child(4) {
+    flex: 0 0 3rem !important;
+
+    width: 3rem !important;
+}
+
+
+/* ============================================================
+   UPLOAD — COMPACT "+" CONTROL
+   ============================================================ */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] {
+    width: 2.45rem !important;
+    height: 2.45rem !important;
+    min-height: 2.45rem !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: hidden !important;
+}
+
+
+/* Collapse the actual uploader drop zone */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] section {
+    width: 2.45rem !important;
+    height: 2.45rem !important;
+    min-height: 2.45rem !important;
+    max-height: 2.45rem !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: hidden !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+
+    background: transparent !important;
+    border: none !important;
+}
+
+
+/* Hide all uploader instructions */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"]
+[data-testid="stFileUploaderDropzoneInstructions"] {
+    display: none !important;
+}
+
+
+/* Hide helper text */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] small {
+    display: none !important;
+}
+
+
+/* Hide the file-name area when empty */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"]
+[data-testid="stFileUploaderFile"] {
+    display: none !important;
+}
+
+
+/* The actual button */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] button {
+    width: 2.45rem !important;
+    height: 2.45rem !important;
+
+    min-width: 2.45rem !important;
+    min-height: 2.45rem !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 10px !important;
+
+    background: var(--cs-surface-2) !important;
+
+    font-size: 0 !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+
+/* Remove Streamlit upload icon */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] button svg {
+    display: none !important;
+}
+
+
+/* Show only + */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] button::after {
+    content: "+" !important;
+
+    font-size: 1.35rem !important;
+    font-weight: 300 !important;
+
+    line-height: 1 !important;
+
+    color: var(--cs-text-soft) !important;
+}
+
+/* ============================================================
+   REMOVE EXTRA UPLOADER HEIGHT
+   ============================================================ */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stFileUploader"] > div {
+    height: 2.45rem !important;
+    min-height: 2.45rem !important;
+    max-height: 2.45rem !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    overflow: hidden !important;
+}
+
+
+/* ============================================================
+   MESSAGE INPUT
+   ============================================================ */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stTextInput"] {
+    width: 100% !important;
+
+    margin: 0 !important;
+}
+
+
+/* Remove Streamlit's label space */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stTextInput"] label {
+    display: none !important;
+}
+
+
+/* Actual input */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stTextInput"] input {
+    width: 100% !important;
+
+    height: 2.45rem !important;
+
+    box-sizing: border-box !important;
+
+    padding:
+        0 0.75rem !important;
+
+    background:
+        rgba(21, 31, 42, 0.72) !important;
+
+    border:
+        1px solid transparent !important;
+
+    border-radius: 10px !important;
+
+    box-shadow: none !important;
+
+    color: var(--cs-text) !important;
+
+    font-size: 0.88rem !important;
+}
+
+
+/* Placeholder */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stTextInput"] input::placeholder {
+    color:
+        var(--cs-text-muted) !important;
+}
+
+
+/* Input focus */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stTextInput"] input:focus {
+    border-color:
+        rgba(56, 189, 248, 0.28) !important;
+
+    box-shadow:
+        0 0 0 2px rgba(56, 189, 248, 0.06) !important;
+}
+
+
+/* ============================================================
+   MODEL SELECTOR
+   ============================================================ */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stSelectbox"] {
+    width: 100% !important;
+
+    margin: 0 !important;
+}
+
+
+/* Hide model label */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stSelectbox"] label {
+    display: none !important;
+}
+
+
+/* Selector */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-testid="stSelectbox"] > div {
+    min-height: 2.45rem !important;
+
+    width: 100% !important;
+}
+
+
+/* BaseWeb select */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-baseweb="select"] {
+    min-height: 2.45rem !important;
+
+    background:
+        rgba(21, 31, 42, 0.90) !important;
+
+    border:
+        1px solid var(--cs-border) !important;
+
+    border-radius: 10px !important;
+}
+
+
+/* Inner selector */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+div[data-baseweb="select"] > div {
+    min-height: 2.45rem !important;
+
+    background: transparent !important;
+
+    border: none !important;
+}
+
+
+/* ============================================================
+   SEND BUTTON
+   ============================================================ */
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+button[kind="formSubmit"] {
+    width: 2.45rem !important;
+
+    height: 2.45rem !important;
+
+    min-height: 2.45rem !important;
+
+    padding: 0 !important;
+
+    margin: 0 !important;
+
+    border:
+        1px solid var(--cs-border) !important;
+
+    border-radius: 10px !important;
+
+    background:
+        rgba(21, 31, 42, 0.90) !important;
+
+    color: var(--cs-text) !important;
+
+    font-size: 1rem !important;
+
+    display: flex !important;
+
+    align-items: center !important;
+    justify-content: center !important;
+
+    box-shadow: none !important;
+}
+
+
+div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+button[kind="formSubmit"]:hover {
+    border-color:
+        rgba(56, 189, 248, 0.45) !important;
+
+    background:
+        rgba(27, 40, 52, 0.95) !important;
+}
+
+
+/* ============================================================
+   PAGE SPACE
+   ============================================================ */
+
+.block-container {
+    padding-bottom: 7.5rem !important;
+}
+
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 600px) {
+
+    div[data-testid="stForm"]:has(div[data-testid="stFileUploader"]) {
+        width:
+            calc(100vw - 20px) !important;
+
+        bottom: 10px !important;
+
+        padding:
+            0.4rem !important;
+
+        border-radius:
+            14px !important;
+    }
+
+
+    div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+    [data-testid="column"]:nth-child(1) {
+        flex: 0 0 2.7rem !important;
+
+        width: 2.7rem !important;
+    }
+
+
+    div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+    [data-testid="column"]:nth-child(3) {
+        flex: 0 0 6.2rem !important;
+
+        width: 6.2rem !important;
+    }
+
+
+    div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+    [data-testid="column"]:nth-child(4) {
+        flex: 0 0 2.7rem !important;
+
+        width: 2.7rem !important;
+    }
+
+
+    div[data-testid="stForm"]:has(div[data-testid="stFileUploader"])
+    div[data-testid="stTextInput"] input {
+        font-size:
+            0.80rem !important;
+    }
+}
