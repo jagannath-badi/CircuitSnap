@@ -80,15 +80,16 @@ def render_hero(name=None):
     st.html(
         f"""
         <section class="cs-hero">
-            <div class="cs-eyebrow">CircuitSnap · for ECE students</div>
-            <p class="cs-hero-greeting">{greeting}</p>
-            <h1 class="cs-hero-title">
-                Work through the circuit.
-            </h1>
-            <p class="cs-hero-text">
-                Identify components, understand schematics, debug a lab setup,
-                or ask a question. Start with a prompt or attach an image below.
-            </p>
+           <div class="cs-eyebrow">CIRCUITSNAP · AI VISION FOR ECE</div>
+<p class="cs-hero-greeting">{greeting}</p>
+<h1 class="cs-hero-title">
+    See it. Understand it. Build it.
+</h1>
+<p class="cs-hero-text">
+    Upload a photo of a component, circuit, schematic, PCB, or lab setup.
+    CircuitSnap analyzes what it can see, explains the electronics behind it,
+    and clearly separates confirmed observations from uncertainty.
+</p>
         </section>
         """
     )
