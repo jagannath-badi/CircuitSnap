@@ -9,6 +9,7 @@ allowing the user to switch providers without losing context.
 """
 
 import base64
+import os
 import re
 
 import streamlit as st
@@ -24,21 +25,40 @@ from prompts import SYSTEM_PROMPT
 # CLIENTS
 # ============================================================
 
+def _get_api_key(name: str):
+    """Retrieve API key from os.environ first, falling back to st.secrets."""
+    key = os.environ.get(name)
+    if key:
+        return key
+    try:
+        if name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    return None
+
+
 @st.cache_resource
 def get_gemini_client():
     """Create and cache the Gemini client."""
+    api_key = _get_api_key("GEMINI_API_KEY")
+    if not api_key:
+        raise KeyError("GEMINI_API_KEY")
 
     return genai.Client(
-        api_key=st.secrets["GEMINI_API_KEY"]
+        api_key=api_key
     )
 
 
 @st.cache_resource
 def get_groq_client():
     """Create and cache the Groq client."""
+    api_key = _get_api_key("GROQ_API_KEY")
+    if not api_key:
+        raise KeyError("GROQ_API_KEY")
 
     return Groq(
-        api_key=st.secrets["GROQ_API_KEY"]
+        api_key=api_key
     )
 
 
@@ -57,40 +77,6 @@ def image_to_data_url(image_bytes, mime_type):
 
     return f"data:{mime_type};base64,{encoded}"
 
-
-# ============================================================
-# HISTORY HELPERS
-# ============================================================
-
-def _build_history_text(history):
-    """
-    Convert CircuitSnap conversation history into a compact
-    text transcript.
-
-    This is used by providers where a text representation of
-    previous conversation context is sufficient.
-    """
-
-    if not history:
-        return ""
-
-    lines = []
-
-    for message in history:
-        role = message.get("role", "user")
-        content = message.get("content", "")
-
-        if not content:
-            continue
-
-        if role == "assistant":
-            label = "CircuitSnap"
-        else:
-            label = "User"
-
-        lines.append(f"{label}: {content}")
-
-    return "\n\n".join(lines)
 
 
 # ============================================================
@@ -176,11 +162,11 @@ def ask_gemini(
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
-            max_output_tokens=1200,
+            max_output_tokens=2048,
         ),
     )
 
-    return response.text
+    return getattr(response, "text", "") or ""
 
 
 # ============================================================
@@ -270,10 +256,13 @@ def ask_groq(
     response = client.chat.completions.create(
         model=model_id,
         messages=messages,
-        max_completion_tokens=1200,
+        max_completion_tokens=2048,
     )
 
-    return response.choices[0].message.content
+    if response.choices and response.choices[0].message:
+        return response.choices[0].message.content or ""
+
+    return ""
 
 
 # ============================================================
@@ -505,10 +494,10 @@ def _classify_provider_error(error):
     return None
 
 
-def _is_transient_error(error):
+def _is_fallback_eligible(error_type):
     """Return whether a known provider failure is safe to retry/fallback."""
 
-    return _classify_provider_error(error) == "temporary_unavailability"
+    return error_type in {"temporary_unavailability", "rate_limited"}
 
 
 def _format_provider_error(
@@ -692,35 +681,36 @@ def ask_provider(
                 fallback_used=fallback_used, attempts=attempts,
             )
 
-        if error_type != "temporary_unavailability":
+        if not _is_fallback_eligible(error_type):
             return failure(
                 "Gemini", model_id, error, error_type,
                 fallback_used=fallback_used, attempts=attempts,
             )
 
-        # Retry the selected Gemini model once after a transient failure.
-        attempts += 1
-        success_flag, answer, error, error_type = _attempt_provider(
-            lambda: ask_gemini(
-                model_id=model_id,
-                prompt=prompt,
-                history=history,
-                image_bytes=image_bytes,
-                mime_type=mime_type,
-            )
-        )
-
-        if success_flag:
-            return success(
-                answer, "Gemini", model_id,
-                fallback_used=fallback_used, attempts=attempts,
+        # Retry the selected Gemini model once if temporary unavailability (not if rate-limited).
+        if error_type == "temporary_unavailability":
+            attempts += 1
+            success_flag, answer, error, error_type = _attempt_provider(
+                lambda: ask_gemini(
+                    model_id=model_id,
+                    prompt=prompt,
+                    history=history,
+                    image_bytes=image_bytes,
+                    mime_type=mime_type,
+                )
             )
 
-        if error_type != "temporary_unavailability":
-            return failure(
-                "Gemini", model_id, error, error_type,
-                fallback_used=fallback_used, attempts=attempts,
-            )
+            if success_flag:
+                return success(
+                    answer, "Gemini", model_id,
+                    fallback_used=fallback_used, attempts=attempts,
+                )
+
+            if not _is_fallback_eligible(error_type):
+                return failure(
+                    "Gemini", model_id, error, error_type,
+                    fallback_used=fallback_used, attempts=attempts,
+                )
 
         # The registry keeps these models internal to provider fallback.
         for fallback_model in gemini_config.get("fallback_models", []):
@@ -742,7 +732,7 @@ def ask_provider(
                     fallback_used=fallback_used, attempts=attempts,
                 )
 
-            if error_type != "temporary_unavailability":
+            if not _is_fallback_eligible(error_type):
                 return failure(
                     "Gemini", fallback_model, error, error_type,
                     fallback_used=fallback_used, attempts=attempts,
@@ -796,7 +786,7 @@ def ask_provider(
                 fallback_used=fallback_used, attempts=attempts,
             )
 
-        if error_type != "temporary_unavailability":
+        if not _is_fallback_eligible(error_type):
             return failure(
                 fallback_provider, fallback_model, error, error_type,
                 fallback_used=fallback_used, attempts=attempts,
@@ -824,6 +814,10 @@ def ask_provider(
     # ========================================================
 
     if provider == "Groq":
+        groq_config = get_model("Groq")
+        attempts = 1
+        fallback_used = False
+
         success_flag, answer, error, error_type = _attempt_provider(
             lambda: ask_groq(
                 model_id=model_id,
@@ -837,12 +831,110 @@ def ask_provider(
         if success_flag:
             return success(
                 answer, "Groq", model_id,
-                fallback_used=False, attempts=1,
+                fallback_used=fallback_used, attempts=attempts,
             )
 
-        return failure(
-            "Groq", model_id, error, error_type,
-            fallback_used=False, attempts=1,
+        if not _is_fallback_eligible(error_type):
+            return failure(
+                "Groq", model_id, error, error_type,
+                fallback_used=fallback_used, attempts=attempts,
+            )
+
+        # Retry once if temporary unavailability
+        if error_type == "temporary_unavailability":
+            attempts += 1
+            success_flag, answer, error, error_type = _attempt_provider(
+                lambda: ask_groq(
+                    model_id=model_id,
+                    prompt=prompt,
+                    history=history,
+                    image_bytes=image_bytes,
+                    mime_type=mime_type,
+                )
+            )
+
+            if success_flag:
+                return success(
+                    answer, "Groq", model_id,
+                    fallback_used=fallback_used, attempts=attempts,
+                )
+
+            if not _is_fallback_eligible(error_type):
+                return failure(
+                    "Groq", model_id, error, error_type,
+                    fallback_used=fallback_used, attempts=attempts,
+                )
+
+        # Symmetric fallback to Gemini if configured
+        fallback_provider = groq_config.get("fallback_provider")
+
+        if not fallback_provider:
+            return deliver(
+                _provider_result(
+                    _format_provider_error(
+                        "Groq", error_type="fallback_exhausted"
+                    ),
+                    "Groq",
+                    model_id,
+                    status="error",
+                    error_type="fallback_exhausted",
+                    fallback_used=fallback_used,
+                    attempts=attempts,
+                )
+            )
+
+        fallback_config = get_model(fallback_provider)
+        fallback_model = fallback_config["model_id"]
+        fallback_used = True
+        attempts += 1
+
+        fallback_call = {
+            "Gemini": ask_gemini,
+            "Groq": ask_groq,
+        }.get(fallback_provider)
+
+        if fallback_call is None:
+            raise ValueError(
+                f"Unsupported fallback provider configured: {fallback_provider}"
+            )
+
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: fallback_call(
+                model_id=fallback_model,
+                prompt=prompt,
+                history=history,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+            )
+        )
+
+        if success_flag:
+            return success(
+                answer, fallback_provider, fallback_model,
+                fallback_used=fallback_used, attempts=attempts,
+            )
+
+        if not _is_fallback_eligible(error_type):
+            return failure(
+                fallback_provider, fallback_model, error, error_type,
+                fallback_used=fallback_used, attempts=attempts,
+            )
+
+        return deliver(
+            _provider_result(
+                _format_provider_error(
+                    fallback_provider,
+                    error,
+                    error_type="fallback_exhausted",
+                    model_id=fallback_model,
+                ),
+                fallback_provider,
+                fallback_model,
+                status="error",
+                error_type="fallback_exhausted",
+                fallback_used=fallback_used,
+                attempts=attempts,
+            )
         )
 
     return deliver(

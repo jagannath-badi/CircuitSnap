@@ -16,7 +16,8 @@ MODELS = {
     "provider": "Gemini",
     "model_id": "gemini-3.8-flash",
     "fallback_models": [
-        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+         "gemini-2.5-flash",
     ],
     "fallback_provider": "Groq",
     "vision": True,
@@ -27,6 +28,7 @@ MODELS = {
     "Groq": {
         "provider": "Groq",
         "model_id": "qwen/qwen3.8-27b",
+        "fallback_provider": "Gemini",
         "vision": True,
         "reasoning": True,
         "status": "Fast",
@@ -56,16 +58,6 @@ def get_model_names() -> list[str]:
     """Return the names shown to the user in the model selector."""
 
     return list(MODELS.keys())
-
-
-def get_vision_models() -> dict:
-    """Return models that support image input."""
-
-    return {
-        name: config
-        for name, config in MODELS.items()
-        if config["vision"]
-    }
 
 
 def get_default_model() -> str:
