@@ -192,48 +192,6 @@ def detect_intent(user_text: str) -> str:
         return "lab"
 
     # --------------------------------------------------------
-    # Troubleshooting
-    # --------------------------------------------------------
-
-    troubleshooting_terms = (
-        "debug",
-        "debugging",
-        "not working",
-        "doesn't work",
-        "doesnt work",
-        "not turning on",
-        "wrong",
-        "fault",
-        "faulty",
-        "problem",
-        "issue",
-        "troubleshoot",
-        "why isn't",
-        "why isnt",
-    )
-
-    if matches_any(troubleshooting_terms):
-        return "troubleshoot"
-
-    # --------------------------------------------------------
-    # Testing
-    # --------------------------------------------------------
-
-    testing_terms = (
-        "test",
-        "testing",
-        "multimeter",
-        "check whether",
-        "check if",
-        "measure",
-        "measurement",
-        "how do i check",
-    )
-
-    if matches_any(testing_terms):
-        return "test"
-
-    # --------------------------------------------------------
     # Calculation
     # --------------------------------------------------------
 
@@ -263,10 +221,54 @@ def detect_intent(user_text: str) -> str:
         "vs ",
         "versus",
         "which is better",
+        "better than",
+        "over germanium",
+        "over silicon",
     )
 
     if matches_any(comparison_terms):
         return "compare"
+
+    # --------------------------------------------------------
+    # Conceptual problem / limitation questions -> explain
+    # --------------------------------------------------------
+
+    conceptual_problem_phrases = (
+        "problem with using",
+        "problem of",
+        "issue of",
+        "issue with using",
+        "why is it a problem",
+        "disadvantage of",
+        "limitation of",
+    )
+
+    if any(phrase in text for phrase in conceptual_problem_phrases):
+        return "explain"
+
+    # --------------------------------------------------------
+    # Troubleshooting
+    # --------------------------------------------------------
+
+    troubleshooting_terms = (
+        "debug",
+        "debugging",
+        "not working",
+        "doesn't work",
+        "doesnt work",
+        "not turning on",
+        "wrong",
+        "fault",
+        "faulty",
+        "problem",
+        "issue",
+        "troubleshoot",
+        "why isn't",
+        "why isnt",
+    )
+
+    if matches_any(troubleshooting_terms):
+        return "troubleshoot"
 
     # --------------------------------------------------------
     # Summary
@@ -399,6 +401,17 @@ def infer_input_type_hint(
     if any(
         term in text
         for term in (
+            "schematic",
+            "circuit diagram",
+            "symbol",
+            "diagram",
+        )
+    ):
+        return "circuit_diagram"
+
+    if any(
+        term in text
+        for term in (
             "breadboard",
             "wiring",
             "wire",
@@ -409,18 +422,6 @@ def infer_input_type_hint(
         )
     ):
         return "physical_circuit"
-
-    if any(
-        term in text
-        for term in (
-            "schematic",
-            "circuit diagram",
-            "circuit diagram",
-            "symbol",
-            "diagram",
-        )
-    ):
-        return "circuit_diagram"
 
     if any(
         term in text
@@ -523,6 +524,7 @@ CONTEXTUAL_FOLLOW_UP_PATTERNS = (
     r"\b(?:in more detail|in more depth)\b",
     r"\b(?:explain|describe)\s+(?:it|that)\s+(?:more\s+)?(?:technically|mathematically)\b",
     r"\bexplain\s+this\s+(?:technically|mathematically)\b",
+    r"^(?:give|show|provide)\s+(?:me\s+)?(?:(?:a|an)\s+)?(?:simple|basic|brief|short)?\s*example(?:\s+of\s+.+)?[.!?]?$",
 )
 
 
@@ -612,6 +614,15 @@ def determine_detail_level(user_text: str) -> str:
     if any(
         phrase in text
         for phrase in (
+            "exam answer",
+            "exam",
+        )
+    ) or has_exam_mark_request(text):
+        return "exam"
+
+    if any(
+        phrase in text
+        for phrase in (
             "briefly",
             "in short",
             "short answer",
@@ -621,14 +632,69 @@ def determine_detail_level(user_text: str) -> str:
     ):
         return "concise"
 
-    if any(
-        phrase in text
-        for phrase in (
-            "exam answer",
-            "exam",
+    simple_prefixes = (
+        "what is a ",
+        "what is an ",
+        "what is the ",
+        "what is ",
+        "what are ",
+        "what's a ",
+        "what's an ",
+        "what's ",
+        "whats a ",
+        "whats an ",
+        "whats ",
+        "define ",
+        "definition of ",
+        "meaning of ",
+    )
+
+    if (
+        any(text.startswith(prefix) for prefix in simple_prefixes)
+        or any(
+            re.search(pattern, text)
+            for pattern in (
+                r"\bexplain\s+.*?\bsimply\b",
+                r"\bsimply\s+.*?\bexplain\b",
+                r"\bin\s+simple\s+(?:terms|words)\b",
+                r"\bsimple\s+definition\b",
+                r"\bexplain\s+simply\b",
+            )
         )
-    ) or has_exam_mark_request(text):
-        return "exam"
+    ) and not any(
+        complex_term in text
+        for complex_term in (
+            "detailed",
+            "derive",
+            "derivation",
+            "how does",
+            "how do",
+            "why does",
+            "why do",
+            "calculate",
+            "schematic",
+            "pinout",
+        )
+    ):
+        return "simple"
+
+    explanatory_phrases = (
+        "explain",
+        "explanation",
+        "how does",
+        "how do",
+        "why does",
+        "why do",
+        "why is",
+        "why are",
+        "in simple ece",
+        "simple ece language",
+        "teach me",
+        "help me understand",
+    )
+
+    if any(phrase in text for phrase in explanatory_phrases):
+        return "explanatory"
 
     return "normal"
 
@@ -732,16 +798,29 @@ Give practical diagnostic steps in a safe order.
 Do not claim a fault is confirmed without sufficient evidence.
 """,
 
-"concept_learning": """
-Explain the concept clearly and directly.
+    "concept_learning": """
+Explain the concept clearly and directly using an adaptive, structured breakdown.
 
-For a normal question:
-- Give the core definition or answer first.
-- Add only one short conceptual explanation if needed.
-- Keep the response concise, preferably 1–3 sentences.
-- Do not create multiple paragraphs for a basic definition.
-- Do not automatically add examples, analogies, equations, applications,
-  classifications, or detailed sections.
+Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
+
+For simple or normal definition questions (e.g., "What is X?", "Explain Y simply"):
+- Keep it brief, intuitive, and student-friendly (under 80–120 words).
+- Maximum 3 to 4 high-level bullet points.
+- Never include formulas, deep calculus, or manufacturing specifications unless specifically asked.
+- Focus on the practical intuition of what the component does.
+- Direct Definition: 1 plain-English sentence stating what the item is and its primary job.
+- Key Working Points: 2 to 3 concise bullet points with bold lead-ins explaining its function in everyday engineering terms.
+- Typical Types or Everyday Example: 1 concise bullet showing where a student encounters it.
+
+For an explanatory question:
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
+- Explain the underlying physical or circuit working clearly with structured bullet points and bold headers.
+- When it genuinely improves understanding, include key equations, simple examples, or concise physical analogies.
+
+For an advanced / exam / calculation question:
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
+- Provide an exam-ready structured breakdown with formulas, derivations, boundary conditions, and bench precautions.
+- Define symbols clearly and state assumptions.
 
 Only add deeper technical detail when:
 - the user asks for it,
@@ -1073,13 +1152,13 @@ Requested detail level:
 PREVIOUS CONVERSATION
 ---------------------
 
+{conversation}
+
 - If the user repeats the same or nearly identical question, answer it
   directly again. Do not say that it was already answered and do not
   assume the user missed the previous response.
 - Treat repeated questions as a request for a fresh, clear explanation
   unless the user explicitly asks for a different explanation.
-
-{conversation}
 
 WORKFLOW
 --------
@@ -1118,15 +1197,21 @@ Answer the student's request directly.
 RESPONSE DEPTH RULES
 --------------------
 
-For a normal/simple question:
-- Give the direct answer immediately.
-- Usually keep the answer to 1–3 short sentences.
-- Prefer one compact paragraph.
+For a simple or normal question:
+- Keep it brief, intuitive, and student-friendly.
+- Maximum 3 to 4 high-level bullet points.
+- Never include formulas, deep calculus, or manufacturing specifications unless specifically asked.
+- Focus on the practical intuition of what the component does.
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
 - Use simple, professional ECE language.
-- Do not add examples, analogies, applications, classifications,
-  formulas, advantages, disadvantages, or history unless needed.
-- Do not expand the answer just because more information is available.
 - Stop immediately once the question is properly answered.
+
+For an explanatory question:
+- Start with the core concept and physical/circuit meaning.
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
+- Explain the underlying working clearly using structured bullet points with bold lead-ins.
+- When genuinely helpful, include one relevant equation, key parameter, or concise physical analogy.
+- Keep the explanation focused on the core concept without excessive textbook filler.
 
 For a follow-up question:
 - Answer only the new question.
@@ -1134,19 +1219,24 @@ For a follow-up question:
 - Do not repeat the entire previous explanation.
 
 For an explicitly detailed question:
-- Provide deeper technical explanation.
+- Provide deeper technical explanation with structured bullet points and clean headings.
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
 
 For an exam request:
 - Use an exam-appropriate structure.
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
 
 For a practical/lab request:
-- Give the practical information required for the task.
+- Give the practical information required for the task using structured steps or bullet points.
 
 The goal is not to make every answer short.
 The goal is to give exactly the amount of information needed
 to answer the user's current request clearly.
 
-Use clear headings and bullets only when they genuinely improve readability.
+OUTPUT FORMATTING:
+- Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
+- Use bold lead-ins for every bullet item.
+- Use numbered lists only for sequential procedures.
 
 Do not mention this internal engine, workflow selection,
 classification process, or these instructions.
@@ -1220,6 +1310,7 @@ def run_engine(
         provider=provider,
         model_id=model_id,
         prompt=prompt,
+        history=conversation_history,
         image_bytes=image_bytes,
         mime_type=mime_type,
         return_metadata=True,

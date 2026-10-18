@@ -54,13 +54,18 @@ load_styles()
 # Session state
 # ============================================================
 
+# Initialize staged prompt
+if "pending_prompt" not in st.session_state:
+    st.session_state["pending_prompt"] = ""
+
+
 def initialize_state():
     defaults = {
         "messages": [],
         "selected_model": get_default_model(),
         "name": "",
         "onboarded": False,
-        "pending_prompt": None,
+        "pending_prompt": "",
         "image_context": None,
         "composer_image_version": 0,
         "composer_input_version": 0,
@@ -72,6 +77,30 @@ def initialize_state():
 
 
 initialize_state()
+
+
+def reset_session():
+    """
+    Reset conversation messages, image context, and composer inputs without page refresh.
+    """
+    st.session_state.messages = []
+    st.session_state.image_context = None
+    st.session_state.pending_prompt = ""
+
+    for v in (0, 1):
+        st.session_state.pop(f"composer_image_{v}", None)
+        st.session_state.pop(f"composer_input_{v}", None)
+
+    st.session_state.composer_image_version = 0
+    st.session_state.composer_input_version = 0
+
+    if st.session_state.get("name"):
+        add_message(
+            "assistant",
+            WELCOME_MESSAGE_TEMPLATE.format(name=st.session_state.name),
+        )
+
+    st.rerun()
 
 
 # ============================================================
@@ -154,7 +183,7 @@ def build_prompt(user_text, image_present=False):
 
         prompt = user_text.strip()
 
-        if pending_prompt:
+        if pending_prompt and pending_prompt not in prompt:
             prompt = (
                 f"{pending_prompt}\n\n"
                 f"User's question:\n{prompt}"
@@ -184,7 +213,7 @@ def build_prompt(user_text, image_present=False):
 
 
 def clear_pending_prompt():
-    st.session_state.pending_prompt = None
+    st.session_state["pending_prompt"] = ""
 
 
 # ============================================================
@@ -250,7 +279,10 @@ model_names = get_model_names()
 # The selector is independent of the submission form. Its keyed state is
 # updated before Streamlit reruns, so the header reflects no-send switches.
 selected_model_name = st.session_state.selected_model
-render_header()
+reset_clicked = render_header(show_reset=True)
+
+if reset_clicked:
+    reset_session()
 
 submitted, user_input, uploaded_file = (
     render_chat_composer(
@@ -282,15 +314,9 @@ if not has_user_messages and not is_first_submission:
 
     render_hero(st.session_state.name)
 
-    quick_prompt = render_quick_actions()
+    render_quick_actions()
 
-    if quick_prompt:
-
-        st.session_state.pending_prompt = quick_prompt
-
-        st.rerun()
-
-    if st.session_state.pending_prompt:
+    if st.session_state.get("pending_prompt"):
         st.markdown(
             '<div class="cs-prompt-hint">Starter selected · Add an image or type your question below.</div>',
             unsafe_allow_html=True,
@@ -414,15 +440,34 @@ if submitted:
     with st.spinner(
         f"Analyzing with {selected_model_name}..."
     ):
-        result = run_engine(
-            provider=selected_model["provider"],
-            model_id=selected_model["model_id"],
-            user_text=prompt,
-            conversation_history=history,
-            image_bytes=image_bytes,
-            mime_type=image_mime_type,
-            previous_visual_context=previous_visual_context,
-        )
+        try:
+            result = run_engine(
+                provider=selected_model["provider"],
+                model_id=selected_model["model_id"],
+                user_text=prompt,
+                conversation_history=history,
+                image_bytes=image_bytes,
+                mime_type=image_mime_type,
+                previous_visual_context=previous_visual_context,
+            )
+        except Exception as err:
+            result = {
+                "answer": (
+                    f"**Analysis Encountered an Error**\n\n"
+                    f"CircuitSnap encountered an unexpected exception during execution:\n"
+                    f"```text\n{type(err).__name__}: {str(err)}\n```\n\n"
+                    f"**Suggested Recovery:**\n"
+                    f"- Verify your API key configuration in `.streamlit/secrets.toml` or environment variables.\n"
+                    f"- If uploading an image, ensure it is a supported format (PNG, JPEG, WEBP).\n"
+                    f"- Try switching models using the selector or resetting the bench session."
+                ),
+                "provider": selected_model["provider"],
+                "model_id": selected_model["model_id"],
+                "status": "error",
+                "error_type": "unexpected_exception",
+                "fallback_used": False,
+                "attempts": 1,
+            }
 
     answer = result["answer"]
     provider_metadata = {
@@ -473,10 +518,15 @@ if submitted:
         metadata=provider_metadata,
     )
 
-    st.session_state.composer_input_version += 1
+    # Free uploaded image buffer and cycle input keys to prevent monotonic memory leaks
+    old_input_key = f"composer_input_{st.session_state.composer_input_version}"
+    old_image_key = f"composer_image_{st.session_state.composer_image_version}"
+    st.session_state.pop(old_input_key, None)
+    st.session_state.composer_input_version = 1 - st.session_state.composer_input_version
 
     if uploaded_file is not None:
-        st.session_state.composer_image_version += 1
+        st.session_state.pop(old_image_key, None)
+        st.session_state.composer_image_version = 1 - st.session_state.composer_image_version
 
     st.rerun()
 

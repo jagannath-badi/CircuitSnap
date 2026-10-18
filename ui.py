@@ -16,6 +16,7 @@ Application state and AI communication remain outside this file.
 """
 
 import html
+import pathlib
 
 import streamlit as st
 
@@ -26,9 +27,9 @@ import streamlit as st
 
 def load_styles():
     """Load the central CircuitSnap stylesheet."""
-
+    css_path = pathlib.Path(__file__).parent / "styles.css"
     try:
-        with open("styles.css", "r", encoding="utf-8") as file:
+        with open(css_path, "r", encoding="utf-8") as file:
             css = file.read()
 
         st.html(f"<style>{css}</style>")
@@ -43,25 +44,49 @@ def load_styles():
 # Header
 # ============================================================
 
-def render_header():
-    """Render the workspace identity without duplicating composer controls."""
-    st.html(
-        """
-        <header class="cs-header">
-            <div class="cs-header-left">
-                <div class="cs-logo" aria-hidden="true">CS</div>
-                <div class="cs-brand-copy">
-                    <div class="cs-header-title">
-                        CircuitSnap
-                    </div>
-                    <div class="cs-header-subtitle">
-                        Electronics workspace
+def render_header(show_reset=False):
+    """Render the workspace identity with optional session reset."""
+    if not show_reset:
+        st.html(
+            """
+            <header class="cs-header">
+                <div class="cs-header-left">
+                    <div class="cs-logo" aria-hidden="true">CS</div>
+                    <div class="cs-brand-copy">
+                        <div class="cs-header-title">
+                            CircuitSnap
+                        </div>
+                        <div class="cs-header-subtitle">
+                            Electronics workspace
+                        </div>
                     </div>
                 </div>
-            </div>
-        </header>
-        """
-    )
+            </header>
+            """
+        )
+        return False
+
+    col_title, col_btn = st.columns([8.2, 1.8], vertical_alignment="center")
+    with col_title:
+        st.html(
+            """
+            <header class="cs-header" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">
+                <div class="cs-header-left">
+                    <div class="cs-logo" aria-hidden="true">CS</div>
+                    <div class="cs-brand-copy">
+                        <div class="cs-header-title">
+                            CircuitSnap
+                        </div>
+                        <div class="cs-header-subtitle">
+                            Electronics workspace
+                        </div>
+                    </div>
+                </div>
+            </header>
+            """
+        )
+    with col_btn:
+        return st.button("New Session", key="cs_new_session_btn", help="Clear conversation and reset workspace")
 
 
 # ============================================================
@@ -99,69 +124,31 @@ def render_hero(name=None):
 # Quick actions
 # ============================================================
 
+ACTIONS = [
+    ("Identify a component", "Identify this component, read any visible part numbers or color bands, and explain its pinout and typical function."),
+    ("Explain a circuit", "Explain how this circuit works, identify its main sub-circuits, and state the key governing formulas."),
+    ("Debug my lab setup", "Debug this circuit setup: check breadboard wiring, identify potential faults, and suggest multimeter measurements."),
+    ("Learn an ECE concept", "Explain the working principle, key derivations, and practical electronics applications of this concept: ")
+]
+
 QUICK_ACTIONS = {
-    "Identify a component": {
-        "prompt": (
-            "Identify the main electronic component in this image. "
-            "Explain what it does and mention anything important "
-            "that can or cannot be confirmed."
-        ),
-    },
-    "Explain a circuit": {
-        "prompt": (
-            "Analyze this circuit and explain its main function "
-            "and how the visible components work together. "
-            "Only describe connections that can be supported by "
-            "the image."
-        ),
-    },
-    "Debug my lab setup": {
-        "prompt": (
-            "Analyze this electronics lab setup and identify "
-            "any clearly visible connection or component issues. "
-            "Separate confirmed observations from uncertain ones."
-        ),
-    },
-    "Learn an ECE concept": {
-        "prompt": (
-            "Explain this electronics concept in a clear, "
-            "ECE-student-friendly way. Start with the core idea "
-            "and add technical detail where useful."
-        ),
-    },
+    label: {"prompt": prompt}
+    for label, prompt in ACTIONS
 }
 
 
 def render_quick_actions():
-    """
-    Render starter prompts.
+    st.markdown('<p class="cs-section-label">START WITH</p>', unsafe_allow_html=True)
+    st.markdown('<p class="cs-section-hint">Use a photo for visual tasks, or start with an electronics question.</p>', unsafe_allow_html=True)
 
-    Returns:
-        str | None:
-            The selected starter prompt.
-    """
+    col1, col2 = st.columns(2)
 
-    st.markdown(
-        '<div class="cs-section-label">Start with</div>',
-        unsafe_allow_html=True,
-    )
-
-    columns = st.columns(2)
-
-    selected_prompt = None
-
-    for index, (title, action) in enumerate(
-        QUICK_ACTIONS.items()
-    ):
-        with columns[index % 2]:
-            if st.button(
-                title,
-                key=f"quick_action_{index}",
-                width="stretch",
-            ):
-                selected_prompt = action["prompt"]
-
-    return selected_prompt
+    for i, (label, prompt_template) in enumerate(ACTIONS):
+        target_col = col1 if i % 2 == 0 else col2
+        with target_col:
+            if st.button(label, key=f"quick_action_{i}", use_container_width=True):
+                st.session_state["pending_prompt"] = prompt_template
+                st.rerun()
 
 
 # ============================================================
@@ -193,26 +180,6 @@ def render_model_selector(
         help="Choose the provider for your next request.",
     )
 
-
-# ============================================================
-# Image uploader
-# ============================================================
-
-def render_image_uploader():
-    """Render the electronics image uploader."""
-
-    return st.file_uploader(
-        "Upload an electronics image",
-        type=[
-            "png",
-            "jpg",
-            "jpeg",
-            "webp",
-        ],
-        label_visibility="collapsed",
-        key="circuit_image",
-    )
-
 # ============================================================
 # Chat composer
 # ============================================================
@@ -223,129 +190,51 @@ def render_chat_composer(
     image_key="composer_image",
     input_key="composer_message",
 ):
-    """Render the fixed composer and its independent provider control."""
+    """Render the responsive bottom composer with dedicated model control."""
 
     with st.container(key="cs-composer-shell"):
         with st.form("chat_composer", clear_on_submit=False):
-            col_upload, col_message, col_send = st.columns(
-                [0.8, 8.0, 1.2],
+            col_upload, col_input, col_model, col_send = st.columns(
+                [1, 6, 1.8, 1],
                 vertical_alignment="center",
             )
 
             with col_upload:
                 uploaded_file = st.file_uploader(
-                    "Attach image",
+                    "Attach",
                     type=["png", "jpg", "jpeg", "webp"],
                     label_visibility="collapsed",
                     key=image_key,
+                    help="Attach an electronics image",
                 )
 
-            with col_message:
+            with col_input:
+                initial_value = st.session_state.pop("pending_prompt", "")
+                if initial_value:
+                    st.session_state.pop(input_key, None)
+
                 user_input = st.text_input(
                     "Message",
+                    value=initial_value,
                     placeholder="Ask about a component, circuit, or concept…",
                     label_visibility="collapsed",
                     key=input_key,
                 )
 
+            with col_model:
+                render_model_selector(model_names, current_model)
+
             with col_send:
                 submitted = st.form_submit_button(
-                    "Send message",
-                    width="stretch",
+                    "Send",
+                    use_container_width=True,
                     help="Send message",
                 )
-
-        # Keep this outside the form so provider switches rerun immediately.
-        # CSS places this independent control into the same visual row.
-        render_model_selector(model_names, current_model)
 
     return (
         submitted,
         user_input,
         uploaded_file,
-    )
-
-def render_image_preview(uploaded_file):
-    """Render a preview of the uploaded image."""
-
-    if uploaded_file is None:
-        return
-
-    st.markdown(
-        '<div class="cs-section-label">Image</div>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<div class="cs-image-preview">',
-        unsafe_allow_html=True,
-    )
-
-    st.image(
-        uploaded_file,
-        width="stretch",
-    )
-
-    st.markdown(
-        '</div>',
-        unsafe_allow_html=True,
-    )
-
-
-# ============================================================
-# Status card
-# ============================================================
-
-def render_status_card(
-    title,
-    message,
-    state=None,
-):
-    """Render a reusable status/confidence card."""
-
-    state_class = ""
-
-    if state in {
-        "confirmed",
-        "likely",
-        "cannot-confirm",
-    }:
-        state_class = f" cs-{state}"
-
-    safe_title = html.escape(
-        str(title)
-    )
-
-    safe_message = html.escape(
-        str(message)
-    )
-
-    st.html(
-        f"""
-        <div class="cs-card{state_class}">
-
-            <div class="cs-card-title">
-                {safe_title}
-            </div>
-
-            <div class="cs-card-text">
-                {safe_message}
-            </div>
-
-        </div>
-        """
-    )
-
-
-# ============================================================
-# Divider
-# ============================================================
-
-def render_divider():
-    """Render a subtle responsive divider."""
-
-    st.html(
-        '<div class="cs-divider"></div>'
     )
 
 
@@ -397,7 +286,38 @@ def render_chat_message(message):
             st.markdown(content)
 
         if metadata.get("fallback_used"):
-            actual_provider = html.escape(
-                str(metadata.get("provider") or "another provider")
+
+            actual_provider = str(
+                metadata.get("provider") or "another provider"
             )
-            st.caption(f"Fallback response · {actual_provider}")
+            actual_model = str(
+                metadata.get("model_id") or ""
+            )
+
+            model_labels = {
+                "gemini-3.8-flash": "Gemini 3.8 Flash",
+                "gemini-3.7-flash": "Gemini 3.7 Flash",
+                "qwen/qwen3.8-27b": "Qwen 3.8 27B",
+            }
+
+            model_label = model_labels.get(
+                actual_model,
+                actual_model,
+            )
+
+            if actual_provider == "Groq" and model_label:
+                fallback_label = (
+                    f"Used fallback · Groq {model_label}"
+                )
+            elif model_label:
+                fallback_label = (
+                    f"Used fallback · {model_label}"
+                )
+            else:
+                fallback_label = (
+                    f"Used fallback · {actual_provider}"
+                )
+
+            st.caption(
+                html.escape(fallback_label)
+            )

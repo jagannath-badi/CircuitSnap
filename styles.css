@@ -188,27 +188,60 @@ div[data-testid="stForm"]:not(:has(div[data-testid="stFileUploader"])) {
 
 /* Quick actions */
 
+.cs-section-hint {
+    margin: -0.35rem 0 0.8rem;
+    color: var(--cs-text-muted) !important;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+}
+
 div[data-testid="stHorizontalBlock"]:has(.st-key-quick_action_0) {
     gap: 12px !important;
 }
 
 .stButton > button,
-button[kind="formSubmit"] {
-    min-height: 44px;
-    padding: 0.65rem 0.9rem;
-    border: 1px solid var(--cs-border) !important;
+button[kind="secondary"] {
+    min-height: 52px;
+    padding: 0.85rem 1rem;
+    border: 1px solid #1e293b !important;
     border-radius: 8px !important;
-    background: var(--cs-surface) !important;
+    background: #10161c !important;
     color: var(--cs-text) !important;
     font-family: inherit !important;
-    font-size: 0.82rem !important;
+    font-size: 0.84rem !important;
     font-weight: 560 !important;
-    transition: background 150ms ease, border-color 150ms ease;
-}
-
-.stButton > button {
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
     justify-content: flex-start !important;
     text-align: left !important;
+    white-space: normal !important;
+}
+
+.stButton > button:hover,
+button[kind="secondary"]:hover {
+    border-color: #65c9e8 !important;
+    background: #162029 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    box-shadow: 0 0 0 1px rgba(101, 201, 232, 0.2);
+}
+
+div[data-testid="stHorizontalBlock"]:has(.st-key-quick_action_0) .stButton > button {
+    min-height: 58px;
+    padding: 0.9rem 1rem;
+    border: 1px solid #1e293b !important;
+    background: #10161c !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
+div[data-testid="stHorizontalBlock"]:has(.st-key-quick_action_0) .stButton > button:hover {
+    border-color: #65c9e8 !important;
+    background: #162029 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
 }
 
 div[data-testid="stForm"]:not(:has(div[data-testid="stFileUploader"])) .stButton > button {
@@ -223,22 +256,9 @@ div[data-testid="stForm"]:not(:has(div[data-testid="stFileUploader"])) .stButton
     text-align: center !important;
 }
 
-.stButton > button:hover,
-button[kind="formSubmit"]:hover {
-    border-color: #3a5968 !important;
-    background: var(--cs-surface-raised) !important;
-}
-
-div[data-testid="stHorizontalBlock"]:has(.st-key-quick_action_0) .stButton > button {
-    min-height: 62px;
-    justify-content: flex-start !important;
-    padding: 0.9rem 1rem;
-    text-align: left !important;
-    white-space: normal !important;
-}
-
 .stButton > button p,
-button[kind="formSubmit"] p {
+button[kind="formSubmit"] p,
+button[kind="secondary"] p {
     margin: 0 !important;
     color: inherit !important;
     line-height: 1.35;
@@ -461,17 +481,6 @@ div[data-testid="stCaptionContainer"] {
     overflow: visible !important;
 }
 
-.st-key-cs-composer-shell div[data-testid="stElementContainer"]:has(div[data-testid="stSelectbox"]) {
-    position: absolute !important;
-    top: 50% !important;
-    right: calc(2.75rem + 18px) !important;
-    z-index: 3 !important;
-    width: 6.1rem !important;
-    max-width: none !important;
-    margin: 0 !important;
-    transform: translateY(-50%) !important;
-}
-
 .st-key-cs-composer-shell div[data-testid="stForm"] {
     position: static !important;
     inset: auto !important;
@@ -493,41 +502,18 @@ div[data-testid="stCaptionContainer"] {
     flex-wrap: nowrap !important;
     align-items: center !important;
     justify-content: flex-start !important;
-    gap: 6px !important;
+    gap: 8px !important;
     width: 100% !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stColumn"] {
-    flex-grow: 0 !important;
-    flex-shrink: 0 !important;
     min-width: 0 !important;
-    max-width: none !important;
     padding: 0 !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stColumn"] > div {
-    width: 100% !important;
-    max-width: none !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stColumn"]:nth-child(1) {
-    flex: 0 0 2.75rem !important;
-    width: 2.75rem !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stColumn"]:nth-child(2) {
-    flex: 1 1 auto !important;
-    width: auto !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stColumn"]:nth-child(3) {
-    flex: 0 0 2.75rem !important;
-    width: 2.75rem !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stFileUploader"] {
     position: relative;
-    width: 2.75rem !important;
+    width: 100% !important;
     min-height: 2.75rem !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -541,19 +527,18 @@ div[data-testid="stCaptionContainer"] {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    width: 2.75rem !important;
-    height: 2.75rem !important;
     min-height: 2.75rem !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 0 0.5rem !important;
     overflow: hidden !important;
-    border: 1px solid transparent !important;
-    border-radius: 50% !important;
-    background: transparent !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 8px !important;
+    background: var(--cs-surface) !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stFileUploader"] section:focus-within {
     background: rgba(125, 211, 232, 0.08) !important;
+    border-color: var(--cs-cyan) !important;
 }
 
 .st-key-cs-composer-shell [data-testid="stFileUploaderDropzoneInstructions"],
@@ -562,33 +547,11 @@ div[data-testid="stCaptionContainer"] {
 }
 
 .st-key-cs-composer-shell div[data-testid="stFileUploader"] button {
-    width: 2.75rem !important;
-    height: 2.75rem !important;
-    min-width: 2.75rem !important;
-    min-height: 2.75rem !important;
-    margin: 0 !important;
-    padding: 0 !important;
     border: 0 !important;
     background: transparent !important;
-    color: transparent !important;
-    font-size: 0 !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stFileUploader"] button * {
-    color: transparent !important;
-    font-size: 0 !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stFileUploader"] button svg {
-    display: none !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stFileUploader"] button::after {
-    content: "+";
-    color: var(--cs-text-soft);
-    font-size: 1.3rem;
-    font-weight: 400;
-    line-height: 1;
+    color: var(--cs-text-soft) !important;
+    font-size: 0.8rem !important;
+    padding: 0.4rem !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stFileUploader"] button:focus-visible {
@@ -630,55 +593,36 @@ div[data-testid="stCaptionContainer"] {
     width: 100% !important;
     height: 2.75rem !important;
     min-height: 2.75rem !important;
-    padding: 0 calc(6.1rem + 10px) 0 0.75rem !important;
-    border-color: transparent !important;
-    border-radius: 7px !important;
-    background: transparent !important;
+    padding: 0 0.85rem !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 8px !important;
+    background: #0d1318 !important;
+    color: var(--cs-text) !important;
     font-size: 0.86rem !important;
+}
+
+.st-key-cs-composer-shell div[data-testid="stTextInput"] input:focus {
+    border-color: #477a8d !important;
+    box-shadow: 0 0 0 2px var(--cs-cyan-soft) !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stFormSubmitButton"],
 .st-key-cs-composer-shell div[data-testid="stFormSubmitButton"] button {
     width: 100% !important;
-    min-width: 2.75rem !important;
+    min-width: 3rem !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stFormSubmitButton"] button {
-    position: relative !important;
     height: 2.75rem !important;
     min-height: 2.75rem !important;
-    padding: 0 !important;
-    border-color: #34505c !important;
-    border-radius: 50% !important;
+    padding: 0 0.8rem !important;
+    border: 1px solid #34505c !important;
+    border-radius: 8px !important;
     background: #18262e !important;
     color: #ccebf4 !important;
-    font-size: 1.25rem !important;
-    line-height: 1 !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
     white-space: nowrap !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stFormSubmitButton"] button [data-testid="stMarkdownContainer"] {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    margin: -1px !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-}
-
-.st-key-cs-composer-shell div[data-testid="stFormSubmitButton"] button::after {
-    content: "↑";
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: #ccebf4;
-    font-size: 1.25rem;
-    line-height: 1;
-    pointer-events: none;
 }
 
 .st-key-cs-composer-shell div[data-testid="stFormSubmitButton"] button:hover {
@@ -693,20 +637,15 @@ div[data-testid="stCaptionContainer"] {
 
 .st-key-cs-composer-shell div[data-testid="stSelectbox"] {
     position: relative !important;
-    top: auto !important;
-    right: auto !important;
-    z-index: auto !important;
     width: 100% !important;
-    max-width: none !important;
     margin: 0 !important;
-    transform: none !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stSelectbox"] > div {
-    min-height: 2.4rem !important;
-    border: 1px solid transparent !important;
-    border-radius: 7px !important;
-    background: transparent !important;
+    min-height: 2.75rem !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 8px !important;
+    background: #111820 !important;
 }
 
 .st-key-cs-composer-shell div[data-testid="stSelectbox"] > div:hover {
@@ -719,9 +658,9 @@ div[data-testid="stCaptionContainer"] {
 }
 
 .st-key-cs-composer-shell div[data-testid="stSelectbox"] input[role="combobox"] {
-    color: var(--cs-text-soft) !important;
-    font-size: 0.72rem !important;
-    padding: 0 2px !important;
+    color: var(--cs-text) !important;
+    font-size: 0.8rem !important;
+    padding: 0 4px !important;
     background: transparent !important;
 }
 
@@ -798,7 +737,12 @@ div[data-testid="stCaptionContainer"] {
     .cs-header-subtitle {
         font-size: 0.64rem;
     }
-
+    
+    .cs-section-hint {
+    margin-top: -0.25rem;
+    margin-bottom: 0.7rem;
+    max-width: 32rem;
+    }
     .cs-hero {
         padding: 1.6rem 0 1.4rem;
     }
@@ -847,6 +791,11 @@ div[data-testid="stCaptionContainer"] {
     }
 
     .st-key-cs-composer-shell div[data-testid="stColumn"]:nth-child(3) {
+        flex-basis: 4.8rem !important;
+        width: 4.8rem !important;
+    }
+
+    .st-key-cs-composer-shell div[data-testid="stColumn"]:nth-child(4) {
         flex-basis: 2.75rem !important;
         width: 2.75rem !important;
     }
@@ -856,17 +805,8 @@ div[data-testid="stCaptionContainer"] {
     }
 
     .st-key-cs-composer-shell div[data-testid="stTextInput"] input {
-        padding: 0 calc(5.1rem + 8px) 0 0.55rem !important;
+        padding: 0 0.55rem !important;
         font-size: 0.75rem !important;
-    }
-
-    .st-key-cs-composer-shell div[data-testid="stSelectbox"] {
-        width: 100% !important;
-    }
-
-    .st-key-cs-composer-shell div[data-testid="stElementContainer"]:has(div[data-testid="stSelectbox"]) {
-        right: calc(2.75rem + 10px) !important;
-        width: 5.1rem !important;
     }
 
     .st-key-cs-composer-shell div[data-testid="stSelectbox"] input[role="combobox"] {
@@ -885,15 +825,7 @@ div[data-testid="stCaptionContainer"] {
     }
 
     .st-key-cs-composer-shell div[data-testid="stTextInput"] input {
-        padding-right: calc(5rem + 8px) !important;
-    }
-
-    .st-key-cs-composer-shell div[data-testid="stSelectbox"] {
-        width: 100% !important;
-    }
-
-    .st-key-cs-composer-shell div[data-testid="stElementContainer"]:has(div[data-testid="stSelectbox"]) {
-        width: 5rem !important;
+        padding: 0 0.5rem !important;
     }
 
     .st-key-cs-composer-shell div[data-testid="stSelectbox"] input[role="combobox"] {
