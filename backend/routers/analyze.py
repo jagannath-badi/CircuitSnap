@@ -80,6 +80,13 @@ async def analyze_endpoint(
             detail="No vision model is configured.",
         )
 
+    original_model_id = resolved_model_id
+    fallback_used = False
+    attempts = 1
+    result = None
+
+    fallback_candidates = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"]
+
     try:
         result = engine.run_engine(
             provider=resolved_provider,
@@ -91,11 +98,46 @@ async def analyze_endpoint(
             previous_visual_context=None,
         )
     except Exception as exc:
-        logger.exception("CircuitSnap image analysis failed")
+        logger.warning(f"Image analysis failed for {resolved_model_id}: {exc}")
+        result = None
+
+    if not result or result.get("status") == "error":
+        logger.warning(
+            f"Vision model {original_model_id} failed. Initiating fallback to working default vision models."
+        )
+        for fb_model in fallback_candidates:
+            if fb_model == original_model_id:
+                continue
+
+            attempts += 1
+            try:
+                fb_result = engine.run_engine(
+                    provider="Gemini",
+                    model_id=fb_model,
+                    user_text=prompt,
+                    conversation_history=None,
+                    image_bytes=bytes(image_bytes),
+                    mime_type=file.content_type,
+                    previous_visual_context=None,
+                )
+                if fb_result and fb_result.get("status") != "error":
+                    result = fb_result
+                    resolved_provider = "Gemini"
+                    resolved_model_id = fb_model
+                    fallback_used = True
+                    break
+            except Exception as fb_exc:
+                logger.warning(f"Fallback vision candidate {fb_model} failed: {fb_exc}")
+                continue
+
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="CircuitSnap could not analyze this image.",
-        ) from exc
+            detail="CircuitSnap could not analyze this image after all fallback attempts.",
+        )
+
+    final_fallback_used = result.get("fallback_used", False) or fallback_used
+    final_attempts = max(result.get("attempts", attempts), attempts)
 
     return ChatResponse(
         answer=result.get("answer") or "",
@@ -103,6 +145,7 @@ async def analyze_endpoint(
         model_id=result.get("model_id") or resolved_model_id,
         status=result.get("status", "error"),
         error_type=result.get("error_type"),
-        fallback_used=result.get("fallback_used", False),
-        attempts=result.get("attempts", 1),
+        fallback_used=final_fallback_used,
+        attempts=final_attempts,
+        original_model=original_model_id if final_fallback_used else None,
     )

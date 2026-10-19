@@ -11,6 +11,7 @@ export interface ChatResponse {
   error_type?: string | null;
   fallback_used: boolean;
   attempts: number;
+  original_model?: string | null;
 }
 
 export interface HealthResponse {

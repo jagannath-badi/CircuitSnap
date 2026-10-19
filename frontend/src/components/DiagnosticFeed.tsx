@@ -21,6 +21,7 @@ export interface DisplayMessage {
     model_id: string;
     attempts: number;
     fallback_used: boolean;
+    original_model?: string | null;
   };
 }
 
@@ -347,8 +348,11 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                       {msg.metadata.attempts === 1 ? '1 CYCLE' : `${msg.metadata.attempts} CYCLES`}
                     </span>
                     {msg.metadata.fallback_used && (
-                      <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
-                        FALLBACK ACTIVE
+                      <span
+                        className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold"
+                        title={msg.metadata.original_model ? `Fallback from ${msg.metadata.original_model}` : 'Fallback Active'}
+                      >
+                        FALLBACK ACTIVE{msg.metadata.original_model ? ` (${msg.metadata.original_model})` : ''}
                       </span>
                     )}
                   </div>

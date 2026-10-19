@@ -108,6 +108,8 @@ class ChatResponse(BaseModel):
     error_type: str | None = None
     fallback_used: bool = False
     attempts: int = 1
+    original_model: str | None = None
+
 
 
 class HealthResponse(BaseModel):

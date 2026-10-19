@@ -160,6 +160,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
                 model_id: m.metadata.model_id,
                 attempts: typeof m.metadata.attempts === 'number' ? m.metadata.attempts : 1,
                 fallback_used: Boolean(m.metadata.fallback_used),
+                original_model: typeof m.metadata.original_model === 'string' ? m.metadata.original_model : null,
               }
             : undefined,
       }));

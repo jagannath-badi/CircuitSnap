@@ -63,7 +63,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         model_id = request.model_id or provider_config.get("model_id")
     else:
         # Autonomous Smart Router:
-        # 1. Math/formula queries -> gemini-2.0-flash-thinking-exp
+        # 1. Math/formula queries -> gemini-3.8-flash (current verified endpoint for circuit math & derivations)
         # 2. Text-only lookups -> Groq llama-3.3-70b-versatile (if Groq key available)
         # 3. Optical / general queries -> gemini-3.8-flash (active default)
         has_groq = bool(providers._get_api_key("GROQ_API_KEY"))
@@ -71,7 +71,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
         if MATH_FORMULA_PATTERN.search(message_text):
             provider = "Gemini"
-            model_id = "gemini-2.0-flash-thinking-exp"
+            model_id = "gemini-3.8-flash"
         elif has_groq and LOOKUP_PATTERN.search(message_text):
             provider = "Groq"
             model_id = "llama-3.3-70b-versatile"
@@ -89,6 +89,16 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         message.model_dump() for message in request.history
     ] or None
 
+    original_provider = provider
+    original_model_id = model_id
+    fallback_used = False
+    attempts = 1
+    result = None
+
+    # Fallback roster: default model first ("gemini-3.8-flash"), then "gemini-3.6-flash" / "gemini-2.5-flash"
+    fallback_candidates = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"]
+
+    # 1. First attempt with requested or auto-routed model
     try:
         result = engine.run_engine(
             provider=provider,
@@ -100,11 +110,54 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             previous_visual_context=request.previous_visual_context,
         )
     except Exception as exc:
-        logger.exception("CircuitSnap engine execution failed")
+        logger.warning(
+            f"Execution failed for {provider}/{model_id}: {exc}. Triggering fallback."
+        )
+        result = None
+
+    # 2. If initial attempt failed (exception or returned status == 'error'), try fallback candidates
+    if not result or result.get("status") == "error":
+        error_type = result.get("error_type") if result else "exception"
+        logger.warning(
+            f"Model {original_model_id} failed with error_type '{error_type}'. "
+            f"Initiating resilient fallback to working default models."
+        )
+
+        for fb_model in fallback_candidates:
+            if fb_model == original_model_id:
+                continue
+
+            attempts += 1
+            try:
+                fb_result = engine.run_engine(
+                    provider="Gemini",
+                    model_id=fb_model,
+                    user_text=request.message,
+                    conversation_history=history,
+                    image_bytes=None,
+                    mime_type=None,
+                    previous_visual_context=request.previous_visual_context,
+                )
+                if fb_result and fb_result.get("status") != "error":
+                    result = fb_result
+                    provider = "Gemini"
+                    model_id = fb_model
+                    fallback_used = True
+                    break
+            except Exception as fb_exc:
+                logger.warning(f"Fallback candidate {fb_model} failed: {fb_exc}")
+                continue
+
+    if not result:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="CircuitSnap could not process this request.",
-        ) from exc
+            detail="CircuitSnap could not process this request after all fallback attempts.",
+        )
+
+    final_fallback_used = result.get("fallback_used", False) or fallback_used
+    final_attempts = result.get("attempts", attempts)
+    if fallback_used:
+        final_attempts = max(final_attempts, attempts)
 
     return ChatResponse(
         answer=result.get("answer") or "",
@@ -112,6 +165,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         model_id=result.get("model_id") or model_id,
         status=result.get("status", "error"),
         error_type=result.get("error_type"),
-        fallback_used=result.get("fallback_used", False),
-        attempts=result.get("attempts", 1),
+        fallback_used=final_fallback_used,
+        attempts=final_attempts,
+        original_model=original_model_id if final_fallback_used else None,
     )

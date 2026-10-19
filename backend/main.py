@@ -82,6 +82,13 @@ async def get_models() -> ModelsResponse:
             supports_vision=True,
         ),
         ModelOption(
+            id="gemini-3.6-flash",
+            label="Gemini 3.6 Flash (Circuit Math)",
+            provider="gemini",
+            specialty="Circuit Math & Formula Derivations",
+            supports_vision=True,
+        ),
+        ModelOption(
             id="gemini-2.5-flash",
             label="Gemini 2.5 Flash (Primary Workhorse)",
             provider="gemini",
@@ -104,9 +111,9 @@ async def get_models() -> ModelsResponse:
     available.extend([
         ModelOption(
             id="gemini-2.0-flash-thinking-exp",
-            label="Gemini 2.0 Thinking",
+            label="Gemini 2.0 Thinking (Experimental)",
             provider="gemini",
-            specialty="Circuit Math & Formula Derivations",
+            specialty="Formula Derivations (Auto Fallback Protected)",
             supports_vision=True,
         ),
         ModelOption(
