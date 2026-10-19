@@ -20,6 +20,8 @@ body {
   min-height: 100vh;
   background-color: #0b0f19;
   color: #f3f4f6;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 /* Custom dark workbench scrollbar */
@@ -52,6 +54,28 @@ body {
 }
 .diagnostic-feed-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.5);
+}
+
+/* Radar scanner sweep animation for active optical DUT analysis */
+@keyframes radar-sweep {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+.animate-radar-sweep {
+  animation: radar-sweep 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 /* KaTeX formula rendering refinements */

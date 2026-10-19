@@ -1,6 +1,6 @@
 import React from 'react';
 import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert } from 'lucide-react';
-import type { HealthResponse } from './api';
+import type { HealthResponse } from '../api';
 
 export interface TelemetryData {
   provider: string;
@@ -9,7 +9,7 @@ export interface TelemetryData {
   fallback_used: boolean;
 }
 
-interface TelemetryHeaderProps {
+export interface TelemetryHeaderProps {
   health: HealthResponse | null;
   isHealthLoading: boolean;
   healthError: string | null;
