@@ -22,28 +22,15 @@ export interface TelemetryHeaderProps {
   onSelectModel?: (modelId: string) => void;
 }
 
-const MODEL_OPTIONS = [
-  {
-    id: 'auto',
-    name: 'Auto (Smart Router)',
-    description: 'Vision & Fast Failover',
-    icon: '⚡',
-    provider: 'auto',
-  },
-  {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini',
-    description: 'Multimodal Optical Analysis',
-    icon: '✨',
-    provider: 'gemini',
-  },
-  {
-    id: 'llama-3.3-70b-versatile',
-    name: 'Groq LPU',
-    description: 'Ultra-Fast Inference',
-    icon: '⚡',
-    provider: 'groq',
-  },
+const DEFAULT_MODEL_ROSTER: ModelOption[] = [
+  { id: 'auto', label: 'Auto (Smart Router)', provider: 'auto', specialty: 'Autonomous Task Routing', supports_vision: true },
+  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Active Default)', provider: 'gemini', specialty: 'Optical Scope & General Telemetry', supports_vision: true },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Primary Workhorse)', provider: 'gemini', specialty: 'Precision IC & SMD Marking Recognition', supports_vision: true },
+  { id: 'llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B', provider: 'groq', specialty: 'Sub-Second Pinout & Quick Lookups', supports_vision: false },
+  { id: 'gemini-2.0-flash-thinking-exp', label: 'Gemini 2.0 Thinking', provider: 'gemini', specialty: 'Circuit Math & Formula Derivations', supports_vision: true },
+  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'gemini', specialty: 'Deep Datasheets & Dense Schematics', supports_vision: true },
+  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', provider: 'gemini', specialty: 'High-Throughput Quota Fallback', supports_vision: true },
+  { id: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash-8B', provider: 'gemini', specialty: 'Ultra-Lightweight Verification', supports_vision: true },
 ];
 
 export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
@@ -76,8 +63,9 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
     };
   }, [isOpen]);
 
+  const modelsToDisplay = availableModels.length > 0 ? availableModels : DEFAULT_MODEL_ROSTER;
   const selectedOption =
-    MODEL_OPTIONS.find((opt) => opt.id === selectedModel) || MODEL_OPTIONS[0];
+    modelsToDisplay.find((opt) => opt.id === selectedModel) || modelsToDisplay[0];
 
   return (
     <header className="bg-slate-950/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-40 px-4 sm:px-5 py-2.5 h-[65px] flex items-center justify-between transition-colors">
@@ -153,7 +141,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           >
             <span className="text-slate-500 text-[10px]">MODEL</span>
             <span className="text-cyan-300 font-medium truncate max-w-[150px]">
-              {selectedOption.name}
+              {selectedOption.label.replace(/\s*\(.*\)/, '')}
             </span>
             <ChevronDown
               className={`w-3 h-3 text-slate-400 group-hover:text-cyan-300 transition-transform duration-200 ${
@@ -163,55 +151,53 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           </button>
 
           {isOpen && (
-            <div className="absolute top-full mt-2 right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 min-w-[240px] flex flex-col gap-1">
-              {MODEL_OPTIONS.map((opt) => {
+            <div className="absolute top-full mt-2 right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 min-w-[310px] max-w-[360px] max-h-[390px] overflow-y-auto flex flex-col gap-1 diagnostic-feed-scrollbar">
+              <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-white/5 flex items-center justify-between">
+                <span>AI SPECIALIZATION ROSTER</span>
+                <span className="text-cyan-400 font-semibold">{modelsToDisplay.length} MODELS</span>
+              </div>
+              {modelsToDisplay.map((opt) => {
                 const isSelected = selectedModel === opt.id;
-                const isAvailable =
-                  opt.id === 'auto'
-                    ? true
-                    : availableModels.length === 0
-                    ? true
-                    : availableModels.some(
-                        (m) => m.id === opt.id || m.provider === opt.provider
-                      );
 
                 return (
                   <button
                     key={opt.id}
                     type="button"
-                    disabled={!isAvailable}
                     onClick={() => {
-                      if (isAvailable && onSelectModel) {
+                      if (onSelectModel) {
                         onSelectModel(opt.id);
                         setIsOpen(false);
                       }
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-start justify-between gap-2 ${
+                    className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-start justify-between gap-2.5 ${
                       isSelected
                         ? 'bg-cyan-500/15 border border-cyan-500/30 text-white'
-                        : isAvailable
-                        ? 'hover:bg-white/[0.06] text-slate-300 hover:text-white'
-                        : 'opacity-40 cursor-not-allowed text-slate-500'
+                        : 'hover:bg-white/[0.05] text-slate-300 hover:text-white border border-transparent'
                     }`}
                   >
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 text-xs font-medium">
-                        <span className="text-xs">{opt.icon}</span>
-                        <span>{opt.name}</span>
                         {isSelected && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)] flex-shrink-0" />
                         )}
+                        <span className="truncate">{opt.label}</span>
                       </div>
-                      <span className="text-[10px] text-slate-400 font-normal">
-                        {opt.description}
+                      <span className="text-[10px] text-slate-400 font-normal leading-tight">
+                        {opt.specialty}
                       </span>
                     </div>
 
-                    {!isAvailable && (
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold self-center">
-                        NO KEY
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1 flex-shrink-0 self-center">
+                      {opt.supports_vision ? (
+                        <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
+                          VISION
+                        </span>
+                      ) : (
+                        <span className="text-[9px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white/[0.03] text-slate-400 border border-white/[0.08]">
+                          TEXT
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}

@@ -1,14 +1,31 @@
 import logging
+import re
 
 from fastapi import APIRouter, HTTPException, status
 
 import engine
 import models
+import providers
 from backend.schemas import ChatRequest, ChatResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["Chat"])
+
+MATH_FORMULA_PATTERN = re.compile(
+    r"(?i)\b(calculate|computation|derive|derivation|formula|equation|math|"
+    r"impedance|transfer\s*function|fourier|laplace|bode|decibel|\bdb\b|gain|"
+    r"resonance|resonant|cutoff\s*frequency|frequency\s*response|ohms?\s*law|"
+    r"thevenin|norton|kirchhoff|kvl|kcl|reactance|inductance|capacitance|"
+    r"integral|differential|diff\s*amp|op-?amp\s*gain|filter\s*order)\b|"
+    r"[\$\\\^]|(?:[0-9\.]+\s*[\+\-\*\/]\s*[0-9\.]+)|(?:=.*[\+\-\*\/])"
+)
+
+LOOKUP_PATTERN = re.compile(
+    r"(?i)\b(pinout|pin\s*diagram|pin\s*\d+|datasheet|pins|package|smd\s*code|"
+    r"marking|specs|specifications|ratings|absolute\s*maximum|quick\s*lookup|"
+    r"what\s*is|define|definition|lead\s*spacing|pitch)\b"
+)
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -32,10 +49,8 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
                 provider_config = models.get_model(default_name)
                 provider = provider_config.get("provider", default_name)
                 model_id = provider_config.get("model_id")
-    else:
-        default_name = models.get_default_model()
-        chosen_name = request.provider or default_name
-
+    elif request.model is None and request.provider:
+        chosen_name = request.provider
         try:
             provider_config = models.get_model(chosen_name)
         except (KeyError, ValueError) as exc:
@@ -46,6 +61,23 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
         provider = provider_config.get("provider", chosen_name)
         model_id = request.model_id or provider_config.get("model_id")
+    else:
+        # Autonomous Smart Router:
+        # 1. Math/formula queries -> gemini-2.0-flash-thinking-exp
+        # 2. Text-only lookups -> Groq llama-3.3-70b-versatile (if Groq key available)
+        # 3. Optical / general queries -> gemini-3.8-flash (active default)
+        has_groq = bool(providers._get_api_key("GROQ_API_KEY"))
+        message_text = request.message or ""
+
+        if MATH_FORMULA_PATTERN.search(message_text):
+            provider = "Gemini"
+            model_id = "gemini-2.0-flash-thinking-exp"
+        elif has_groq and LOOKUP_PATTERN.search(message_text):
+            provider = "Groq"
+            model_id = "llama-3.3-70b-versatile"
+        else:
+            provider = "Gemini"
+            model_id = "gemini-3.8-flash"
 
     if not model_id:
         raise HTTPException(

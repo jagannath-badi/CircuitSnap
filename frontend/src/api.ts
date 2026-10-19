@@ -27,6 +27,7 @@ export interface ModelOption {
   id: string;
   label: string;
   provider: string;
+  specialty: string;
   supports_vision: boolean;
 }
 

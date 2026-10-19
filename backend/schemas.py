@@ -16,6 +16,7 @@ class ModelOption(BaseModel):
     id: str
     label: str
     provider: str
+    specialty: str
     supports_vision: bool
 
 
