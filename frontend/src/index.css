@@ -3,7 +3,7 @@
 :root {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   color: #f3f4f6;
-  background-color: #0b0f19;
+  background-color: #090d16;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,42 +18,45 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-color: #0b0f19;
+  background-color: #090d16;
   color: #f3f4f6;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 20px 20px;
+  background: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 60%), #090d16;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom dark workbench scrollbar */
+/* Custom dark workbench scrollbar (5px width, rounded-full thumb) */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(8, 11, 17, 0.5);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
 }
 
 /* Subtle dark scrollbar for Diagnostic Feed and scrollable panels */
 .diagnostic-feed-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 .diagnostic-feed-scrollbar::-webkit-scrollbar-track {
-  background: rgba(8, 11, 17, 0.5);
+  background: transparent;
 }
 .diagnostic-feed-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
 }
 .diagnostic-feed-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
 }
 
 /* Radar scanner sweep animation for active optical DUT analysis */

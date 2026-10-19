@@ -23,6 +23,18 @@ export interface HealthResponse {
   };
 }
 
+export interface ModelOption {
+  id: string;
+  label: string;
+  provider: string;
+  supports_vision: boolean;
+}
+
+export interface ModelsResponse {
+  models: ModelOption[];
+  default_model: string;
+}
+
 export const ALLOWED_IMAGE_TYPES = [
   'image/jpeg',
   'image/png',
@@ -53,11 +65,33 @@ export async function checkHealth(): Promise<HealthResponse> {
 }
 
 /**
+ * Fetches available AI models from GET /api/models.
+ */
+export async function fetchAvailableModels(): Promise<ModelOption[]> {
+  const response = await fetch('/api/models');
+  if (!response.ok) {
+    let errorDetail = `Failed to fetch models (${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.detail) {
+        errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      // ignore JSON parse error
+    }
+    throw new Error(errorDetail);
+  }
+  const data: ModelsResponse = await response.json();
+  return data.models || [];
+}
+
+/**
  * Sends a textual multi-turn chat message to POST /api/chat.
  */
 export async function sendChatMessage(
   message: string,
   history: ChatMessage[] = [],
+  model?: string,
   provider?: string,
   modelId?: string
 ): Promise<ChatResponse> {
@@ -69,6 +103,7 @@ export async function sendChatMessage(
     body: JSON.stringify({
       message,
       history,
+      model: model || undefined,
       provider: provider || undefined,
       model_id: modelId || undefined,
     }),
@@ -96,6 +131,7 @@ export async function sendChatMessage(
 export async function analyzeImage(
   file: File,
   prompt?: string,
+  model?: string,
   provider?: string,
   modelId?: string
 ): Promise<ChatResponse> {
@@ -103,6 +139,9 @@ export async function analyzeImage(
   formData.append('file', file);
   if (prompt && prompt.trim()) {
     formData.append('prompt', prompt.trim());
+  }
+  if (model) {
+    formData.append('model', model);
   }
   if (provider) {
     formData.append('provider', provider);

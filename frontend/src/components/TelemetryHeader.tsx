@@ -1,6 +1,6 @@
-import React from 'react';
-import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert } from 'lucide-react';
-import type { HealthResponse } from '../api';
+import React, { useState, useRef, useEffect } from 'react';
+import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown } from 'lucide-react';
+import type { HealthResponse, ModelOption } from '../api';
 
 export interface TelemetryData {
   provider: string;
@@ -17,7 +17,34 @@ export interface TelemetryHeaderProps {
   telemetry: TelemetryData;
   onResetWorkbench: () => void;
   hasActiveSession: boolean;
+  availableModels?: ModelOption[];
+  selectedModel?: string;
+  onSelectModel?: (modelId: string) => void;
 }
+
+const MODEL_OPTIONS = [
+  {
+    id: 'auto',
+    name: 'Auto (Smart Router)',
+    description: 'Vision & Fast Failover',
+    icon: '⚡',
+    provider: 'auto',
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini',
+    description: 'Multimodal Optical Analysis',
+    icon: '✨',
+    provider: 'gemini',
+  },
+  {
+    id: 'llama-3.3-70b-versatile',
+    name: 'Groq LPU',
+    description: 'Ultra-Fast Inference',
+    icon: '⚡',
+    provider: 'groq',
+  },
+];
 
 export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
   health,
@@ -27,115 +54,202 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
   telemetry,
   onResetWorkbench,
   hasActiveSession,
+  availableModels = [],
+  selectedModel = 'auto',
+  onSelectModel,
 }) => {
   const isHealthy = health?.status === 'healthy';
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const selectedOption =
+    MODEL_OPTIONS.find((opt) => opt.id === selectedModel) || MODEL_OPTIONS[0];
 
   return (
-    <header className="bg-slate-900/70 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 px-4 py-2.5 h-[65px] flex items-center justify-between">
+    <header className="bg-slate-950/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-40 px-4 sm:px-5 py-2.5 h-[65px] flex items-center justify-between transition-colors">
       {/* Left Branding & Hardware LED */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white flex-shrink-0">
-          <Cpu className="w-5 h-5" />
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.15)] flex-shrink-0">
+          <Cpu className="w-4 h-4" />
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-bold tracking-tight text-white text-base">CircuitSnap</span>
-            <span className="text-[10px] tracking-wider uppercase font-mono font-semibold px-1.5 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/60">
-              v2.0 HUD
-            </span>
+        <div className="flex items-center gap-2">
+          <span className="font-semibold tracking-tight text-white text-sm">CircuitSnap</span>
+          <span className="text-[10px] tracking-wider uppercase font-mono text-slate-400 bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded">
+            v2.0
+          </span>
+        </div>
+
+        <div className="h-3.5 w-px bg-white/10 hidden sm:block mx-0.5" />
+
+        {/* Breathing Hardware LED Status */}
+        <div
+          className="flex items-center gap-2 cursor-pointer group"
+          onClick={onRefreshHealth}
+          title={
+            healthError ||
+            (isHealthy ? 'FastAPI Backend Online & Operational' : 'FastAPI Backend Offline')
+          }
+        >
+          <div className="relative flex items-center justify-center w-2.5 h-2.5">
+            {isHealthLoading ? (
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+            ) : isHealthy ? (
+              <>
+                <span className="absolute w-3.5 h-3.5 rounded-full bg-emerald-400/30 animate-ping pointer-events-none" />
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+              </>
+            ) : (
+              <span className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.9)]" />
+            )}
           </div>
-          <div className="flex items-center gap-2 text-[11px] font-mono text-slate-400">
-            <span className="hidden sm:inline">CYBER-PHYSICAL BENCH</span>
-            <span className="text-slate-600 hidden sm:inline">•</span>
-            {/* Hardware LED Status */}
-            <div
-              className="flex items-center gap-1.5 cursor-pointer group"
-              onClick={onRefreshHealth}
-              title={
-                healthError ||
-                (isHealthy ? 'FastAPI Backend Online & Operational' : 'FastAPI Backend Offline')
-              }
-            >
-              <span
-                className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  isHealthLoading
-                    ? 'bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.8)]'
-                    : isHealthy
-                    ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)] animate-pulse'
-                    : 'bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.9)]'
-                }`}
-              />
-              <span
-                className={`text-[10px] uppercase font-bold tracking-wider ${
-                  isHealthLoading
-                    ? 'text-amber-400'
-                    : isHealthy
-                    ? 'text-emerald-400'
-                    : 'text-rose-400'
-                }`}
-              >
-                {isHealthLoading ? 'INITIALIZING' : isHealthy ? 'SYS ONLINE' : 'SYS OFFLINE'}
-              </span>
-              <RefreshCw
-                className={`w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400 transition-colors ${
-                  isHealthLoading ? 'animate-spin' : ''
-                }`}
-              />
-            </div>
-          </div>
+          <span
+            className={`text-[10px] uppercase font-mono font-medium tracking-wider transition-colors ${
+              isHealthLoading
+                ? 'text-amber-400'
+                : isHealthy
+                ? 'text-slate-300 group-hover:text-emerald-400'
+                : 'text-rose-400'
+            }`}
+          >
+            {isHealthLoading ? 'INIT' : isHealthy ? 'SYS ONLINE' : 'SYS OFFLINE'}
+          </span>
+          <RefreshCw
+            className={`w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400 transition-colors ${
+              isHealthLoading ? 'animate-spin' : ''
+            }`}
+          />
         </div>
       </div>
 
-      {/* Center Monospace Telemetry Chips (Desktop) */}
+      {/* Center Minimalist Micro-Badges & Interactive Model Selector */}
       <div className="hidden md:flex items-center gap-2">
         {/* Provider Chip */}
-        <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-white/10 flex items-center gap-1.5 font-mono text-[11px]">
-          <span className="text-slate-500 text-[10px]">PROV:</span>
-          <span className="text-cyan-300 font-semibold">{telemetry.provider || 'STANDBY'}</span>
+        <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-0.5 flex items-center gap-1.5">
+          <span className="text-slate-500 text-[10px]">PROV</span>
+          <span className="text-cyan-300 font-medium">{telemetry.provider || 'STANDBY'}</span>
         </div>
 
-        {/* Model Chip */}
-        <div className="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-white/10 flex items-center gap-1.5 font-mono text-[11px]">
-          <span className="text-slate-500 text-[10px]">MODEL:</span>
-          <span className="text-slate-200 truncate max-w-[150px] font-semibold">
-            {telemetry.model_id || 'AUTO'}
-          </span>
+        {/* Interactive Model Selector Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            type="button"
+            onClick={() => setIsOpen((prev) => !prev)}
+            className="text-xs font-mono text-slate-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 rounded-full px-2.5 py-0.5 flex items-center gap-1.5 transition-all shadow-sm group active:scale-95"
+            title="Select AI Model Architecture"
+          >
+            <span className="text-slate-500 text-[10px]">MODEL</span>
+            <span className="text-cyan-300 font-medium truncate max-w-[150px]">
+              {selectedOption.name}
+            </span>
+            <ChevronDown
+              className={`w-3 h-3 text-slate-400 group-hover:text-cyan-300 transition-transform duration-200 ${
+                isOpen ? 'rotate-180 text-cyan-300' : ''
+              }`}
+            />
+          </button>
+
+          {isOpen && (
+            <div className="absolute top-full mt-2 right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 min-w-[240px] flex flex-col gap-1">
+              {MODEL_OPTIONS.map((opt) => {
+                const isSelected = selectedModel === opt.id;
+                const isAvailable =
+                  opt.id === 'auto'
+                    ? true
+                    : availableModels.length === 0
+                    ? true
+                    : availableModels.some(
+                        (m) => m.id === opt.id || m.provider === opt.provider
+                      );
+
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    disabled={!isAvailable}
+                    onClick={() => {
+                      if (isAvailable && onSelectModel) {
+                        onSelectModel(opt.id);
+                        setIsOpen(false);
+                      }
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-start justify-between gap-2 ${
+                      isSelected
+                        ? 'bg-cyan-500/15 border border-cyan-500/30 text-white'
+                        : isAvailable
+                        ? 'hover:bg-white/[0.06] text-slate-300 hover:text-white'
+                        : 'opacity-40 cursor-not-allowed text-slate-500'
+                    }`}
+                  >
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5 text-xs font-medium">
+                        <span className="text-xs">{opt.icon}</span>
+                        <span>{opt.name}</span>
+                        {isSelected && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.8)]" />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-normal">
+                        {opt.description}
+                      </span>
+                    </div>
+
+                    {!isAvailable && (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold self-center">
+                        NO KEY
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Cycles/Attempts Chip */}
-        <div className="px-2 py-1 rounded-lg bg-slate-950/80 border border-white/10 flex items-center gap-1.5 font-mono text-[11px]">
+        <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-0.5 flex items-center gap-1.5">
           <Activity className="w-3 h-3 text-cyan-400" />
-          <span className="text-slate-400">
-            {telemetry.attempts === 1 ? '1 CYCLE' : `${telemetry.attempts} CYCLES`}
-          </span>
+          <span>{telemetry.attempts === 1 ? '1 CYCLE' : `${telemetry.attempts} CYCLES`}</span>
         </div>
 
         {/* Fallback Flag */}
         {telemetry.fallback_used && (
-          <div className="px-2 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center gap-1 font-mono text-[10px] text-amber-300 font-bold">
+          <div className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-2.5 py-0.5 flex items-center gap-1">
             <ShieldAlert className="w-3 h-3 text-amber-400" />
             <span>FALLBACK</span>
           </div>
         )}
       </div>
 
-      {/* Right Actions: Workbench Reset */}
+      {/* Right Actions: Minimalist Ghost Reset Button */}
       <div className="flex items-center gap-2">
         <button
           onClick={onResetWorkbench}
           disabled={!hasActiveSession}
-          className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-mono font-medium transition-all ${
+          className={`px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-xs font-mono transition-all ${
             hasActiveSession
-              ? 'bg-rose-950/40 hover:bg-rose-950/70 border-rose-800/60 text-rose-300 hover:text-rose-100 shadow-sm'
-              : 'bg-slate-950/30 border-white/5 text-slate-600 cursor-not-allowed opacity-60'
+              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 active:scale-95'
+              : 'text-slate-600 cursor-not-allowed opacity-40'
           }`}
           title="Reset Workbench and clear all active telemetry & scope image"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">RESET BENCH</span>
+          <span className="hidden sm:inline">Reset Bench</span>
         </button>
       </div>
     </header>
   );
 };
-

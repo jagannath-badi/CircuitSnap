@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import {
-  checkHealth, sendChatMessage, analyzeImage,
+  checkHealth, sendChatMessage, analyzeImage, fetchAvailableModels,
   ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES,
-  type ChatResponse, type HealthResponse,
+  type ChatResponse, type HealthResponse, type ModelOption,
 } from './api';
 import { TelemetryHeader, type TelemetryData } from './components/TelemetryHeader';
 import { InspectionDeck } from './components/InspectionDeck';
@@ -22,6 +22,9 @@ export default function App() {
   const [isHealthLoading, setIsHealthLoading] = useState(true);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryData>({ provider: '', model_id: '', attempts: 1, fallback_used: false });
+  const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('auto');
+  const [visionNotice, setVisionNotice] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -49,7 +52,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => { void fetchHealth(); }, 0);
+    const timer = setTimeout(() => {
+      void fetchHealth();
+      void fetchAvailableModels().then(setAvailableModels).catch(() => {});
+    }, 0);
     return () => clearTimeout(timer);
   }, [fetchHealth]);
 
@@ -102,11 +108,7 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleEjectDut = () => {
-    setActiveDutImage(null);
-    setActiveDutName(null);
-    removeAttachedFile();
-  };
+  const handleEjectDut = () => { setActiveDutImage(null); setActiveDutName(null); removeAttachedFile(); };
 
   const handleClearChat = () => {
     activeObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -115,6 +117,7 @@ export default function App() {
     setActiveDutName(null);
     setMessages([]);
     setErrorMessage(null);
+    setVisionNotice(null);
     removeAttachedFile();
   };
 
@@ -133,43 +136,30 @@ export default function App() {
 
     setMessages((prev) => [
       ...prev,
-      {
-        id: `user-${Date.now()}`,
-        role: 'user',
-        content: text || '(Optical Inspection Photo Submitted for Component Identification)',
-        imagePreviewUrl: messageImageUrl,
-      },
+      { id: `user-${Date.now()}`, role: 'user', content: text || '(Optical Inspection Photo Submitted for Component Identification)', imagePreviewUrl: messageImageUrl },
     ]);
     setInputPrompt('');
 
     const fileToUpload = attachedFile;
     removeAttachedFile();
 
+    if (fileToUpload && selectedModel !== 'auto') {
+      const chosen = availableModels.find((m) => m.id === selectedModel);
+      if (chosen && !chosen.supports_vision) {
+        setVisionNotice('Routing to Gemini Optical Vision Engine');
+        setTimeout(() => setVisionNotice(null), 4000);
+      }
+    }
+
     try {
       const response: ChatResponse = fileToUpload
-        ? await analyzeImage(fileToUpload, text || undefined)
-        : await sendChatMessage(text, messages.map((m) => ({ role: m.role, content: m.content })));
+        ? await analyzeImage(fileToUpload, text || undefined, selectedModel)
+        : await sendChatMessage(text, messages.map((m) => ({ role: m.role, content: m.content })), selectedModel);
 
-      setTelemetry({
-        provider: response.provider,
-        model_id: response.model_id,
-        attempts: response.attempts,
-        fallback_used: response.fallback_used,
-      });
-
+      setTelemetry({ provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used });
       setMessages((prev) => [
         ...prev,
-        {
-          id: `assistant-${Date.now()}`,
-          role: 'assistant',
-          content: response.answer,
-          metadata: {
-            provider: response.provider,
-            model_id: response.model_id,
-            attempts: response.attempts,
-            fallback_used: response.fallback_used,
-          },
-        },
+        { id: `assistant-${Date.now()}`, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used } },
       ]);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.');
@@ -180,7 +170,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen bg-[#0b0f19] text-slate-100 flex flex-col overflow-hidden selection:bg-cyan-900 selection:text-cyan-200">
+    <div className="h-screen bg-[#090d16] text-slate-100 flex flex-col overflow-hidden selection:bg-cyan-900 selection:text-cyan-200">
       <TelemetryHeader
         health={health}
         isHealthLoading={isHealthLoading}
@@ -189,7 +179,19 @@ export default function App() {
         telemetry={telemetry}
         onResetWorkbench={handleClearChat}
         hasActiveSession={messages.length > 0 || attachedFile !== null || activeDutImage !== null}
+        availableModels={availableModels}
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
       />
+
+      {visionNotice && (
+        <div className="px-4 py-1.5 bg-cyan-950/90 border-b border-cyan-500/40 text-cyan-200 flex items-center justify-between text-xs font-mono z-30 animate-pulse">
+          <span>⚡ [OPTICAL ROUTER]: {visionNotice}</span>
+          <button onClick={() => setVisionNotice(null)} className="text-cyan-400 hover:text-white p-0.5 transition-colors">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {errorMessage && (
         <div className="px-4 py-2 bg-rose-950/80 border-b border-rose-800 text-rose-200 flex items-center justify-between text-xs font-mono z-30">
@@ -221,10 +223,7 @@ export default function App() {
             onFileSelect={handleFileSelect}
             onEjectDut={handleEjectDut}
             onReplaceDut={() => fileInputRef.current?.click()}
-            onQuickAction={(prompt) => {
-              setInputPrompt(prompt);
-              textareaRef.current?.focus();
-            }}
+            onQuickAction={(prompt) => { setInputPrompt(prompt); textareaRef.current?.focus(); }}
           />
 
           <DiagnosticFeed

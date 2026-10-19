@@ -5,8 +5,6 @@ import rehypeKatex from 'rehype-katex';
 import {
   Layers,
   Sparkles,
-  Bot,
-  User,
   Loader2,
   Image as ImageIcon,
   X,
@@ -92,7 +90,7 @@ function rehypeConfidenceBadges() {
                   tagName: 'span',
                   properties: {
                     className:
-                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)]',
                   },
                   children: [{ type: 'text', value: 'CONFIRMED' }],
                 });
@@ -103,7 +101,7 @@ function rehypeConfidenceBadges() {
                   tagName: 'span',
                   properties: {
                     className:
-                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-amber-500/15 text-amber-400 border border-amber-500/30',
+                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.15)]',
                   },
                   children: [{ type: 'text', value: 'LIKELY' }],
                 });
@@ -114,7 +112,7 @@ function rehypeConfidenceBadges() {
                   tagName: 'span',
                   properties: {
                     className:
-                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-rose-500/15 text-rose-400 border border-rose-500/30',
+                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.15)]',
                   },
                   children: [{ type: 'text', value: 'CANNOT CONFIRM' }],
                 });
@@ -144,10 +142,10 @@ function rehypeConfidenceBadges() {
 
 const markdownComponents: Components = {
   p: ({ children }) => (
-    <p className="my-2 text-slate-200 leading-relaxed">{children}</p>
+    <p className="my-2 text-slate-200 leading-relaxed text-sm">{children}</p>
   ),
   li: ({ children }) => (
-    <li className="my-1 text-slate-200 leading-relaxed">{children}</li>
+    <li className="my-1 text-slate-200 leading-relaxed text-sm">{children}</li>
   ),
   span: ({ children, className, ...props }) => (
     <span className={className} {...props}>
@@ -161,25 +159,25 @@ const markdownComponents: Components = {
     <em className="italic text-slate-300">{children}</em>
   ),
   h1: ({ children }) => (
-    <h1 className="text-xl font-bold text-cyan-200 mt-4 mb-2">{children}</h1>
+    <h1 className="text-lg font-bold text-cyan-200 mt-4 mb-2">{children}</h1>
   ),
   h2: ({ children }) => (
-    <h2 className="text-lg font-bold text-cyan-300 mt-3.5 mb-2">{children}</h2>
+    <h2 className="text-base font-bold text-cyan-300 mt-3.5 mb-1.5">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-base font-semibold text-cyan-400 mt-3 mb-1.5">{children}</h3>
+    <h3 className="text-sm font-semibold text-cyan-400 mt-3 mb-1">{children}</h3>
   ),
   h4: ({ children }) => (
-    <h4 className="text-sm font-semibold text-cyan-400 mt-2 mb-1">{children}</h4>
+    <h4 className="text-xs font-semibold text-cyan-400 mt-2 mb-1">{children}</h4>
   ),
   ul: ({ children }) => (
-    <ul className="list-disc list-outside space-y-1.5 my-2.5 ml-5 text-slate-200">{children}</ul>
+    <ul className="list-disc list-outside space-y-1.5 my-2 ml-5 text-slate-200">{children}</ul>
   ),
   ol: ({ children }) => (
-    <ol className="list-decimal list-outside space-y-1.5 my-2.5 ml-5 text-slate-200">{children}</ol>
+    <ol className="list-decimal list-outside space-y-1.5 my-2 ml-5 text-slate-200">{children}</ol>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-cyan-500/60 pl-3 py-1 my-2 text-slate-300 bg-slate-900/60 rounded-r text-sm">
+    <blockquote className="border-l-2 border-cyan-400/60 pl-3 py-1 my-2 text-slate-300 bg-white/[0.02] rounded-r text-sm italic">
       {children}
     </blockquote>
   ),
@@ -188,7 +186,7 @@ const markdownComponents: Components = {
       <code
         className={
           className ||
-          'px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 text-xs font-mono border border-slate-700'
+          'px-1.5 py-0.5 rounded bg-white/[0.05] text-cyan-300 text-xs font-mono border border-white/[0.08]'
         }
         {...props}
       >
@@ -197,24 +195,24 @@ const markdownComponents: Components = {
     );
   },
   pre: ({ children }) => (
-    <pre className="p-3 my-2.5 rounded-xl bg-slate-950/90 border border-slate-800 overflow-x-auto text-xs font-mono text-cyan-300">
+    <pre className="p-3 my-2.5 rounded-xl bg-slate-950/80 border border-white/[0.08] overflow-x-auto text-xs font-mono text-cyan-300">
       {children}
     </pre>
   ),
   table: ({ children }) => (
-    <div className="overflow-x-auto my-3 rounded-lg border border-slate-800">
-      <table className="min-w-full divide-y divide-slate-800 text-xs text-left">
+    <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.08]">
+      <table className="min-w-full divide-y divide-white/[0.08] text-xs text-left">
         {children}
       </table>
     </div>
   ),
   th: ({ children }) => (
-    <th className="px-3 py-2 bg-slate-900/90 font-semibold text-cyan-300 border-b border-slate-700/80">
+    <th className="px-3 py-2 bg-white/[0.03] font-semibold text-cyan-300 border-b border-white/[0.08]">
       {children}
     </th>
   ),
   td: ({ children }) => (
-    <td className="px-3 py-2 border-b border-slate-800/60 text-slate-300">
+    <td className="px-3 py-2 border-b border-white/[0.06] text-slate-300">
       {children}
     </td>
   ),
@@ -223,13 +221,13 @@ const markdownComponents: Components = {
       href={href}
       target="_blank"
       rel="noreferrer"
-      className="text-cyan-400 hover:text-cyan-300 underline"
+      className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
       {...props}
     >
       {children}
     </a>
   ),
-  hr: () => <hr className="my-3 border-slate-800" />,
+  hr: () => <hr className="my-3 border-white/[0.08]" />,
 };
 
 export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
@@ -257,12 +255,12 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   };
 
   return (
-    <section className="lg:col-span-7 h-full flex flex-col overflow-hidden bg-slate-900/60 border border-white/10 backdrop-blur-md rounded-2xl p-4 sm:p-5 shadow-2xl relative">
+    <section className="lg:col-span-7 h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl relative">
       {/* Feed Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/10 flex-shrink-0">
+      <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-mono font-bold tracking-wider uppercase text-cyan-300">
+          <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-300">
             DIAGNOSTIC LOG & ANALYSIS FEED
           </h2>
         </div>
@@ -281,18 +279,18 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
         {messages.length === 0 ? (
           /* Empty Feed State */
           <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-6">
-            <div className="w-14 h-14 rounded-2xl bg-cyan-950/60 border border-cyan-800/60 flex items-center justify-center text-cyan-400 shadow-xl shadow-cyan-950/50 mb-3">
-              <Sparkles className="w-7 h-7" />
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-cyan-400 shadow-xl mb-3">
+              <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className="text-base font-mono font-bold text-slate-100 tracking-wide">
+            <h3 className="text-sm font-mono font-bold text-slate-100 tracking-wide">
               CIRCUITSNAP DIAGNOSTIC ENGINE STANDBY
             </h3>
             <p className="text-xs text-slate-400 max-w-sm mt-1 mb-4 leading-relaxed">
-              Select a Quick-Action chip on the left, attach an optical inspection photo, or input an
+              Select a Bench Preset on the left, attach an optical inspection photo, or input an
               electronics query below.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-white/5 text-[11px] font-mono text-slate-400">
-              <span className="text-cyan-400 font-bold">MODE:</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[11px] font-mono text-slate-400">
+              <span className="text-cyan-400 font-semibold">MODE:</span>
               <span>Multi-turn ECE Verification & KaTeX Analysis</span>
             </div>
           </div>
@@ -300,21 +298,15 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex gap-3 ${
+              className={`flex ${
                 msg.role === 'user' ? 'justify-end' : 'justify-start'
               }`}
             >
-              {msg.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-800/80 text-cyan-400 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
-                  <Bot className="w-4 h-4" />
-                </div>
-              )}
-
               <div
-                className={`max-w-[90%] sm:max-w-[85%] rounded-2xl p-4 shadow-md transition-all ${
+                className={`transition-all ${
                   msg.role === 'user'
-                    ? 'bg-cyan-950/40 border border-cyan-800/50 text-cyan-100 shadow-[0_4px_20px_rgba(6,182,212,0.1)] rounded-tr-none'
-                    : 'bg-slate-950/90 border border-slate-800/90 text-slate-200 rounded-tl-none'
+                    ? 'bg-cyan-950/30 border border-cyan-500/20 text-slate-100 rounded-2xl rounded-tr-sm px-4 py-3 shadow-lg max-w-[85%]'
+                    : 'bg-slate-900/40 border border-white/[0.07] text-slate-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-xl max-w-[92%] sm:max-w-[88%]'
                 }`}
               >
                 {/* User message rendering */}
@@ -326,7 +318,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                         <img
                           src={msg.imagePreviewUrl}
                           alt="Uploaded circuit or component"
-                          className="bg-slate-950/80 border border-white/10 rounded-lg p-1 max-h-48 object-contain block shadow-md"
+                          className="bg-black/40 border border-white/10 rounded-xl p-1 max-h-48 object-contain block shadow-md"
                         />
                       </div>
                     )}
@@ -347,40 +339,31 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
 
                 {/* Assistant Engine Metadata Badge */}
                 {msg.metadata && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-800 flex flex-wrap items-center gap-2 text-[10px] font-mono text-slate-400">
-                    <span className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700/80 text-cyan-300">
+                  <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-400">
+                    <span className="px-2 py-0.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-cyan-300 font-medium">
                       {msg.metadata.provider} / {msg.metadata.model_id}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700/40">
+                    <span className="px-2 py-0.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-slate-400">
                       {msg.metadata.attempts === 1 ? '1 CYCLE' : `${msg.metadata.attempts} CYCLES`}
                     </span>
                     {msg.metadata.fallback_used && (
-                      <span className="px-2 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800/60 font-bold">
+                      <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold">
                         FALLBACK ACTIVE
                       </span>
                     )}
                   </div>
                 )}
               </div>
-
-              {msg.role === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-cyan-950/70 border border-cyan-800/60 text-cyan-300 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
-                  <User className="w-4 h-4" />
-                </div>
-              )}
             </div>
           ))
         )}
 
         {/* Loading Indicator Bubble */}
         {isLoading && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-800/80 text-cyan-400 flex items-center justify-center flex-shrink-0 mt-1 animate-pulse">
-              <Bot className="w-4 h-4" />
-            </div>
-            <div className="rounded-2xl rounded-tl-none p-4 bg-slate-950/90 border border-slate-800 flex items-center gap-3 text-xs font-mono text-cyan-300 shadow-md">
-              <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-              <span>[DIAGNOSTIC ENGINE ACTIVE]: PROCESSING HARDWARE TELEMETRY...</span>
+          <div className="flex justify-start">
+            <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-slate-900/40 border border-white/[0.07] flex items-center gap-2.5 text-xs font-mono text-cyan-300 shadow-lg">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+              <span className="tracking-wide text-slate-300">Processing hardware telemetry & optical spectrum...</span>
             </div>
           </div>
         )}
@@ -390,23 +373,21 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
 
       {/* Floating Composer Pinned at Bottom of Column B */}
       <div className="pt-2 flex-shrink-0">
-        <div className="bg-slate-950/90 border border-white/10 rounded-xl p-2.5 shadow-xl">
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-2xl p-2.5 mx-auto max-w-full focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all">
           {/* Active Scope Attachment Indicator in Composer */}
           {attachedFile && (
-            <div className="mb-2 px-2.5 py-1 rounded-lg bg-cyan-950/60 border border-cyan-800/50 flex items-center justify-between text-xs font-mono text-cyan-300">
-              <div className="flex items-center gap-2 truncate">
+            <div className="mb-2 px-2.5 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-between text-xs font-mono text-cyan-300 w-fit max-w-full">
+              <div className="flex items-center gap-1.5 truncate mr-2">
                 <ImageIcon className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-                <span className="truncate">
-                  OPTICAL SCOPE TARGET: <strong className="text-white">{attachedFile.name}</strong>
-                </span>
+                <span className="truncate text-[11px] text-slate-200">{attachedFile.name}</span>
               </div>
               <button
                 type="button"
                 onClick={onRemoveAttachment}
-                className="text-slate-400 hover:text-white p-0.5 rounded transition-colors ml-2"
+                className="text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
                 title="Clear optical target"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3 h-3" />
               </button>
             </div>
           )}
@@ -418,13 +399,13 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               onClick={onAttachClick}
               disabled={isLoading}
               title="Load Photo to Optical Scope (JPEG, PNG, WEBP, GIF up to 10 MB)"
-              className={`p-2.5 rounded-xl border transition-colors flex-shrink-0 ${
+              className={`p-2 rounded-xl border transition-all flex-shrink-0 ${
                 attachedFile
-                  ? 'bg-cyan-950 text-cyan-300 border-cyan-700'
-                  : 'bg-slate-900 text-slate-400 border-white/10 hover:text-cyan-300 hover:border-cyan-600/50'
+                  ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
+                  : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-cyan-300 hover:border-cyan-500/30 hover:bg-white/[0.05]'
               }`}
             >
-              <ImageIcon className="w-5 h-5" />
+              <ImageIcon className="w-4 h-4" />
             </button>
 
             <textarea
@@ -434,12 +415,12 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               onKeyDown={handleKeyDown}
               placeholder={
                 attachedFile
-                  ? 'State specific verification question or leave blank to auto-identify component...'
-                  : 'Enter circuit query, component part number, or formula (Shift+Enter for newline)...'
+                  ? 'State verification question or leave blank to auto-identify...'
+                  : 'Ask a circuit question, paste part number, or formula...'
               }
-              rows={2}
+              rows={1}
               disabled={isLoading}
-              className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-100 placeholder:text-slate-500 max-h-32 py-1 px-2 font-sans"
+              className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-100 placeholder:text-slate-500 max-h-32 py-1.5 px-2 font-sans leading-relaxed"
             />
 
             {/* Phosphor Emerald Send Trigger */}
@@ -447,28 +428,24 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               type="button"
               onClick={onSendMessage}
               disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:hover:bg-emerald-600 text-white font-mono font-semibold text-xs tracking-wider shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all flex items-center gap-1.5 flex-shrink-0"
+              className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-slate-950 font-bold shadow-[0_0_16px_rgba(16,185,129,0.35)] transition-all active:scale-95 flex-shrink-0 flex items-center justify-center"
               title="Execute CircuitSnap Query (Enter)"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
               ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">SEND</span>
-                </>
+                <Send className="w-4 h-4 text-slate-950" />
               )}
             </button>
           </div>
 
           {/* Micro Telemetry Bar */}
-          <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
-            <span>Enter: Send • Shift+Enter: Newline • Ctrl+V: Paste Image</span>
-            <span className="text-slate-400">CircuitSnap AI Engine</span>
+          <div className="mt-2 pt-1.5 border-t border-white/[0.05] flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
+            <span>Enter: Send • Shift+Enter: Newline • Ctrl+V: Paste</span>
+            <span className="text-slate-500">CircuitSnap AI Engine</span>
           </div>
         </div>
       </div>
     </section>
   );
 };
-
