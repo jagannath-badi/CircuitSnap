@@ -93,7 +93,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="font-semibold tracking-tight text-white text-sm">CircuitSnap</span>
           <span className="text-[10px] tracking-wider uppercase font-mono text-slate-400 bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded hidden xs:inline-block">
-            v2.0
+            V2.0
           </span>
         </div>
 
@@ -163,7 +163,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
       </div>
 
       {/* Right Controls: Model Selector, Operator Status, Vault & Reset */}
-      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 overflow-x-auto sm:overflow-visible scrollbar-none py-1">
         {/* Interactive Model Selector Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button

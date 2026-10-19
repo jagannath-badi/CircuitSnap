@@ -91,7 +91,7 @@ function rehypeConfidenceBadges() {
                   tagName: 'span',
                   properties: {
                     className:
-                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)]',
+                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]',
                   },
                   children: [{ type: 'text', value: 'CONFIRMED' }],
                 });
@@ -102,7 +102,7 @@ function rehypeConfidenceBadges() {
                   tagName: 'span',
                   properties: {
                     className:
-                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-[0_0_8px_rgba(245,158,11,0.15)]',
+                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]',
                   },
                   children: [{ type: 'text', value: 'LIKELY' }],
                 });
@@ -113,7 +113,7 @@ function rehypeConfidenceBadges() {
                   tagName: 'span',
                   properties: {
                     className:
-                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-rose-500/15 text-rose-400 border border-rose-500/30 shadow-[0_0_8px_rgba(244,63,94,0.15)]',
+                      'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase mr-1.5 align-middle bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-[0_0_10px_rgba(244,63,94,0.2)]',
                   },
                   children: [{ type: 'text', value: 'CANNOT CONFIRM' }],
                 });
@@ -276,21 +276,27 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
       </div>
 
       {/* Height-Locked Scrollable Message Log */}
-      <div className="flex-1 overflow-y-auto space-y-4 my-3 pr-1 diagnostic-feed-scrollbar">
+      <div
+        className={`flex-1 overflow-y-auto my-3 pr-1 pb-2 diagnostic-feed-scrollbar ${
+          messages.length === 0
+            ? 'flex flex-col items-center justify-center'
+            : 'flex flex-col justify-start space-y-4'
+        }`}
+      >
         {messages.length === 0 ? (
-          /* Empty Feed State */
-          <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-6">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center text-cyan-400 shadow-xl mb-3">
+          /* Empty Feed State - Centered ONLY when messages.length === 0 */
+          <div className="flex flex-col items-center justify-center text-center p-6 max-w-md mx-auto">
+            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-cyan-400 shadow-xl mb-3">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-mono font-bold text-slate-100 tracking-wide">
+            <h3 className="text-sm font-mono font-bold text-slate-100 tracking-wide uppercase">
               CIRCUITSNAP DIAGNOSTIC ENGINE STANDBY
             </h3>
-            <p className="text-xs text-slate-400 max-w-sm mt-1 mb-4 leading-relaxed">
+            <p className="text-xs text-slate-400 mt-1.5 mb-4 leading-relaxed">
               Select a Bench Preset on the left, attach an optical inspection photo, or input an
               electronics query below.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-[11px] font-mono text-slate-400">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] text-[11px] font-mono text-slate-300">
               <span className="text-cyan-400 font-semibold">MODE:</span>
               <span>Multi-turn ECE Verification & KaTeX Analysis</span>
             </div>
@@ -307,7 +313,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                 className={`transition-all ${
                   msg.role === 'user'
                     ? 'bg-cyan-950/30 border border-cyan-500/20 text-slate-100 rounded-2xl rounded-tr-sm px-4 py-3 shadow-lg max-w-[85%]'
-                    : 'bg-slate-900/40 border border-white/[0.07] text-slate-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-xl max-w-[92%] sm:max-w-[88%]'
+                    : 'bg-slate-900/50 border border-white/[0.08] text-slate-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-xl max-w-[92%] sm:max-w-[88%]'
                 }`}
               >
                 {/* User message rendering */}
@@ -338,18 +344,18 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                   </div>
                 )}
 
-                {/* Assistant Engine Metadata Badge */}
+                {/* Assistant Engine Metadata Badge with High-Contrast Muted Tags */}
                 {msg.metadata && (
-                  <div className="mt-3 pt-2.5 border-t border-white/[0.06] flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-400">
-                    <span className="px-2 py-0.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-cyan-300 font-medium">
+                  <div className="mt-3 pt-2.5 border-t border-white/[0.08] flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
+                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 font-medium">
                       {msg.metadata.provider} / {msg.metadata.model_id}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-slate-400">
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-slate-300 font-medium">
                       {msg.metadata.attempts === 1 ? '1 CYCLE' : `${msg.metadata.attempts} CYCLES`}
                     </span>
                     {msg.metadata.fallback_used && (
                       <span
-                        className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-bold"
+                        className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40 font-bold"
                         title={msg.metadata.original_model ? `Fallback from ${msg.metadata.original_model}` : 'Fallback Active'}
                       >
                         FALLBACK ACTIVE{msg.metadata.original_model ? ` (${msg.metadata.original_model})` : ''}
