@@ -11,12 +11,14 @@ if str(ROOT_DIR) not in sys.path:
 
 import models
 import providers
-from backend.routers import analyze, chat
+from backend.database import init_db
+from backend.routers import analyze, auth, chat
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     yield
 
 
@@ -41,6 +43,7 @@ app.add_middleware(
 # Register routers
 app.include_router(chat.router)
 app.include_router(analyze.router)
+app.include_router(auth.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)

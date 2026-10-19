@@ -2,12 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import {
   checkHealth, sendChatMessage, analyzeImage, fetchAvailableModels,
-  ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES,
-  type ChatResponse, type HealthResponse, type ModelOption,
+  fetchCurrentOperator, logoutOperator, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES,
+  type ChatResponse, type HealthResponse, type ModelOption, type OperatorUser,
 } from './api';
 import { TelemetryHeader, type TelemetryData } from './components/TelemetryHeader';
 import { InspectionDeck } from './components/InspectionDeck';
 import { DiagnosticFeed, type DisplayMessage } from './components/DiagnosticFeed';
+import { AuthModal } from './components/AuthModal';
 
 export default function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -25,6 +26,8 @@ export default function App() {
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('auto');
   const [visionNotice, setVisionNotice] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<OperatorUser | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -55,6 +58,7 @@ export default function App() {
     const timer = setTimeout(() => {
       void fetchHealth();
       void fetchAvailableModels().then(setAvailableModels).catch(() => {});
+      void fetchCurrentOperator().then(setCurrentUser).catch(() => {});
     }, 0);
     return () => clearTimeout(timer);
   }, [fetchHealth]);
@@ -75,21 +79,11 @@ export default function App() {
 
   const handleFileSelect = useCallback((file: File) => {
     setErrorMessage(null);
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setErrorMessage('Unsupported file type. Please upload a JPEG, PNG, WEBP, or GIF image.');
-      return;
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      setErrorMessage(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max size is 10 MB.`);
-      return;
-    }
-
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) { setErrorMessage('Unsupported file type. Please upload a JPEG, PNG, WEBP, or GIF image.'); return; }
+    if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMessage(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max size is 10 MB.`); return; }
     const objectUrl = URL.createObjectURL(file);
     activeObjectUrlsRef.current.add(objectUrl);
-    setAttachedFile(file);
-    setImagePreview(objectUrl);
-    setActiveDutImage(objectUrl);
-    setActiveDutName(file.name);
+    setAttachedFile(file); setImagePreview(objectUrl); setActiveDutImage(objectUrl); setActiveDutName(file.name);
   }, []);
 
   useEffect(() => {
@@ -113,13 +107,12 @@ export default function App() {
   const handleClearChat = () => {
     activeObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     activeObjectUrlsRef.current.clear();
-    setActiveDutImage(null);
-    setActiveDutName(null);
-    setMessages([]);
-    setErrorMessage(null);
-    setVisionNotice(null);
+    setActiveDutImage(null); setActiveDutName(null);
+    setMessages([]); setErrorMessage(null); setVisionNotice(null);
     removeAttachedFile();
   };
+
+  const handleLogout = () => { logoutOperator(); setCurrentUser(null); };
 
   const handleSendMessage = async (overridePrompt?: string) => {
     const text = (overridePrompt !== undefined ? overridePrompt : inputPrompt).trim();
@@ -182,6 +175,9 @@ export default function App() {
         availableModels={availableModels}
         selectedModel={selectedModel}
         onSelectModel={setSelectedModel}
+        currentUser={currentUser}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {visionNotice && (
@@ -239,6 +235,8 @@ export default function App() {
           />
         </div>
       </main>
+
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={setCurrentUser} />
     </div>
   );
 }

@@ -36,6 +36,49 @@ export interface ModelsResponse {
   default_model: string;
 }
 
+export interface OperatorUser {
+  id: string;
+  username: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+  user: OperatorUser;
+}
+
+const TOKEN_KEY = 'circuitsnap_token';
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // ignore localStorage errors
+  }
+}
+
+export function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const token = getStoredToken();
+  const headers: Record<string, string> = { ...extraHeaders };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export const ALLOWED_IMAGE_TYPES = [
   'image/jpeg',
   'image/png',
@@ -98,9 +141,9 @@ export async function sendChatMessage(
 ): Promise<ChatResponse> {
   const response = await fetch('/api/chat', {
     method: 'POST',
-    headers: {
+    headers: getAuthHeaders({
       'Content-Type': 'application/json',
-    },
+    }),
     body: JSON.stringify({
       message,
       history,
@@ -153,6 +196,7 @@ export async function analyzeImage(
 
   const response = await fetch('/api/analyze', {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: formData,
   });
 
@@ -170,5 +214,91 @@ export async function analyzeImage(
   }
 
   return response.json();
+}
+
+/**
+ * Registers a new operator account and saves access token in localStorage.
+ */
+export async function registerOperator(username: string, password: string): Promise<AuthResponse> {
+  const response = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Registration failed (${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.detail) {
+        errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(errorDetail);
+  }
+
+  const data: AuthResponse = await response.json();
+  setStoredToken(data.access_token);
+  return data;
+}
+
+/**
+ * Logs in an existing operator and saves access token in localStorage.
+ */
+export async function loginOperator(username: string, password: string): Promise<AuthResponse> {
+  const response = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Login failed (${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.detail) {
+        errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(errorDetail);
+  }
+
+  const data: AuthResponse = await response.json();
+  setStoredToken(data.access_token);
+  return data;
+}
+
+/**
+ * Validates current stored bearer token and returns operator profile, or null if guest/expired.
+ */
+export async function fetchCurrentOperator(): Promise<OperatorUser | null> {
+  const token = getStoredToken();
+  if (!token) return null;
+
+  try {
+    const response = await fetch('/api/auth/me', {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+      if (response.status === 401) {
+        setStoredToken(null);
+      }
+      return null;
+    }
+    return response.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Logs out current operator by clearing stored bearer token.
+ */
+export function logoutOperator(): void {
+  setStoredToken(null);
 }
 

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown } from 'lucide-react';
-import type { HealthResponse, ModelOption } from '../api';
+import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut } from 'lucide-react';
+import type { HealthResponse, ModelOption, OperatorUser } from '../api';
 
 export interface TelemetryData {
   provider: string;
@@ -20,6 +20,9 @@ export interface TelemetryHeaderProps {
   availableModels?: ModelOption[];
   selectedModel?: string;
   onSelectModel?: (modelId: string) => void;
+  currentUser?: OperatorUser | null;
+  onOpenAuthModal?: () => void;
+  onLogout?: () => void;
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
@@ -44,24 +47,32 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
   availableModels = [],
   selectedModel = 'auto',
   onSelectModel,
+  currentUser = null,
+  onOpenAuthModal,
+  onLogout,
 }) => {
   const isHealthy = health?.status === 'healthy';
   const [isOpen, setIsOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
     };
-    if (isOpen) {
+    if (isOpen || isUserMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, isUserMenuOpen]);
 
   const modelsToDisplay = availableModels.length > 0 ? availableModels : DEFAULT_MODEL_ROSTER;
   const selectedOption =
@@ -220,8 +231,63 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         )}
       </div>
 
-      {/* Right Actions: Minimalist Ghost Reset Button */}
+      {/* Right Actions: Operator Status & Reset Button */}
       <div className="flex items-center gap-2">
+        {currentUser ? (
+          <div className="relative" ref={userMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              className="px-2.5 py-1 rounded-full text-xs font-mono text-slate-200 bg-cyan-950/40 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-500/50 transition-all flex items-center gap-1.5 active:scale-95 shadow-[0_0_8px_rgba(6,182,212,0.15)]"
+              title="Operator Profile"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+              <span className="text-[10px] text-cyan-400">OP:</span>
+              <span className="text-[11px] font-semibold text-slate-100 max-w-[90px] truncate">
+                {currentUser.username}
+              </span>
+              <ChevronDown
+                className={`w-3 h-3 text-slate-400 transition-transform duration-200 ${
+                  isUserMenuOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {isUserMenuOpen && (
+              <div className="absolute top-full mt-2 right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 min-w-[190px] flex flex-col gap-1">
+                <div className="px-3 py-1.5 border-b border-white/5">
+                  <span className="text-[9px] text-slate-500 block uppercase font-mono">CALLSIGN</span>
+                  <span className="text-xs font-semibold text-cyan-300 block truncate font-mono">
+                    {currentUser.username}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    onLogout?.();
+                  }}
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-mono text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>Sign Out Operator</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenAuthModal}
+            className="px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
+            title="Authenticate as Station Operator"
+          >
+            <User className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
+            <span className="text-[10px] text-slate-500">OP:</span>
+            <span className="text-[11px] font-medium">GUEST</span>
+          </button>
+        )}
+
         <button
           onClick={onResetWorkbench}
           disabled={!hasActiveSession}
