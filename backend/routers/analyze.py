@@ -1,4 +1,5 @@
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
@@ -87,20 +88,27 @@ async def analyze_endpoint(
     fallback_candidates = [
         "gemini-3.8-flash",
         "gemini-3.6-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
     ]
 
     try:
-        result = engine.run_engine(
-            provider=resolved_provider,
-            model_id=resolved_model_id,
-            user_text=prompt,
-            conversation_history=None,
-            image_bytes=bytes(image_bytes),
-            mime_type=file.content_type,
-            previous_visual_context=None,
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                engine.run_engine,
+                provider=resolved_provider,
+                model_id=resolved_model_id,
+                user_text=prompt,
+                conversation_history=None,
+                image_bytes=bytes(image_bytes),
+                mime_type=file.content_type,
+                previous_visual_context=None,
+            ),
+            timeout=25.0,
         )
+    except asyncio.TimeoutError:
+        logger.warning(f"Image analysis timed out (25s) for {resolved_model_id}")
+        result = None
     except Exception as exc:
         logger.warning(f"Image analysis failed for {resolved_model_id}: {exc}")
         result = None
@@ -115,14 +123,18 @@ async def analyze_endpoint(
 
             attempts += 1
             try:
-                fb_result = engine.run_engine(
-                    provider="Gemini",
-                    model_id=fb_model,
-                    user_text=prompt,
-                    conversation_history=None,
-                    image_bytes=bytes(image_bytes),
-                    mime_type=file.content_type,
-                    previous_visual_context=None,
+                fb_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        engine.run_engine,
+                        provider="Gemini",
+                        model_id=fb_model,
+                        user_text=prompt,
+                        conversation_history=None,
+                        image_bytes=bytes(image_bytes),
+                        mime_type=file.content_type,
+                        previous_visual_context=None,
+                    ),
+                    timeout=20.0,
                 )
                 if fb_result and fb_result.get("status") != "error":
                     result = fb_result
@@ -130,6 +142,9 @@ async def analyze_endpoint(
                     resolved_model_id = fb_model
                     fallback_used = True
                     break
+            except asyncio.TimeoutError:
+                logger.warning(f"Fallback vision candidate {fb_model} timed out after 20s.")
+                continue
             except Exception as fb_exc:
                 logger.warning(f"Fallback vision candidate {fb_model} failed: {fb_exc}")
                 continue

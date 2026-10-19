@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import {
@@ -200,22 +201,25 @@ const markdownComponents: Components = {
       {children}
     </pre>
   ),
-  table: ({ children }) => (
-    <div className="overflow-x-auto my-3 rounded-lg border border-white/[0.08]">
-      <table className="min-w-full divide-y divide-white/[0.08] text-xs text-left">
-        {children}
-      </table>
+  table: ({ node: _node, ...props }) => (
+    <div className="overflow-x-auto my-3">
+      <table className="min-w-full border-collapse border border-white/10 text-xs text-left" {...props} />
     </div>
   ),
-  th: ({ children }) => (
-    <th className="px-3 py-2 bg-white/[0.03] font-semibold text-cyan-300 border-b border-white/[0.08]">
-      {children}
-    </th>
+  thead: ({ node: _node, ...props }) => (
+    <thead className="bg-slate-900/90 border-b border-white/15 text-cyan-300 font-mono" {...props} />
   ),
-  td: ({ children }) => (
-    <td className="px-3 py-2 border-b border-white/[0.06] text-slate-300">
-      {children}
-    </td>
+  th: ({ node: _node, ...props }) => (
+    <th className="py-2.5 px-3.5 font-semibold border-r border-white/10 last:border-r-0 tracking-wide" {...props} />
+  ),
+  tbody: ({ node: _node, ...props }) => (
+    <tbody className="divide-y divide-white/5" {...props} />
+  ),
+  tr: ({ node: _node, ...props }) => (
+    <tr className="hover:bg-white/[0.03] transition-colors" {...props} />
+  ),
+  td: ({ node: _node, ...props }) => (
+    <td className="py-2 px-3.5 text-slate-300 border-r border-white/5 last:border-r-0 font-sans leading-relaxed" {...props} />
   ),
   a: ({ children, href, ...props }) => (
     <a
@@ -242,10 +246,12 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   onAttachClick,
   textareaRef,
 }) => {
-  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   }, [messages, isLoading]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -256,9 +262,9 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   };
 
   return (
-    <section className="lg:col-span-7 min-h-[520px] lg:h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl relative">
+    <section className="flex flex-col h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-[#080d1a]/80 backdrop-blur-md">
       {/* Feed Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
+      <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-cyan-400" />
           <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-300">
@@ -275,12 +281,13 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
         </div>
       </div>
 
-      {/* Height-Locked Scrollable Message Log */}
+      {/* Message Feed Container */}
       <div
-        className={`flex-1 overflow-y-auto my-3 pr-1 pb-2 diagnostic-feed-scrollbar ${
+        ref={scrollContainerRef}
+        className={`flex-1 min-h-0 overflow-y-auto p-4 space-y-4 overscroll-contain diagnostic-feed-scrollbar ${
           messages.length === 0
             ? 'flex flex-col items-center justify-center'
-            : 'flex flex-col justify-start space-y-4'
+            : ''
         }`}
       >
         {messages.length === 0 ? (
@@ -310,7 +317,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               }`}
             >
               <div
-                className={`transition-all ${
+                className={`transition-all break-words ${
                   msg.role === 'user'
                     ? 'bg-cyan-950/30 border border-cyan-500/20 text-slate-100 rounded-2xl rounded-tr-sm px-4 py-3 shadow-lg max-w-[85%]'
                     : 'bg-slate-900/50 border border-white/[0.08] text-slate-200 rounded-2xl rounded-tl-sm px-5 py-4 shadow-xl max-w-[92%] sm:max-w-[88%]'
@@ -329,13 +336,13 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                         />
                       </div>
                     )}
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
                   </>
                 ) : (
                   /* Assistant message rendering with KaTeX and Markdown */
-                  <div className="text-sm">
+                  <div className="text-sm break-words">
                     <ReactMarkdown
-                      remarkPlugins={[remarkMath]}
+                      remarkPlugins={[remarkGfm, remarkMath]}
                       rehypePlugins={[rehypeKatex, rehypeConfidenceBadges]}
                       components={markdownComponents}
                     >
@@ -377,12 +384,10 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
             </div>
           </div>
         )}
-
-        <div ref={chatBottomRef} />
       </div>
 
-      {/* Floating Composer Pinned at Bottom of Column B */}
-      <div className="pt-2 flex-shrink-0">
+      {/* Footer Input Composer */}
+      <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20">
         <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-2xl p-2.5 mx-auto max-w-full focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all">
           {/* Active Scope Attachment Indicator in Composer */}
           {attachedFile && (

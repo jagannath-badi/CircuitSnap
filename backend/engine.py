@@ -61,7 +61,7 @@ def run_engine_resilient(
     this function attempts the provided fallback candidates in sequence.
     """
     if fallback_candidates is None:
-        fallback_candidates = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"]
+        fallback_candidates = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"]
 
     original_model = model_id
     original_provider = provider

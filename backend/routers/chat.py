@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 
@@ -99,21 +100,30 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     fallback_candidates = [
         "gemini-3.8-flash",
         "gemini-3.6-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
     ]
 
     # 1. First attempt with requested or auto-routed model
     try:
-        result = engine.run_engine(
-            provider=provider,
-            model_id=model_id,
-            user_text=request.message,
-            conversation_history=history,
-            image_bytes=None,
-            mime_type=None,
-            previous_visual_context=request.previous_visual_context,
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                engine.run_engine,
+                provider=provider,
+                model_id=model_id,
+                user_text=request.message,
+                conversation_history=history,
+                image_bytes=None,
+                mime_type=None,
+                previous_visual_context=request.previous_visual_context,
+            ),
+            timeout=20.0,
         )
+    except asyncio.TimeoutError:
+        logger.warning(
+            f"Execution timed out (20s) for {provider}/{model_id}. Triggering fallback."
+        )
+        result = None
     except Exception as exc:
         logger.warning(
             f"Execution failed for {provider}/{model_id}: {exc}. Triggering fallback."
@@ -122,7 +132,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     # 2. If initial attempt failed (exception or returned status == 'error'), try fallback candidates
     if not result or result.get("status") == "error":
-        error_type = result.get("error_type") if result else "exception"
+        error_type = result.get("error_type") if result else "timeout_or_exception"
         logger.warning(
             f"Model {original_model_id} failed with error_type '{error_type}'. "
             f"Initiating resilient fallback to working default models."
@@ -134,14 +144,18 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
             attempts += 1
             try:
-                fb_result = engine.run_engine(
-                    provider="Gemini",
-                    model_id=fb_model,
-                    user_text=request.message,
-                    conversation_history=history,
-                    image_bytes=None,
-                    mime_type=None,
-                    previous_visual_context=request.previous_visual_context,
+                fb_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        engine.run_engine,
+                        provider="Gemini",
+                        model_id=fb_model,
+                        user_text=request.message,
+                        conversation_history=history,
+                        image_bytes=None,
+                        mime_type=None,
+                        previous_visual_context=request.previous_visual_context,
+                    ),
+                    timeout=15.0,
                 )
                 if fb_result and fb_result.get("status") != "error":
                     result = fb_result
@@ -149,6 +163,9 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
                     model_id = fb_model
                     fallback_used = True
                     break
+            except asyncio.TimeoutError:
+                logger.warning(f"Fallback candidate {fb_model} timed out after 15s.")
+                continue
             except Exception as fb_exc:
                 logger.warning(f"Fallback candidate {fb_model} failed: {fb_exc}")
                 continue

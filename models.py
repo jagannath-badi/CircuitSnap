@@ -17,8 +17,8 @@ MODELS = {
     "model_id": "gemini-3.8-flash",
     "fallback_models": [
         "gemini-3.6-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-8b",
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
     ],
     "fallback_provider": "Groq",
     "vision": True,

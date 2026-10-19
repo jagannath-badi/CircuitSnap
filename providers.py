@@ -25,41 +25,52 @@ from prompts import SYSTEM_PROMPT
 # CLIENTS
 # ============================================================
 
+_CLIENT_CACHE = {}
+
+
 def _get_api_key(name: str):
     """Retrieve API key from os.environ first, falling back to st.secrets."""
     key = os.environ.get(name)
     if key:
         return key
     try:
-        if name in st.secrets:
+        from streamlit.runtime import exists as st_exists
+        if st_exists() and hasattr(st, "secrets") and name in st.secrets:
+            return st.secrets[name]
+    except Exception:
+        pass
+    try:
+        if hasattr(st, "secrets") and name in st.secrets:
             return st.secrets[name]
     except Exception:
         pass
     return None
 
 
-@st.cache_resource
 def get_gemini_client():
     """Create and cache the Gemini client."""
     api_key = _get_api_key("GEMINI_API_KEY")
     if not api_key:
         raise KeyError("GEMINI_API_KEY")
 
-    return genai.Client(
-        api_key=api_key
-    )
+    if "gemini" not in _CLIENT_CACHE or _CLIENT_CACHE.get("gemini_key") != api_key:
+        _CLIENT_CACHE["gemini"] = genai.Client(api_key=api_key)
+        _CLIENT_CACHE["gemini_key"] = api_key
+
+    return _CLIENT_CACHE["gemini"]
 
 
-@st.cache_resource
 def get_groq_client():
     """Create and cache the Groq client."""
     api_key = _get_api_key("GROQ_API_KEY")
     if not api_key:
         raise KeyError("GROQ_API_KEY")
 
-    return Groq(
-        api_key=api_key
-    )
+    if "groq" not in _CLIENT_CACHE or _CLIENT_CACHE.get("groq_key") != api_key:
+        _CLIENT_CACHE["groq"] = Groq(api_key=api_key)
+        _CLIENT_CACHE["groq_key"] = api_key
+
+    return _CLIENT_CACHE["groq"]
 
 
 # ============================================================
@@ -163,6 +174,8 @@ def ask_gemini(
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             max_output_tokens=2048,
+            tools=None,
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         ),
     )
 
