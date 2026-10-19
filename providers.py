@@ -12,7 +12,10 @@ import base64
 import os
 import re
 
-import streamlit as st
+try:
+    import streamlit as st
+except ImportError:
+    st = None
 from google import genai
 from google.genai import types
 from groq import Groq
@@ -29,21 +32,20 @@ _CLIENT_CACHE = {}
 
 
 def _get_api_key(name: str):
-    """Retrieve API key from os.environ first, falling back to st.secrets."""
+    """Retrieve API key from os.environ first, falling back to st.secrets if available."""
+    # 1. Direct environment variable (Render, production)
     key = os.environ.get(name)
     if key:
         return key
-    try:
-        from streamlit.runtime import exists as st_exists
-        if st_exists() and hasattr(st, "secrets") and name in st.secrets:
-            return st.secrets[name]
-    except Exception:
-        pass
-    try:
-        if hasattr(st, "secrets") and name in st.secrets:
-            return st.secrets[name]
-    except Exception:
-        pass
+
+    # 2. Streamlit secrets fallback (local development)
+    if st is not None:
+        try:
+            if hasattr(st, "secrets") and name in st.secrets:
+                return st.secrets[name]
+        except Exception:
+            pass
+
     return None
 
 
