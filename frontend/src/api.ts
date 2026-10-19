@@ -48,6 +48,47 @@ export interface AuthResponse {
   user: OperatorUser;
 }
 
+export interface SessionSummary {
+  id: string;
+  title: string;
+  has_dut: boolean;
+  message_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionMessage {
+  id?: string;
+  role: 'user' | 'assistant';
+  content: string;
+  imagePreviewUrl?: string;
+  metadata?: {
+    provider?: string;
+    model_id?: string;
+    attempts?: number;
+    fallback_used?: boolean;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface SessionDetail {
+  id: string;
+  title: string;
+  dut_image: string | null;
+  messages: SessionMessage[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SaveSessionPayload {
+  id?: string;
+  title?: string;
+  dut_image?: string | null;
+  messages: unknown[];
+}
+
+
 const TOKEN_KEY = 'circuitsnap_token';
 
 export function getStoredToken(): string | null {
@@ -301,4 +342,69 @@ export async function fetchCurrentOperator(): Promise<OperatorUser | null> {
 export function logoutOperator(): void {
   setStoredToken(null);
 }
+
+/**
+ * Fetches all saved diagnostic sessions for the current operator.
+ */
+export async function fetchVaultSessions(): Promise<SessionSummary[]> {
+  const response = await fetch('/api/vault/sessions', {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    if (response.status === 401) return [];
+    throw new Error(`Failed to fetch sessions (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Fetches full session detail by ID.
+ */
+export async function fetchSessionDetail(id: string): Promise<SessionDetail> {
+  const response = await fetch(`/api/vault/sessions/${encodeURIComponent(id)}`, {
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch session detail (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Saves or updates a session in the operator's diagnostic vault.
+ */
+export async function saveCurrentSession(payload: SaveSessionPayload): Promise<SessionDetail> {
+  const response = await fetch('/api/vault/sessions', {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    let errorDetail = `Failed to save session (${response.status})`;
+    try {
+      const errJson = await response.json();
+      if (errJson?.detail) {
+        errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(errorDetail);
+  }
+  return response.json();
+}
+
+/**
+ * Deletes a session from the operator's vault.
+ */
+export async function deleteVaultSession(id: string): Promise<void> {
+  const response = await fetch(`/api/vault/sessions/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to delete session (${response.status})`);
+  }
+}
+
 

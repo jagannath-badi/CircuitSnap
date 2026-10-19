@@ -28,6 +28,36 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 
+class SessionSummary(BaseModel):
+    id: str
+    title: str
+    has_dut: bool
+    message_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SessionDetail(BaseModel):
+    id: str
+    title: str
+    dut_image: str | None = None
+    messages: list[dict[str, Any]] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SaveSessionRequest(BaseModel):
+    id: str | None = None
+    title: str | None = None
+    dut_image: str | None = None
+    messages: list[dict[str, Any]] = Field(default_factory=list)
+
+
+
 class ChatMessage(BaseModel):
     """A message from the conversation history."""
 

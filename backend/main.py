@@ -12,7 +12,7 @@ if str(ROOT_DIR) not in sys.path:
 import models
 import providers
 from backend.database import init_db
-from backend.routers import analyze, auth, chat
+from backend.routers import analyze, auth, chat, vault
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
 
 
@@ -36,7 +36,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -44,6 +44,7 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(analyze.router)
 app.include_router(auth.router)
+app.include_router(vault.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)

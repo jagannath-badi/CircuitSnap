@@ -9,6 +9,7 @@ import { TelemetryHeader, type TelemetryData } from './components/TelemetryHeade
 import { InspectionDeck } from './components/InspectionDeck';
 import { DiagnosticFeed, type DisplayMessage } from './components/DiagnosticFeed';
 import { AuthModal } from './components/AuthModal';
+import { VaultDrawer } from './components/VaultDrawer';
 
 export default function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -28,6 +29,8 @@ export default function App() {
   const [visionNotice, setVisionNotice] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<OperatorUser | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isVaultOpen, setIsVaultOpen] = useState(false);
+  const [vaultCount, setVaultCount] = useState(0);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -64,17 +67,12 @@ export default function App() {
   }, [fetchHealth]);
 
   useEffect(() => {
-    return () => {
-      if (imagePreview && imagePreview !== activeDutImage) URL.revokeObjectURL(imagePreview);
-    };
+    return () => { if (imagePreview && imagePreview !== activeDutImage) URL.revokeObjectURL(imagePreview); };
   }, [imagePreview, activeDutImage]);
 
   useEffect(() => {
     const urls = activeObjectUrlsRef.current;
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-      urls.clear();
-    };
+    return () => { urls.forEach((url) => URL.revokeObjectURL(url)); urls.clear(); };
   }, []);
 
   const handleFileSelect = useCallback((file: File) => {
@@ -113,6 +111,11 @@ export default function App() {
   };
 
   const handleLogout = () => { logoutOperator(); setCurrentUser(null); };
+
+  const handleRestoreSession = (r: { messages: DisplayMessage[]; dutImage: string | null }) => {
+    setMessages(r.messages);
+    if (r.dutImage) { setActiveDutImage(r.dutImage); setActiveDutName('Archived Component'); }
+  };
 
   const handleSendMessage = async (overridePrompt?: string) => {
     const text = (overridePrompt !== undefined ? overridePrompt : inputPrompt).trim();
@@ -178,36 +181,25 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onLogout={handleLogout}
+        onOpenVault={() => setIsVaultOpen(true)}
+        vaultSessionCount={vaultCount}
       />
 
       {visionNotice && (
         <div className="px-4 py-1.5 bg-cyan-950/90 border-b border-cyan-500/40 text-cyan-200 flex items-center justify-between text-xs font-mono z-30 animate-pulse">
           <span>⚡ [OPTICAL ROUTER]: {visionNotice}</span>
-          <button onClick={() => setVisionNotice(null)} className="text-cyan-400 hover:text-white p-0.5 transition-colors">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <button onClick={() => setVisionNotice(null)} className="text-cyan-400 hover:text-white p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
 
       {errorMessage && (
         <div className="px-4 py-2 bg-rose-950/80 border-b border-rose-800 text-rose-200 flex items-center justify-between text-xs font-mono z-30">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-            <span>[FAULT DETECTED]: {errorMessage}</span>
-          </div>
-          <button onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-white p-1 rounded transition-colors">
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" /><span>[FAULT DETECTED]: {errorMessage}</span></div>
+          <button onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-white p-1 rounded transition-colors"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
 
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
-      />
+      <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" />
 
       <main className="flex-1 h-[calc(100vh-65px)] overflow-hidden p-3 sm:p-4 lg:p-5">
         <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 overflow-hidden">
@@ -237,6 +229,16 @@ export default function App() {
       </main>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={setCurrentUser} />
+      <VaultDrawer
+        isOpen={isVaultOpen}
+        onClose={() => setIsVaultOpen(false)}
+        currentUser={currentUser}
+        currentMessages={messages}
+        currentDutImage={activeDutImage}
+        onRestoreSession={handleRestoreSession}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onSessionsChange={setVaultCount}
+      />
     </div>
   );
 }

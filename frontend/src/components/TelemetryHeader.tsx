@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut } from 'lucide-react';
+import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut, Archive } from 'lucide-react';
 import type { HealthResponse, ModelOption, OperatorUser } from '../api';
 
 export interface TelemetryData {
@@ -23,6 +23,8 @@ export interface TelemetryHeaderProps {
   currentUser?: OperatorUser | null;
   onOpenAuthModal?: () => void;
   onLogout?: () => void;
+  onOpenVault?: () => void;
+  vaultSessionCount?: number;
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
@@ -50,6 +52,8 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
   currentUser = null,
   onOpenAuthModal,
   onLogout,
+  onOpenVault,
+  vaultSessionCount,
 }) => {
   const isHealthy = health?.status === 'healthy';
   const [isOpen, setIsOpen] = useState(false);
@@ -287,6 +291,22 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             <span className="text-[11px] font-medium">GUEST</span>
           </button>
         )}
+
+        {/* Diagnostic Vault Trigger Chip */}
+        <button
+          type="button"
+          onClick={currentUser ? onOpenVault : onOpenAuthModal}
+          className="px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
+          title={currentUser ? 'Open Diagnostic Vault' : 'Authenticate to Access Diagnostic Vault'}
+        >
+          <Archive className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
+          <span className="text-[10px] text-slate-500">VAULT</span>
+          {currentUser && vaultSessionCount !== undefined && vaultSessionCount > 0 && (
+            <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-1 rounded-full">
+              {vaultSessionCount}
+            </span>
+          )}
+        </button>
 
         <button
           onClick={onResetWorkbench}

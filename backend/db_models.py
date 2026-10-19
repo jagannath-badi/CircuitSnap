@@ -23,6 +23,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     records = relationship("DiagnosticRecord", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("DiagnosticSession", back_populates="user", cascade="all, delete-orphan")
 
 
 class DiagnosticRecord(Base):
@@ -35,4 +36,19 @@ class DiagnosticRecord(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     user = relationship("User", back_populates="records")
+
+
+class DiagnosticSession(Base):
+    __tablename__ = "diagnostic_sessions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid, index=True)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(255), nullable=False, default="Optical Inspection")
+    dut_image = Column(Text, nullable=True)
+    messages = Column(Text, nullable=False, default="[]")
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    user = relationship("User", back_populates="sessions")
+
 
