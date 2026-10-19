@@ -256,7 +256,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   };
 
   return (
-    <section className="lg:col-span-7 h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl relative">
+    <section className="lg:col-span-7 min-h-[520px] lg:h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl relative">
       {/* Feed Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -403,7 +403,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               onClick={onAttachClick}
               disabled={isLoading}
               title="Load Photo to Optical Scope (JPEG, PNG, WEBP, GIF up to 10 MB)"
-              className={`p-2 rounded-xl border transition-all flex-shrink-0 ${
+              className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 ${
                 attachedFile
                   ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
                   : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-cyan-300 hover:border-cyan-500/30 hover:bg-white/[0.05]'
@@ -432,7 +432,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               type="button"
               onClick={onSendMessage}
               disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
-              className="p-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-slate-950 font-bold shadow-[0_0_16px_rgba(16,185,129,0.35)] transition-all active:scale-95 flex-shrink-0 flex items-center justify-center"
+              className="p-2 min-h-[40px] min-w-[40px] rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-slate-950 font-bold shadow-[0_0_16px_rgba(16,185,129,0.35)] transition-all active:scale-95 flex-shrink-0 flex items-center justify-center"
               title="Execute CircuitSnap Query (Enter)"
             >
               {isLoading ? (

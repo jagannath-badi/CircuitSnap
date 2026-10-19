@@ -166,7 +166,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen bg-[#090d16] text-slate-100 flex flex-col overflow-hidden selection:bg-cyan-900 selection:text-cyan-200">
+    <div className="min-h-dvh lg:h-screen lg:overflow-hidden bg-[#090d16] text-slate-100 flex flex-col selection:bg-cyan-900 selection:text-cyan-200">
       <TelemetryHeader
         health={health}
         isHealthLoading={isHealthLoading}
@@ -201,8 +201,8 @@ export default function App() {
 
       <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" />
 
-      <main className="flex-1 h-[calc(100vh-65px)] overflow-hidden p-3 sm:p-4 lg:p-5">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 overflow-hidden">
+      <main className="flex-1 min-h-[calc(100dvh-65px)] lg:h-[calc(100dvh-65px)] overflow-y-auto lg:overflow-hidden p-3 sm:p-4 lg:p-5">
+        <div className="min-h-full grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 lg:overflow-hidden">
           <InspectionDeck
             activeDutImage={activeDutImage}
             activeDutName={activeDutName}

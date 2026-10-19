@@ -84,15 +84,15 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
     modelsToDisplay.find((opt) => opt.id === selectedModel) || modelsToDisplay[0];
 
   return (
-    <header className="bg-slate-950/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-40 px-4 sm:px-5 py-2.5 h-[65px] flex items-center justify-between transition-colors">
+    <header className="bg-slate-950/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-40 px-3 sm:px-5 py-2 h-[65px] flex items-center justify-between gap-2 transition-colors">
       {/* Left Branding & Hardware LED */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.15)] flex-shrink-0">
           <Cpu className="w-4 h-4" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <span className="font-semibold tracking-tight text-white text-sm">CircuitSnap</span>
-          <span className="text-[10px] tracking-wider uppercase font-mono text-slate-400 bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded">
+          <span className="text-[10px] tracking-wider uppercase font-mono text-slate-400 bg-white/[0.04] border border-white/[0.08] px-1.5 py-0.5 rounded hidden xs:inline-block">
             v2.0
           </span>
         </div>
@@ -101,7 +101,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
 
         {/* Breathing Hardware LED Status */}
         <div
-          className="flex items-center gap-2 cursor-pointer group"
+          className="flex items-center gap-1.5 sm:gap-2 cursor-pointer group min-h-[40px] px-1"
           onClick={onRefreshHealth}
           title={
             healthError ||
@@ -121,7 +121,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             )}
           </div>
           <span
-            className={`text-[10px] uppercase font-mono font-medium tracking-wider transition-colors ${
+            className={`text-[10px] uppercase font-mono font-medium tracking-wider transition-colors hidden sm:inline ${
               isHealthLoading
                 ? 'text-amber-400'
                 : isHealthy
@@ -139,24 +139,41 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Minimalist Micro-Badges & Interactive Model Selector */}
-      <div className="hidden md:flex items-center gap-2">
+      {/* Center Minimalist Micro-Badges (PROV, Cycles, Fallback) */}
+      <div className="hidden xl:flex items-center gap-2">
         {/* Provider Chip */}
-        <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-0.5 flex items-center gap-1.5">
+        <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-1 min-h-[40px] flex items-center gap-1.5">
           <span className="text-slate-500 text-[10px]">PROV</span>
           <span className="text-cyan-300 font-medium">{telemetry.provider || 'STANDBY'}</span>
         </div>
 
+        {/* Cycles/Attempts Chip */}
+        <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-1 min-h-[40px] flex items-center gap-1.5">
+          <Activity className="w-3 h-3 text-cyan-400" />
+          <span>{telemetry.attempts === 1 ? '1 CYCLE' : `${telemetry.attempts} CYCLES`}</span>
+        </div>
+
+        {/* Fallback Flag */}
+        {telemetry.fallback_used && (
+          <div className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-2.5 py-1 min-h-[40px] flex items-center gap-1">
+            <ShieldAlert className="w-3 h-3 text-amber-400" />
+            <span>FALLBACK</span>
+          </div>
+        )}
+      </div>
+
+      {/* Right Controls: Model Selector, Operator Status, Vault & Reset */}
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         {/* Interactive Model Selector Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="text-xs font-mono text-slate-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 rounded-full px-2.5 py-0.5 flex items-center gap-1.5 transition-all shadow-sm group active:scale-95"
+            className="min-h-[40px] text-xs font-mono text-slate-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 rounded-full px-2.5 py-1 flex items-center gap-1.5 transition-all shadow-sm group active:scale-95"
             title="Select AI Model Architecture"
           >
-            <span className="text-slate-500 text-[10px]">MODEL</span>
-            <span className="text-cyan-300 font-medium truncate max-w-[150px]">
+            <span className="text-slate-500 text-[10px] hidden xs:inline">MODEL</span>
+            <span className="text-cyan-300 font-medium truncate max-w-[85px] sm:max-w-[150px]">
               {selectedOption.label.replace(/\s*\(.*\)/, '')}
             </span>
             <ChevronDown
@@ -167,7 +184,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           </button>
 
           {isOpen && (
-            <div className="absolute top-full mt-2 right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 min-w-[310px] max-w-[360px] max-h-[390px] overflow-y-auto flex flex-col gap-1 diagnostic-feed-scrollbar">
+            <div className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 sm:min-w-[310px] sm:max-w-[360px] max-h-[390px] overflow-y-auto flex flex-col gap-1 diagnostic-feed-scrollbar">
               <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-white/5 flex items-center justify-between">
                 <span>AI SPECIALIZATION ROSTER</span>
                 <span className="text-cyan-400 font-semibold">{modelsToDisplay.length} MODELS</span>
@@ -220,35 +237,17 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             </div>
           )}
         </div>
-
-        {/* Cycles/Attempts Chip */}
-        <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-0.5 flex items-center gap-1.5">
-          <Activity className="w-3 h-3 text-cyan-400" />
-          <span>{telemetry.attempts === 1 ? '1 CYCLE' : `${telemetry.attempts} CYCLES`}</span>
-        </div>
-
-        {/* Fallback Flag */}
-        {telemetry.fallback_used && (
-          <div className="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-full px-2.5 py-0.5 flex items-center gap-1">
-            <ShieldAlert className="w-3 h-3 text-amber-400" />
-            <span>FALLBACK</span>
-          </div>
-        )}
-      </div>
-
-      {/* Right Actions: Operator Status & Reset Button */}
-      <div className="flex items-center gap-2">
         {currentUser ? (
           <div className="relative" ref={userMenuRef}>
             <button
               type="button"
               onClick={() => setIsUserMenuOpen((prev) => !prev)}
-              className="px-2.5 py-1 rounded-full text-xs font-mono text-slate-200 bg-cyan-950/40 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-500/50 transition-all flex items-center gap-1.5 active:scale-95 shadow-[0_0_8px_rgba(6,182,212,0.15)]"
+              className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-200 bg-cyan-950/40 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-500/50 transition-all flex items-center gap-1.5 active:scale-95 shadow-[0_0_8px_rgba(6,182,212,0.15)]"
               title="Operator Profile"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-              <span className="text-[10px] text-cyan-400">OP:</span>
-              <span className="text-[11px] font-semibold text-slate-100 max-w-[90px] truncate">
+              <span className="text-[10px] text-cyan-400 hidden xs:inline">OP:</span>
+              <span className="text-[11px] font-semibold text-slate-100 max-w-[70px] sm:max-w-[90px] truncate">
                 {currentUser.username}
               </span>
               <ChevronDown
@@ -259,7 +258,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             </button>
 
             {isUserMenuOpen && (
-              <div className="absolute top-full mt-2 right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 min-w-[190px] flex flex-col gap-1">
+              <div className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 sm:min-w-[190px] flex flex-col gap-1">
                 <div className="px-3 py-1.5 border-b border-white/5">
                   <span className="text-[9px] text-slate-500 block uppercase font-mono">CALLSIGN</span>
                   <span className="text-xs font-semibold text-cyan-300 block truncate font-mono">
@@ -272,7 +271,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
                     setIsUserMenuOpen(false);
                     onLogout?.();
                   }}
-                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-mono text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-2 transition-colors"
+                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-mono text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 flex items-center gap-2 transition-colors min-h-[36px]"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-400" />
                   <span>Sign Out Operator</span>
@@ -284,11 +283,11 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenAuthModal}
-            className="px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
+            className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
             title="Authenticate as Station Operator"
           >
             <User className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-            <span className="text-[10px] text-slate-500">OP:</span>
+            <span className="text-[10px] text-slate-500 hidden xs:inline">OP:</span>
             <span className="text-[11px] font-medium">GUEST</span>
           </button>
         )}
@@ -297,11 +296,11 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         <button
           type="button"
           onClick={currentUser ? onOpenVault : onOpenAuthModal}
-          className="px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
+          className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
           title={currentUser ? 'Open Diagnostic Vault' : 'Authenticate to Access Diagnostic Vault'}
         >
           <Archive className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-          <span className="text-[10px] text-slate-500">VAULT</span>
+          <span className="text-[10px] text-slate-500 hidden sm:inline">VAULT</span>
           {currentUser && vaultSessionCount !== undefined && vaultSessionCount > 0 && (
             <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-1 rounded-full">
               {vaultSessionCount}
@@ -312,7 +311,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         <button
           onClick={onResetWorkbench}
           disabled={!hasActiveSession}
-          className={`px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-xs font-mono transition-all ${
+          className={`min-h-[40px] px-2 sm:px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-xs font-mono transition-all ${
             hasActiveSession
               ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 active:scale-95'
               : 'text-slate-600 cursor-not-allowed opacity-40'

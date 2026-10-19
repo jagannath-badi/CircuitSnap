@@ -59,6 +59,15 @@ body {
   box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
 }
 
+/* Utility to hide scrollbars while maintaining scroll functionality */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Radar scanner sweep animation for active optical DUT analysis */
 @keyframes radar-sweep {
   0% {

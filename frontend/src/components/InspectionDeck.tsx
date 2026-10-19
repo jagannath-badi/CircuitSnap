@@ -102,7 +102,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
   };
 
   return (
-    <section className="lg:col-span-5 h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl">
+    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl">
       {/* Scope Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
         <div className="flex items-center gap-2">
