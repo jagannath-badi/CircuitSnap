@@ -83,9 +83,13 @@ async def analyze_endpoint(
     original_model_id = resolved_model_id
     fallback_used = False
     attempts = 1
-    result = None
-
-    fallback_candidates = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"]
+    # Silent failover buffer: default models first, then lightweight high-throughput fallbacks
+    fallback_candidates = [
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+    ]
 
     try:
         result = engine.run_engine(

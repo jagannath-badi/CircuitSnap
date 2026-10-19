@@ -28,15 +28,11 @@ export interface TelemetryHeaderProps {
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
-  { id: 'auto', label: 'Auto (Smart Router)', provider: 'auto', specialty: 'Autonomous Task Routing', supports_vision: true },
-  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Active Default)', provider: 'gemini', specialty: 'Optical Scope & General Telemetry', supports_vision: true },
-  { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash (Circuit Math)', provider: 'gemini', specialty: 'Circuit Math & Formula Derivations', supports_vision: true },
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Primary Workhorse)', provider: 'gemini', specialty: 'Precision IC & SMD Marking Recognition', supports_vision: true },
-  { id: 'llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B', provider: 'groq', specialty: 'Sub-Second Pinout & Quick Lookups', supports_vision: false },
-  { id: 'gemini-2.0-flash-thinking-exp', label: 'Gemini 2.0 Thinking (Experimental)', provider: 'gemini', specialty: 'Formula Derivations (Auto Fallback Protected)', supports_vision: true },
-  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'gemini', specialty: 'Deep Datasheets & Dense Schematics', supports_vision: true },
-  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', provider: 'gemini', specialty: 'High-Throughput Quota Fallback', supports_vision: true },
-  { id: 'gemini-1.5-flash-8b', label: 'Gemini 1.5 Flash-8B', provider: 'gemini', specialty: 'Ultra-Lightweight Verification', supports_vision: true },
+  { id: 'auto', label: 'Auto (Smart Router)', provider: 'router', specialty: 'Autonomous Task & Vision Routing', supports_vision: true },
+  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Active Default)', provider: 'gemini', specialty: 'Optical Scope, SMD Vision & General Telemetry', supports_vision: true },
+  { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Math', provider: 'gemini', specialty: 'Circuit Derivations, Symbolic Formulas & KaTeX', supports_vision: true },
+  { id: 'llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B', provider: 'groq', specialty: 'Sub-Second Pinout & Spec Table Lookups', supports_vision: false },
+  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'gemini', specialty: 'Dense Schematics & Deep Datasheets', supports_vision: true },
 ];
 
 export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({

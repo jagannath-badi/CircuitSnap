@@ -71,7 +71,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
         if MATH_FORMULA_PATTERN.search(message_text):
             provider = "Gemini"
-            model_id = "gemini-3.8-flash"
+            model_id = "gemini-3.6-flash"
         elif has_groq and LOOKUP_PATTERN.search(message_text):
             provider = "Groq"
             model_id = "llama-3.3-70b-versatile"
@@ -95,8 +95,13 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     attempts = 1
     result = None
 
-    # Fallback roster: default model first ("gemini-3.8-flash"), then "gemini-3.6-flash" / "gemini-2.5-flash"
-    fallback_candidates = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash"]
+    # Silent failover buffer: default models first, then lightweight high-throughput fallbacks
+    fallback_candidates = [
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-8b",
+    ]
 
     # 1. First attempt with requested or auto-routed model
     try:
