@@ -32,13 +32,15 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [vaultCount, setVaultCount] = useState(0);
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeObjectUrlsRef = useRef<Set<string>>(new Set());
 
-  const { isVoiceEnabled, isListening, isSpeaking, toggleVoiceMode, startListening, stopListening, speak } = useJarvisVoice({
+  const { isVoiceEnabled, isListening, isSpeaking, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech } = useJarvisVoice({
     onTranscript: (t) => { setInputPrompt(t); textareaRef.current?.focus(); },
+    onFinalTranscript: (t) => { if (t.trim()) void handleSendMessage(t.trim()); },
   });
 
   const fetchHealth = useCallback(async () => {
@@ -157,18 +159,27 @@ export default function App() {
         ? await analyzeImage(fileToUpload, text || undefined, selectedModel)
         : await sendChatMessage(text, messages.map((m) => ({ role: m.role, content: m.content })), selectedModel);
 
+      const assistantId = `assistant-${Date.now()}`;
       setTelemetry({ provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used });
       setMessages((prev) => [
         ...prev,
-        { id: `assistant-${Date.now()}`, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used, original_model: response.original_model } },
+        { id: assistantId, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used, original_model: response.original_model } },
       ]);
-      if (isVoiceEnabled && response.answer) speak(response.answer);
+      if (isVoiceEnabled && response.answer) {
+        setSpeakingMsgId(assistantId);
+        speak(response.answer, () => setSpeakingMsgId(null));
+      }
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.');
       setInputPrompt(text);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleReadAloud = (id: string, text: string) => {
+    if (speakingMsgId === id) { cancelSpeech(); setSpeakingMsgId(null); }
+    else { setSpeakingMsgId(id); speak(text, () => setSpeakingMsgId(null), true); }
   };
 
   return (
@@ -214,6 +225,7 @@ export default function App() {
             isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking}
             onToggleListening={() => (isListening ? stopListening() : startListening())}
             onQuickAction={(p) => { setInputPrompt(p); textareaRef.current?.focus(); }}
+            speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud}
           />
         </div>
       </main>

@@ -34,6 +34,17 @@ interface WindowWithSpeech extends Window {
 
 export interface UseJarvisVoiceOptions {
   onTranscript?: (transcript: string) => void;
+  onFinalTranscript?: (transcript: string) => void;
+}
+
+/**
+ * Strips wake words (e.g. "Hey Jarvis, decode brown black red gold" -> "decode brown black red gold").
+ * If the user only said "Hey Jarvis" or "Jarvis", preserves it so the greeting handler fires.
+ */
+export function stripWakeWord(raw: string): string {
+  const trimmed = raw.trim();
+  const stripped = trimmed.replace(/^(?:hey|hi|hello|ok|okay)?\s*jarvis[\s,.:!?-]*/i, '').trim();
+  return stripped.length > 0 ? stripped : trimmed;
 }
 
 /**
@@ -49,7 +60,6 @@ export function cleanTextForSpeech(raw: string): string {
 
   // Replace Markdown tables with spoken equivalents
   text = text.replace(/\|[^\n]+\|/g, (match) => {
-    // If it's a delimiter row like | :--- | :--- |, remove it
     if (/^\|[\s\-:]+\|$/.test(match.trim())) return '';
     const cells = match
       .split('|')
@@ -97,7 +107,7 @@ export function cleanTextForSpeech(raw: string): string {
   text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
   text = text.replace(/\s+/g, ' ').trim();
 
-  // Keep spoken response to key technical findings (first 2-3 sentences or ~350 chars) to stay punchy and responsive
+  // Keep spoken response to key technical findings (first 2-3 sentences or ~350 chars)
   if (text.length > 350) {
     const periodIdx = text.indexOf('.', 250);
     if (periodIdx !== -1 && periodIdx < 450) {
@@ -108,7 +118,35 @@ export function cleanTextForSpeech(raw: string): string {
   return text;
 }
 
-export function useJarvisVoice({ onTranscript }: UseJarvisVoiceOptions = {}) {
+/**
+ * Finds the best crisp British English male voice available on the host machine.
+ */
+function selectBritishJarvisVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
+  if (!voices || voices.length === 0) return null;
+
+  const ukVoices = voices.filter(
+    (v) => v.lang === 'en-GB' || v.lang === 'en_GB' || v.lang.startsWith('en-GB')
+  );
+
+  // 1. Prioritize natural UK voices (Ryan Online, George, Oliver, Arthur, Google UK English Male)
+  const prioritized = ukVoices.find((v) =>
+    /Ryan|George|Oliver|Arthur|Google UK English Male/i.test(v.name)
+  );
+  if (prioritized) return prioritized;
+
+  // 2. Male UK voice
+  const maleUk = ukVoices.find((v) => !/female|zira|hazel|susan|catherine/i.test(v.name));
+  if (maleUk) return maleUk;
+
+  if (ukVoices.length > 0) return ukVoices[0];
+
+  // 3. Fallback to any natural English male voice
+  const enVoices = voices.filter((v) => v.lang.startsWith('en'));
+  const maleEn = enVoices.find((v) => /natural|guy|david|male/i.test(v.name));
+  return maleEn || enVoices[0] || voices[0];
+}
+
+export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoiceOptions = {}) {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -122,68 +160,52 @@ export function useJarvisVoice({ onTranscript }: UseJarvisVoiceOptions = {}) {
 
   const recognitionRef = useRef<IWindowSpeechRecognition | null>(null);
   const onTranscriptRef = useRef(onTranscript);
+  const onFinalTranscriptRef = useRef(onFinalTranscript);
+  const isVoiceEnabledRef = useRef(isVoiceEnabled);
+  const isSpeakingRef = useRef(isSpeaking);
+  const rearmTimerRef = useRef<number | null>(null);
+  const keepAliveIntervalRef = useRef<number | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
-  }, [onTranscript]);
+    onFinalTranscriptRef.current = onFinalTranscript;
+  }, [onTranscript, onFinalTranscript]);
 
   useEffect(() => {
-    if (!supported) return;
+    isVoiceEnabledRef.current = isVoiceEnabled;
+  }, [isVoiceEnabled]);
 
-    const win = window as WindowWithSpeech;
-    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+  useEffect(() => {
+    isSpeakingRef.current = isSpeaking;
+  }, [isSpeaking]);
 
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
-
-        recognition.onend = () => {
-          setIsListening(false);
-        };
-
-        recognition.onerror = () => {
-          setIsListening(false);
-        };
-
-        recognition.onresult = (event) => {
-          const lastIdx = event.results.length - 1;
-          const transcript = event.results[lastIdx][0].transcript;
-          if (transcript && onTranscriptRef.current) {
-            onTranscriptRef.current(transcript.trim());
-          }
-        };
-
-        recognitionRef.current = recognition;
-      } catch {
-        // Ignore initialization error
-      }
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore cleanup abort
-        }
-      }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+  // Preload voices
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    const updateVoices = () => {
+      voicesRef.current = window.speechSynthesis.getVoices();
     };
-  }, [supported]);
+    updateVoices();
+    window.speechSynthesis.onvoiceschanged = updateVoices;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
+  const clearKeepAlive = () => {
+    if (keepAliveIntervalRef.current) {
+      clearInterval(keepAliveIntervalRef.current);
+      keepAliveIntervalRef.current = null;
+    }
+  };
 
   const cancelSpeech = useCallback(() => {
+    clearKeepAlive();
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
+      isSpeakingRef.current = false;
     }
   }, []);
 
@@ -198,6 +220,10 @@ export function useJarvisVoice({ onTranscript }: UseJarvisVoiceOptions = {}) {
   }, [cancelSpeech]);
 
   const stopListening = useCallback(() => {
+    if (rearmTimerRef.current) {
+      clearTimeout(rearmTimerRef.current);
+      rearmTimerRef.current = null;
+    }
     if (!recognitionRef.current) return;
     try {
       recognitionRef.current.stop();
@@ -206,49 +232,182 @@ export function useJarvisVoice({ onTranscript }: UseJarvisVoiceOptions = {}) {
     }
   }, []);
 
+  // Voice speech synthesis
   const speak = useCallback(
-    (rawText: string) => {
-      if (!isVoiceEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    (rawText: string, onEndCallback?: () => void, force = false) => {
+      if ((!isVoiceEnabledRef.current && !force) || typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return;
       }
 
+      // Stop listening while speaking to prevent echo
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // ignore
+      }
+
       window.speechSynthesis.cancel();
+      window.speechSynthesis.resume();
+
       const cleaned = cleanTextForSpeech(rawText);
       if (!cleaned) return;
 
       const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.pitch = 0.92;
-      utterance.rate = 1.05;
+      utterance.pitch = 0.88;
+      utterance.rate = 1.04;
 
-      // Select a crisp English voice (UK or US)
-      const voices = window.speechSynthesis.getVoices();
-      const ukVoice = voices.find(
-        (v) => (v.lang === 'en-GB' || v.name.includes('UK') || v.name.includes('British')) && !v.name.includes('Female')
-      );
-      const enVoice = ukVoice || voices.find((v) => v.lang.startsWith('en')) || null;
-      if (enVoice) {
-        utterance.voice = enVoice;
+      const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
+      const britishVoice = selectBritishJarvisVoice(voices);
+      if (britishVoice) {
+        utterance.voice = britishVoice;
       }
 
-      utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        isSpeakingRef.current = true;
+        clearKeepAlive();
+        // Chrome keep-alive
+        keepAliveIntervalRef.current = window.setInterval(() => {
+          if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          } else {
+            clearKeepAlive();
+          }
+        }, 10000);
+      };
+
+      const handleSpeechComplete = () => {
+        clearKeepAlive();
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+        onEndCallback?.();
+
+        // Auto-rearm speech recognition loop after J.A.R.V.I.S. finishes speaking
+        if (isVoiceEnabledRef.current) {
+          if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
+          rearmTimerRef.current = window.setTimeout(() => {
+            if (isVoiceEnabledRef.current && !isSpeakingRef.current) {
+              try {
+                recognitionRef.current?.start();
+              } catch {
+                // ignore
+              }
+            }
+          }, 350);
+        }
+      };
+
+      utterance.onend = handleSpeechComplete;
+      utterance.onerror = handleSpeechComplete;
 
       window.speechSynthesis.speak(utterance);
     },
-    [isVoiceEnabled]
+    []
   );
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (!supported) return;
+
+    const win = window as WindowWithSpeech;
+    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsListening(true);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+          // Continuous conversational loop: auto-rearm if still in voice mode and not currently speaking
+          if (isVoiceEnabledRef.current && !isSpeakingRef.current) {
+            if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
+            rearmTimerRef.current = window.setTimeout(() => {
+              if (isVoiceEnabledRef.current && !isSpeakingRef.current) {
+                try {
+                  recognition.start();
+                } catch {
+                  // ignore
+                }
+              }
+            }, 300);
+          }
+        };
+
+        recognition.onerror = () => {
+          setIsListening(false);
+        };
+
+        recognition.onresult = (event) => {
+          let interimText = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const resultItem = event.results[i];
+            const transcript = resultItem[0].transcript;
+            if (resultItem.isFinal) {
+              const cleaned = stripWakeWord(transcript);
+              if (cleaned && onFinalTranscriptRef.current) {
+                onFinalTranscriptRef.current(cleaned);
+              }
+            } else {
+              interimText += transcript;
+            }
+          }
+          if (interimText && onTranscriptRef.current) {
+            onTranscriptRef.current(stripWakeWord(interimText));
+          }
+        };
+
+        recognitionRef.current = recognition;
+      } catch {
+        // Ignore initialization error
+      }
+    }
+
+    return () => {
+      if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
+      clearKeepAlive();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore cleanup abort
+        }
+      }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [supported]);
 
   const toggleVoiceMode = useCallback(() => {
     setIsVoiceEnabled((prev) => {
       const next = !prev;
-      if (!next) {
+      isVoiceEnabledRef.current = next;
+      if (next) {
+        // Unlock browser audio immediately on user click & announce readiness
+        speak('J.A.R.V.I.S. voice systems online. At your service.', undefined, true);
+        if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = window.setTimeout(() => {
+          try {
+            recognitionRef.current?.start();
+          } catch {
+            // ignore
+          }
+        }, 300);
+      } else {
         cancelSpeech();
         stopListening();
       }
       return next;
     });
-  }, [cancelSpeech, stopListening]);
+  }, [cancelSpeech, stopListening, speak]);
 
   return {
     isVoiceEnabled,

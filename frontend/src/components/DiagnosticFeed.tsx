@@ -14,6 +14,8 @@ import {
   Zap,
   BookOpen,
   Palette,
+  Volume2,
+  Square,
 } from 'lucide-react';
 
 export interface DisplayMessage {
@@ -45,6 +47,8 @@ export interface DiagnosticFeedProps {
   isSpeaking?: boolean;
   onToggleListening?: () => void;
   onQuickAction?: (prompt: string) => void;
+  speakingMessageId?: string | null;
+  onReadAloud?: (id: string, text: string) => void;
 }
 
 /**
@@ -259,6 +263,8 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   isSpeaking = false,
   onToggleListening,
   onQuickAction,
+  speakingMessageId = null,
+  onReadAloud,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -405,22 +411,52 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                   </div>
                 )}
 
-                {/* Assistant Engine Metadata Badge with High-Contrast Muted Tags */}
-                {msg.metadata && (
-                  <div className="mt-3 pt-2.5 border-t border-white/[0.08] flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
-                    <span className="px-2.5 py-0.5 rounded-full bg-[#00A6E8]/15 border border-[#00A6E8]/30 text-[#00A6E8] font-medium">
-                      {msg.metadata.provider} / {msg.metadata.model_id}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-slate-300 font-medium">
-                      {msg.metadata.attempts === 1 ? '1 CYCLE' : `${msg.metadata.attempts} CYCLES`}
-                    </span>
-                    {msg.metadata.fallback_used && (
-                      <span
-                        className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40 font-bold"
-                        title={msg.metadata.original_model ? `Fallback from ${msg.metadata.original_model}` : 'Fallback Active'}
-                      >
-                        FALLBACK ACTIVE{msg.metadata.original_model ? ` (${msg.metadata.original_model})` : ''}
+                {/* Assistant Engine Metadata Badge with Read Aloud Trigger */}
+                {msg.role === 'assistant' && (
+                  <div className="mt-3 pt-2.5 border-t border-white/[0.08] flex items-center justify-between gap-2 text-[10px] font-mono">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="px-2.5 py-0.5 rounded-full bg-[#00A6E8]/15 border border-[#00A6E8]/30 text-[#00A6E8] font-medium">
+                        {msg.metadata?.provider || 'J.A.R.V.I.S. Core'} / {msg.metadata?.model_id || 'jarvis-auto'}
                       </span>
+                      {msg.metadata && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-slate-300 font-medium">
+                          {msg.metadata.attempts === 1 ? '1 CYCLE' : `${msg.metadata.attempts} CYCLES`}
+                        </span>
+                      )}
+                      {msg.metadata?.fallback_used && (
+                        <span
+                          className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-200 border border-amber-500/40 font-bold"
+                          title={msg.metadata.original_model ? `Fallback from ${msg.metadata.original_model}` : 'Fallback Active'}
+                        >
+                          FALLBACK ACTIVE{msg.metadata.original_model ? ` (${msg.metadata.original_model})` : ''}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Compact Read Aloud / Stop Trigger */}
+                    {onReadAloud && (
+                      <button
+                        type="button"
+                        onClick={() => onReadAloud(msg.id, msg.content)}
+                        className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-all tactile-spring flex-shrink-0 ${
+                          speakingMessageId === msg.id
+                            ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/50 animate-pulse'
+                            : 'bg-white/[0.04] text-slate-400 hover:text-[#00A6E8] border-white/[0.08] hover:border-[#00A6E8]/40'
+                        }`}
+                        title={speakingMessageId === msg.id ? 'Stop audio playback' : 'Read aloud with J.A.R.V.I.S. British voice'}
+                      >
+                        {speakingMessageId === msg.id ? (
+                          <>
+                            <Square className="w-2.5 h-2.5 fill-current" />
+                            <span className="text-[10px] font-sans">Stop</span>
+                          </>
+                        ) : (
+                          <>
+                            <Volume2 className="w-2.5 h-2.5" />
+                            <span className="text-[10px] font-sans">Speak</span>
+                          </>
+                        )}
+                      </button>
                     )}
                   </div>
                 )}
