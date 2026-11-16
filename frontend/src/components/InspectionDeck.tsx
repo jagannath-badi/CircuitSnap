@@ -115,7 +115,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
         <div className="flex items-center gap-2">
           <Scan className="w-4 h-4 text-cyan-400" />
           <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-300">
-            OPTICAL INSPECTION SCOPE
+            Upload Circuit Photo
           </h2>
         </div>
         <span
@@ -125,7 +125,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
               : 'bg-white/[0.03] text-slate-500 border-white/[0.06]'
           }`}
         >
-          {activeDutImage ? 'CH 1 // OPTICAL FEED LOCKED' : 'STANDBY // RETICLE READY'}
+          {activeDutImage ? 'Photo Added' : 'Ready'}
         </span>
       </div>
 
@@ -167,7 +167,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 {/* Tactical HUD Scanning Tag */}
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-slate-950/90 border border-cyan-500/40 text-[10px] font-mono text-cyan-300 font-semibold tracking-widest uppercase flex items-center gap-1.5 shadow-lg">
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                  OPTICAL SPECTRUM SCANNING...
+                  Scanning circuit...
                 </div>
               </div>
             )}
@@ -196,7 +196,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 onClick={onEjectDut}
                 disabled={isLoading}
                 className="p-1 rounded-lg bg-rose-950/50 hover:bg-rose-900/80 backdrop-blur-md border border-rose-800/40 text-rose-300 transition-all hover:text-white shadow-sm tactile-spring"
-                title="Eject / Clear DUT"
+                title="Clear photo"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -206,16 +206,16 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
             <div className="absolute bottom-2.5 inset-x-3 z-30 px-3 py-1.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-white/[0.08] flex items-center justify-between text-[11px] font-mono">
               <div className="truncate mr-2">
                 <span className="text-slate-200 font-medium truncate block max-w-[180px] sm:max-w-[220px]">
-                  {activeDutName || 'ACTIVE COMPONENT'}
+                  {activeDutName || 'Active Photo'}
                 </span>
                 <span className="text-[10px] text-slate-500">
                   {attachedFile
                     ? `${(attachedFile.size / (1024 * 1024)).toFixed(2)} MB • ${attachedFile.type}`
-                    : 'PINNED DUT // ACTIVE CHANNEL'}
+                    : 'Active Photo'}
                 </span>
               </div>
               <span className="text-[10px] text-cyan-400/90 uppercase tracking-wider font-semibold">
-                LOCKED
+                Photo Added
               </span>
             </div>
           </div>
@@ -249,25 +249,24 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
             </div>
 
             <h3 className="text-xs font-mono font-semibold tracking-wider text-slate-200 group-hover:text-cyan-300 transition-colors uppercase relative z-10">
-              AWAITING OPTICAL FEED
+              Drop a circuit photo here
             </h3>
             <p className="text-[11px] text-slate-400 mt-1 max-w-[260px] leading-relaxed relative z-10">
-              Drop PCB photo or schematic, <span className="text-cyan-400 underline underline-offset-2 decoration-cyan-500/40">browse files</span>, or paste directly:
+              Upload a photo, <span className="text-cyan-400 underline underline-offset-2 decoration-cyan-500/40">browse files</span>, or paste with Ctrl+V
             </p>
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[10px] font-mono text-slate-400 relative z-10">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08]">
-                <span className="text-slate-500">PASTE:</span>
                 <kbd className="px-1 rounded bg-white/[0.08] text-cyan-300 font-mono text-[9px] border border-white/[0.1]">
                   Ctrl+V
                 </kbd>
+                <span className="text-slate-300">to paste</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08]">
-                <span className="text-slate-500">ACCEPT:</span>
-                <span className="text-slate-300">JPG • PNG • WEBP</span>
+                <span className="text-slate-300">JPG, PNG, WEBP</span>
               </span>
               <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-slate-400">
-                MAX 10 MB
+                Max 10 MB
               </span>
             </div>
           </div>
@@ -279,7 +278,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
         <div className="flex items-center gap-1.5 mb-2">
           <Terminal className="w-3.5 h-3.5 text-cyan-400" />
           <span className="text-[10px] font-mono uppercase font-semibold tracking-wider text-slate-400">
-            BENCH PRESETS
+            Quick Questions
           </span>
         </div>
 

@@ -268,15 +268,15 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-cyan-400" />
           <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-300">
-            DIAGNOSTIC LOG & ANALYSIS FEED
+            Circuit Assistant
           </h2>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
           <span>
             {messages.length === 0
-              ? 'STREAM READY'
-              : `${messages.length} RECORD${messages.length === 1 ? '' : 'S'} IN BUFFER`}
+              ? 'Ready'
+              : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
           </span>
         </div>
       </div>
@@ -296,16 +296,14 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-cyan-400 shadow-xl mb-3">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h3 className="text-sm font-mono font-bold text-slate-100 tracking-wide uppercase">
-              CIRCUITSNAP DIAGNOSTIC ENGINE STANDBY
+            <h3 className="text-sm font-semibold text-slate-100 tracking-wide">
+              How can I help with your circuit?
             </h3>
             <p className="text-xs text-slate-400 mt-1.5 mb-4 leading-relaxed">
-              Select a Bench Preset on the left, attach an optical inspection photo, or input an
-              electronics query below.
+              Pick a quick question on the left, upload a photo, or ask anything below.
             </p>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] text-[11px] font-mono text-slate-300">
-              <span className="text-cyan-400 font-semibold">MODE:</span>
-              <span>Multi-turn ECE Verification & KaTeX Analysis</span>
+              <span>Ask about resistor codes, pinouts, formulas & circuit issues</span>
             </div>
           </div>
         ) : (
@@ -380,7 +378,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-tl-sm px-4 py-3 bg-slate-900/40 border border-white/[0.07] flex items-center gap-2.5 text-xs font-mono text-cyan-300 shadow-lg">
               <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-              <span className="tracking-wide text-slate-300">Processing hardware telemetry & optical spectrum...</span>
+              <span className="tracking-wide text-slate-300">Analyzing circuit...</span>
             </div>
           </div>
         )}
@@ -400,7 +398,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                 type="button"
                 onClick={onRemoveAttachment}
                 className="text-slate-400 hover:text-white p-0.5 rounded-full hover:bg-white/10 transition-colors flex-shrink-0"
-                title="Clear optical target"
+                title="Clear attachment"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -413,7 +411,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               type="button"
               onClick={onAttachClick}
               disabled={isLoading}
-              title="Load Photo to Optical Scope (JPEG, PNG, WEBP, GIF up to 10 MB)"
+              title="Upload Circuit Photo (JPEG, PNG, WEBP, GIF up to 10 MB)"
               className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
                 attachedFile
                   ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
@@ -430,8 +428,8 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               onKeyDown={handleKeyDown}
               placeholder={
                 attachedFile
-                  ? 'State verification question or leave blank to auto-identify...'
-                  : 'Ask a circuit question, paste part number, or formula...'
+                  ? 'Ask a question about this photo or leave blank to identify...'
+                  : 'Ask a question about your circuit...'
               }
               rows={1}
               disabled={isLoading}
@@ -448,7 +446,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                   ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_0_16px_rgba(16,185,129,0.35)]'
                   : 'bg-emerald-950/30 border border-white/15 text-emerald-400/60 shadow-none cursor-not-allowed'
               }`}
-              title="Execute CircuitSnap Query (Enter)"
+              title="Send message (Enter)"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
@@ -461,7 +459,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
           {/* Micro Telemetry Bar */}
           <div className="mt-2 pt-1.5 border-t border-white/[0.05] flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
             <span>Enter: Send • Shift+Enter: Newline • Ctrl+V: Paste</span>
-            <span className="text-slate-500">CircuitSnap AI Engine</span>
+            <span className="text-slate-500">CircuitSnap</span>
           </div>
         </div>
       </div>

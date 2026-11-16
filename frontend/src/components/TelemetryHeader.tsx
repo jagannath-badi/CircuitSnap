@@ -125,7 +125,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
                 : 'text-rose-400'
             }`}
           >
-            {isHealthLoading ? 'INIT' : isHealthy ? 'SYS ONLINE' : 'SYS OFFLINE'}
+            {isHealthLoading ? 'INIT' : isHealthy ? 'Online' : 'Offline'}
           </span>
           <RefreshCw
             className={`w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400 transition-colors ${
@@ -139,14 +139,14 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
       <div className="hidden xl:flex items-center gap-2">
         {/* Provider Chip */}
         <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-1 min-h-[40px] flex items-center gap-1.5">
-          <span className="text-slate-500 text-[10px]">PROV</span>
-          <span className="text-cyan-300 font-medium">{telemetry.provider || 'STANDBY'}</span>
+          <span className="text-slate-500 text-[10px]">Provider</span>
+          <span className="text-cyan-300 font-medium">{telemetry.provider || 'Standby'}</span>
         </div>
 
         {/* Cycles/Attempts Chip */}
         <div className="text-xs font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] rounded-full px-2.5 py-1 min-h-[40px] flex items-center gap-1.5">
           <Activity className="w-3 h-3 text-cyan-400" />
-          <span>{telemetry.attempts === 1 ? '1 CYCLE' : `${telemetry.attempts} CYCLES`}</span>
+          <span>{telemetry.attempts === 1 ? '1 Pass' : `${telemetry.attempts} Passes`}</span>
         </div>
 
         {/* Fallback Flag */}
@@ -280,11 +280,10 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             type="button"
             onClick={onOpenAuthModal}
             className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group tactile-spring"
-            title="Authenticate as Station Operator"
+            title="Sign In"
           >
             <User className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-            <span className="text-[10px] text-slate-500 hidden xs:inline">OP:</span>
-            <span className="text-[11px] font-medium">GUEST</span>
+            <span className="text-[11px] font-medium">Sign In</span>
           </button>
         )}
 
@@ -293,10 +292,10 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           type="button"
           onClick={currentUser ? onOpenVault : onOpenAuthModal}
           className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group tactile-spring"
-          title={currentUser ? 'Open Diagnostic Vault' : 'Authenticate to Access Diagnostic Vault'}
+          title={currentUser ? 'Open Saved Sessions' : 'Sign in to Access Saved Sessions'}
         >
           <Archive className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
-          <span className="text-[10px] text-slate-500 hidden sm:inline">VAULT</span>
+          <span className="text-[10px] text-slate-500 hidden sm:inline">Saved</span>
           {currentUser && vaultSessionCount !== undefined && vaultSessionCount > 0 && (
             <span className="text-[9px] font-bold text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 px-1 rounded-full">
               {vaultSessionCount}
@@ -312,10 +311,10 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
               ? 'text-slate-300 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30'
               : 'border border-white/15 text-slate-400/80 bg-white/[0.02] cursor-not-allowed opacity-75'
           }`}
-          title="Reset Workbench and clear all active telemetry & scope image"
+          title="Clear workbench"
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Reset Bench</span>
+          <span className="hidden sm:inline">Clear</span>
         </button>
       </div>
     </header>
