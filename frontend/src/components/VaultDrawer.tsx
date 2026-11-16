@@ -211,7 +211,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
       {/* Slide-out Pitch-Carbon Drawer */}
       <div
         ref={drawerRef}
-        className="relative z-10 w-full sm:w-[420px] h-full bg-slate-950/95 backdrop-blur-2xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col text-slate-100 animate-slide-left"
+        className="relative z-10 w-full sm:w-[420px] h-full bg-slate-950/95 backdrop-blur-2xl border-l border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex flex-col text-slate-100 animate-drawer-slide"
       >
         {/* Top Header */}
         <div className="px-5 py-4 border-b border-white/[0.08] flex items-center justify-between">

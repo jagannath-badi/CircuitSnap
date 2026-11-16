@@ -180,7 +180,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           </button>
 
           {isOpen && (
-            <div className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 sm:min-w-[310px] sm:max-w-[360px] max-h-[390px] overflow-y-auto flex flex-col gap-1 diagnostic-feed-scrollbar">
+            <div className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 sm:min-w-[310px] sm:max-w-[360px] max-h-[390px] overflow-y-auto flex flex-col gap-1 diagnostic-feed-scrollbar animate-panel-pop">
               <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-white/5 flex items-center justify-between">
                 <span>Select AI Model</span>
                 <span className="text-cyan-400 font-semibold">{modelsToDisplay.length} MODELS</span>

@@ -86,7 +86,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       <div
         ref={modalRef}
-        className="w-full max-w-sm bg-slate-950/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.8)] p-5 sm:p-6 relative flex flex-col gap-4 text-slate-100"
+        className="w-full max-w-sm bg-slate-950/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-[0_16px_48px_rgba(0,0,0,0.8)] p-5 sm:p-6 relative flex flex-col gap-4 text-slate-100 animate-panel-pop"
       >
         {/* Top Floating Close Button */}
         <button

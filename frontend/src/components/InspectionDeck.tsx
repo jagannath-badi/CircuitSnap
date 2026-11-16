@@ -226,7 +226,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={handleTriggerFileInput}
-            className={`w-full h-full min-h-[220px] rounded-xl border border-dashed transition-all cursor-pointer flex flex-col items-center justify-center p-6 text-center relative group ${
+            className={`w-full h-full min-h-[220px] rounded-xl border border-dashed transition-all duration-300 cursor-pointer flex flex-col items-center justify-center p-6 text-center relative group ${
               isDragOver
                 ? 'border-cyan-400 bg-cyan-950/30 shadow-[0_0_24px_rgba(6,182,212,0.18)]'
                 : 'border-white/10 hover:border-cyan-500/40 bg-slate-950/30 hover:bg-slate-950/50'
