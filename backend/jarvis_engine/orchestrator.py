@@ -152,15 +152,15 @@ def process_jarvis_query(
             "attempts": 1,
         }
 
-    # 6. Fallback General Technical Response
+    # 6. Natural J.A.R.V.I.S. conversational response
     answer = (
-        f"### [CONFIRMED] J.A.R.V.I.S. Analysis for: *\"{eval_text}\"*\n\n"
-        f"I evaluated your hardware query across the local engineering database.\n\n"
-        f"#### Recommended Actions:\n"
-        f"- **IC Pinouts**: Ask for specific parts like `NE555`, `LM741`, `LM358`, `TL072`, `LM7805`, `BC547`, `IRFZ44N`, or `1N4007`.\n"
-        f"- **Circuit Formulas**: Ask about `RC Filter Cutoff`, `RLC Resonance`, `Op-Amp Inverting Gain`, or `BJT / MOSFET Biasing` for step-by-step KaTeX derivations.\n"
-        f"- **Color Codes**: Enter 4 or 5 colors (e.g. `red red orange gold`) to compute nominal ohms and tolerances.\n"
-        f"- **Optical Analysis**: Upload an image of your PCB or component for visual geometry and package scanning."
+        f"### [CONFIRMED] J.A.R.V.I.S. Standby\n\n"
+        f"I heard *\"{eval_text}\"*, though I didn't catch a specific component, circuit formula, or color code.\n\n"
+        f"Try asking for:\n"
+        f"- **IC Pinouts**: *\"NE555 pinout\"*, *\"LM741 specs\"*, *\"BC547\"*\n"
+        f"- **Resistor Codes**: *\"Decode brown black red gold\"* or *\"SMD 103\"*\n"
+        f"- **ECE Calculations**: *\"555 astable calc\"*, *\"RC cutoff 10k 10uF\"*, *\"Op-Amp Gain\"*\n"
+        f"- **Optical Scope**: Drop a PCB photo on the left workbench"
     )
 
     return {

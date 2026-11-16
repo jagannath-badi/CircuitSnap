@@ -22,9 +22,24 @@ def get_whisper_model():
     global _whisper_model
     if _whisper_model is None:
         from faster_whisper import WhisperModel
-        # Use tiny.en for sub-200ms CPU transcription
-        _whisper_model = WhisperModel("tiny.en", device="cpu", compute_type="int8")
+        # Use base.en for high-accuracy local ECE transcription
+        _whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
     return _whisper_model
+
+
+def filter_hallucinations(text: str) -> str:
+    """Filters out degenerate hallucination loops (e.g. repeated words or silence noise artefacts)."""
+    if not text or len(text.strip()) < 2:
+        return ""
+    words = re.findall(r"\b\w+\b", text.lower())
+    # Check for 3+ consecutive identical words (e.g., "highloud highloud highloud")
+    for i in range(len(words) - 2):
+        if words[i] == words[i + 1] == words[i + 2]:
+            return ""
+    # Check for degenerate loops where text is mostly 1 or 2 repeated words across 4+ tokens
+    if len(words) >= 4 and len(set(words)) <= 2:
+        return ""
+    return text.strip()
 
 
 def normalize_ece_speech(text: str) -> str:
@@ -36,8 +51,13 @@ def normalize_ece_speech(text: str) -> str:
         return ""
     t = text.strip()
 
-    # Wake-word normalization
-    t = re.sub(r"\b(?:hey|hi|hello|ok|okay)?\s*(?:service|jarvis|job is|travis)\b", "hey jarvis", t, flags=re.IGNORECASE)
+    # Wake-word normalization (e.g. "hey divers", "hey service", "a jarvis", "hi divers")
+    t = re.sub(
+        r"\b(?:hey|hi|hello|ok|okay|a)?\s*(?:service|jarvis|job\s*is|travis|divers)\b",
+        "hey jarvis",
+        t,
+        flags=re.IGNORECASE,
+    )
 
     # IC Part Numbers
     t = re.sub(r"\b(?:any|ne|n e|any\s*time)\s*555\b", "NE555", t, flags=re.IGNORECASE)
@@ -52,7 +72,7 @@ def normalize_ece_speech(text: str) -> str:
     t = re.sub(r"\b(?:1n|1 n)\s*4148\b", "1N4148", t, flags=re.IGNORECASE)
 
     # Electrical units & values
-    t = re.sub(r"\b(?:oms|homes?|arms?)\b", "ohms", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(?:oms|homes?|arms?|home)\b", "ohms", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:kilo\s*ohms?|k\s*ohms?|kilo)\b", r"\1kΩ", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:mega\s*ohms?|m\s*ohms?)\b", r"\1MΩ", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:micro\s*farads?|u\s*farads?|microfarads?|uf)\b", r"\1uF", t, flags=re.IGNORECASE)
@@ -156,6 +176,9 @@ def _transcribe_file(file_path: str) -> str:
         segments, _ = model.transcribe(
             file_path,
             beam_size=1,
+            vad_filter=True,
+            no_speech_threshold=0.6,
+            condition_on_previous_text=False,
             initial_prompt=(
                 "Jarvis, CircuitSnap, NE555, LM741, LM358, TL072, LM7805, BC547, "
                 "IRFZ44N, MOSFET, BJT, resistor, capacitor, inductor, diode, "
@@ -164,7 +187,10 @@ def _transcribe_file(file_path: str) -> str:
             language="en",
         )
         raw_text = " ".join([seg.text for seg in segments]).strip()
-        return normalize_ece_speech(raw_text)
+        filtered = filter_hallucinations(raw_text)
+        if not filtered:
+            return ""
+        return normalize_ece_speech(filtered)
     except Exception as err:
         logger.warning("Whisper transcription error: %s", err)
         return ""

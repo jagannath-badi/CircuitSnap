@@ -126,15 +126,14 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const vadIntervalRef = useRef<number | null>(null);
-  const hasSpokenRef = useRef(false);
+  const hasQualifiedSpeechRef = useRef(false);
+  const activeSpeechMsRef = useRef(0);
 
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   const onFinalTranscriptRef = useRef(onFinalTranscript);
   const isVoiceEnabledRef = useRef(isVoiceEnabled);
   const isSpeakingRef = useRef(isSpeaking);
-  const wasStartedByMicRef = useRef(false);
-  const rearmTimerRef = useRef<number | null>(null);
 
   // Synchronize latest functions and state across all renders to eliminate stale closures
   useEffect(() => {
@@ -158,10 +157,6 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   }, []);
 
   const cancelSpeech = useCallback(() => {
-    if (rearmTimerRef.current) {
-      clearTimeout(rearmTimerRef.current);
-      rearmTimerRef.current = null;
-    }
     if (audioElRef.current) {
       audioElRef.current.pause();
       audioElRef.current.currentTime = 0;
@@ -180,7 +175,8 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
       vadIntervalRef.current = null;
     }
     if (!allowProcessing) {
-      hasSpokenRef.current = false;
+      hasQualifiedSpeechRef.current = false;
+      activeSpeechMsRef.current = 0;
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
@@ -249,12 +245,6 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
       stopListeningInternal(false);
       cancelSpeech();
 
-      // 2. Clear any pending re-arm timer so mic cannot wake while speaking
-      if (rearmTimerRef.current) {
-        clearTimeout(rearmTimerRef.current);
-        rearmTimerRef.current = null;
-      }
-
       setIsSpeaking(true);
       isSpeakingRef.current = true;
 
@@ -288,16 +278,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
           setIsSpeaking(false);
           isSpeakingRef.current = false;
           onEndCallback?.();
-
-          // Strict acoustic lock: only re-arm if user started mic, waiting 850ms
-          if (wasStartedByMicRef.current && isVoiceEnabledRef.current) {
-            if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
-            rearmTimerRef.current = window.setTimeout(() => {
-              if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
-                void startListening();
-              }
-            }, 850);
-          }
+          // NO auto-rearming: mic stays strictly OFF until the user manually clicks the Mic button again
         };
 
         const handleError = () => {
@@ -323,7 +304,6 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   const startListening = useCallback(async () => {
     if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
     cancelSpeech();
-    wasStartedByMicRef.current = true;
 
     try {
       if (streamRef.current) {
@@ -367,7 +347,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
 
       mediaRecorder.onstop = async () => {
         const chunks = chunksRef.current;
-        if (chunks.length > 0 && hasSpokenRef.current && !isSpeakingRef.current) {
+        if (chunks.length > 0 && hasQualifiedSpeechRef.current && !isSpeakingRef.current) {
           const audioBlob = new Blob(chunks, { type: mimeType });
           try {
             const formData = new FormData();
@@ -386,14 +366,18 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
             console.warn('STT upload error:', err);
           }
         }
+        hasQualifiedSpeechRef.current = false;
+        activeSpeechMsRef.current = 0;
       };
 
       mediaRecorder.start(250);
       setIsListening(true);
 
-      hasSpokenRef.current = false;
+      hasQualifiedSpeechRef.current = false;
+      activeSpeechMsRef.current = 0;
       let silenceStart: number | null = null;
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      const startTime = Date.now();
+      const timeDomainData = new Uint8Array(analyser.fftSize);
 
       if (vadIntervalRef.current) clearInterval(vadIntervalRef.current);
       vadIntervalRef.current = window.setInterval(() => {
@@ -402,49 +386,48 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
           return;
         }
 
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) {
-          sum += dataArray[i];
+        // Compute RMS audio energy
+        analyser.getByteTimeDomainData(timeDomainData);
+        let sumSquares = 0;
+        for (let i = 0; i < timeDomainData.length; i++) {
+          const normalized = (timeDomainData[i] - 128) / 128;
+          sumSquares += normalized * normalized;
         }
-        const avg = sum / dataArray.length;
+        const rms = Math.sqrt(sumSquares / timeDomainData.length);
 
-        // VAD threshold for voice activity
-        if (avg > 12) {
-          hasSpokenRef.current = true;
-          silenceStart = null;
-        } else if (hasSpokenRef.current) {
+        // Vocal energy threshold: require sustained speech above rms 0.035
+        if (rms > 0.035) {
+          activeSpeechMsRef.current += 50;
+          if (activeSpeechMsRef.current >= 350) {
+            hasQualifiedSpeechRef.current = true;
+            silenceStart = null;
+          }
+        } else if (hasQualifiedSpeechRef.current) {
           if (silenceStart === null) {
             silenceStart = Date.now();
           } else if (Date.now() - silenceStart > 1200) {
-            // 1.2s silence detected after user spoke - auto-stop & transcribe
+            // 1.2s silence detected after qualified speech - auto-stop & transcribe
             stopListeningInternal(true);
           }
+        } else if (Date.now() - startTime > 7000) {
+          // If 7 seconds have elapsed without qualified vocal energy, auto-stop and discard without STT
+          stopListeningInternal(false);
         }
       }, 50);
     } catch (err) {
       console.warn('Microphone initialization failed:', err);
       setIsListening(false);
-      wasStartedByMicRef.current = false;
     }
   }, [cancelSpeech, stopListeningInternal]);
 
   const stopListening = useCallback(() => {
-    wasStartedByMicRef.current = false;
-    if (rearmTimerRef.current) {
-      clearTimeout(rearmTimerRef.current);
-      rearmTimerRef.current = null;
-    }
-    stopListeningInternal(false);
+    // If the user manually stops listening, process if they had qualified speech, otherwise discard
+    stopListeningInternal(true);
   }, [stopListeningInternal]);
 
   // Clean unmount
   useEffect(() => {
     return () => {
-      if (rearmTimerRef.current) {
-        clearTimeout(rearmTimerRef.current);
-        rearmTimerRef.current = null;
-      }
       stopListeningInternal(false);
       cancelSpeech();
     };
@@ -455,20 +438,15 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
       const next = !prev;
       isVoiceEnabledRef.current = next;
       if (next) {
-        // Announce readiness via neural voice without auto-starting the mic
+        // Announce readiness via neural voice without activating the mic
         void speak('Jarvis voice systems online.', undefined, true);
       } else {
-        wasStartedByMicRef.current = false;
-        if (rearmTimerRef.current) {
-          clearTimeout(rearmTimerRef.current);
-          rearmTimerRef.current = null;
-        }
         cancelSpeech();
-        stopListening();
+        stopListeningInternal(false);
       }
       return next;
     });
-  }, [cancelSpeech, stopListening, speak]);
+  }, [cancelSpeech, stopListeningInternal, speak]);
 
   return {
     isVoiceEnabled,
