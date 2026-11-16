@@ -110,6 +110,7 @@ export default function App() {
   const handleEjectDut = () => { setActiveDutImage(null); setActiveDutName(null); removeAttachedFile(); };
 
   const handleClearChat = () => {
+    cancelSpeech(); setSpeakingMsgId(null);
     activeObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
     activeObjectUrlsRef.current.clear();
     setActiveDutImage(null); setActiveDutName(null);

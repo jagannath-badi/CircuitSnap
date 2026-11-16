@@ -48,25 +48,42 @@ export function stripWakeWord(raw: string): string {
 }
 
 /**
- * Strips raw markdown, HTML, and KaTeX math symbols into spoken plain English with natural electronics units.
+ * Strips raw markdown, HTML, code blocks, tables, and KaTeX math symbols into spoken plain English.
+ * Ensures "Jarvis" is pronounced smoothly as a word and provides an intelligent fallback for table-heavy responses.
  */
 export function cleanTextForSpeech(raw: string): string {
+  if (!raw || !raw.trim()) {
+    return 'Specifications and calculations are displayed on screen.';
+  }
+
+  // Pre-extract potential clean title heading before stripping
+  let titleHeading = '';
+  const headingMatch = raw.match(/(?:^|\n)\s*#{1,6}\s*(?:\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\])?\s*([^\n#|]+)/i);
+  if (headingMatch && headingMatch[1]) {
+    titleHeading = headingMatch[1].replace(/[*_`]/g, '').trim();
+    titleHeading = titleHeading.replace(/J\.A\.R\.V\.I\.S\.?/gi, 'Jarvis').replace(/\bJARVIS\b/g, 'Jarvis');
+  }
+
   let text = raw;
 
-  // Replace single-pill confidence badges
-  text = text.replace(/\[\s*CONFIRMED\s*\]/gi, 'Confirmed: ');
-  text = text.replace(/\[\s*LIKELY\s*\]/gi, 'Likely: ');
-  text = text.replace(/\[\s*CANNOT CONFIRM\s*\]/gi, 'Unconfirmed: ');
+  // Pronounce "Jarvis" as a single cohesive word instead of spelling J-A-R-V-I-S
+  text = text.replace(/J\.A\.R\.V\.I\.S\.?/gi, 'Jarvis');
+  text = text.replace(/\bJARVIS\b/g, 'Jarvis');
 
-  // Replace Markdown tables with spoken equivalents
-  text = text.replace(/\|[^\n]+\|/g, (match) => {
-    if (/^\|[\s\-:]+\|$/.test(match.trim())) return '';
-    const cells = match
-      .split('|')
-      .map((c) => c.trim())
-      .filter(Boolean);
-    return cells.join(', ') + '. ';
-  });
+  // Strip code blocks completely
+  text = text.replace(/```[\s\S]*?```/g, ' ');
+  text = text.replace(/`([^`]+)`/g, '$1');
+
+  // Strip Markdown tables completely (| ... |) so pipes and table cells are never read aloud
+  text = text.replace(/^\s*\|.*\|\s*$/gm, ' ');
+  text = text.replace(/\|[^\n]+\|/g, ' ');
+
+  // Strip Markdown header tags (###, ##, #)
+  text = text.replace(/(?:^|\n)\s*#{1,6}\s*/g, ' ');
+
+  // Strip confidence badges entirely (CONFIRMED, LIKELY, CANNOT CONFIRM)
+  text = text.replace(/\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:-–—]?/gi, '');
+  text = text.replace(/\b(?:CONFIRMED|CANNOT CONFIRM)\b\s*[:-–—]?/gi, '');
 
   // Replace common LaTeX formulas with natural spoken equivalents
   text = text.replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ');
@@ -103,14 +120,22 @@ export function cleanTextForSpeech(raw: string): string {
   text = text.replace(/(\d+(?:\.\d+)?)\s*W(?![a-zA-Z])/g, '$1 watts');
 
   // Strip residual Markdown formatting
-  text = text.replace(/[*#_~`>]+/g, ' ');
+  text = text.replace(/[*_~`>]+/g, ' ');
   text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
   text = text.replace(/\s+/g, ' ').trim();
 
-  // Keep spoken response to key technical findings (first 2-3 sentences or ~350 chars)
-  if (text.length > 350) {
-    const periodIdx = text.indexOf('.', 250);
-    if (periodIdx !== -1 && periodIdx < 450) {
+  // Fallback summary if table-stripping or formatting leaves shorter than 12 characters
+  if (text.length < 12) {
+    if (titleHeading && titleHeading.length >= 3) {
+      return `${titleHeading}. Specifications and calculations are displayed on screen.`;
+    }
+    return 'Specifications and calculations are displayed on screen.';
+  }
+
+  // Keep spoken response to key technical findings (concise summary ~320 chars)
+  if (text.length > 320) {
+    const periodIdx = text.indexOf('.', 200);
+    if (periodIdx !== -1 && periodIdx < 420) {
       text = text.substring(0, periodIdx + 1);
     }
   }
@@ -163,6 +188,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   const onFinalTranscriptRef = useRef(onFinalTranscript);
   const isVoiceEnabledRef = useRef(isVoiceEnabled);
   const isSpeakingRef = useRef(isSpeaking);
+  const wasStartedByMicRef = useRef(false);
   const rearmTimerRef = useRef<number | null>(null);
   const keepAliveIntervalRef = useRef<number | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
@@ -170,15 +196,9 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
     onFinalTranscriptRef.current = onFinalTranscript;
-  }, [onTranscript, onFinalTranscript]);
-
-  useEffect(() => {
     isVoiceEnabledRef.current = isVoiceEnabled;
-  }, [isVoiceEnabled]);
-
-  useEffect(() => {
     isSpeakingRef.current = isSpeaking;
-  }, [isSpeaking]);
+  });
 
   // Preload voices
   useEffect(() => {
@@ -202,6 +222,10 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
 
   const cancelSpeech = useCallback(() => {
     clearKeepAlive();
+    if (rearmTimerRef.current) {
+      clearTimeout(rearmTimerRef.current);
+      rearmTimerRef.current = null;
+    }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
@@ -212,6 +236,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   const startListening = useCallback(() => {
     if (!recognitionRef.current) return;
     cancelSpeech();
+    wasStartedByMicRef.current = true;
     try {
       recognitionRef.current.start();
     } catch {
@@ -220,6 +245,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   }, [cancelSpeech]);
 
   const stopListening = useCallback(() => {
+    wasStartedByMicRef.current = false;
     if (rearmTimerRef.current) {
       clearTimeout(rearmTimerRef.current);
       rearmTimerRef.current = null;
@@ -232,25 +258,42 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     }
   }, []);
 
-  // Voice speech synthesis
+  // Voice speech synthesis with strict acoustic echo protection
   const speak = useCallback(
     (rawText: string, onEndCallback?: () => void, force = false) => {
       if ((!isVoiceEnabledRef.current && !force) || typeof window === 'undefined' || !('speechSynthesis' in window)) {
         return;
       }
 
-      // Stop listening while speaking to prevent echo
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        // ignore
+      // 1. Immediately abort active speech recognition and mark listening false
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
       }
+      setIsListening(false);
+
+      // 2. Clear any pending re-arm timer so mic cannot start while speaking
+      if (rearmTimerRef.current) {
+        clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = null;
+      }
+
+      // 3. Set speaking flags BEFORE invoking speechSynthesis
+      setIsSpeaking(true);
+      isSpeakingRef.current = true;
 
       window.speechSynthesis.cancel();
       window.speechSynthesis.resume();
 
       const cleaned = cleanTextForSpeech(rawText);
-      if (!cleaned) return;
+      if (!cleaned) {
+        setIsSpeaking(false);
+        isSpeakingRef.current = false;
+        return;
+      }
 
       const utterance = new SpeechSynthesisUtterance(cleaned);
       utterance.pitch = 0.88;
@@ -283,18 +326,18 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
         isSpeakingRef.current = false;
         onEndCallback?.();
 
-        // Auto-rearm speech recognition loop after J.A.R.V.I.S. finishes speaking
-        if (isVoiceEnabledRef.current) {
+        // ONLY re-arm startListening() if wasStartedByMicRef.current is true AND wait at least 850ms
+        if (wasStartedByMicRef.current && isVoiceEnabledRef.current) {
           if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
           rearmTimerRef.current = window.setTimeout(() => {
-            if (isVoiceEnabledRef.current && !isSpeakingRef.current) {
+            if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
               try {
                 recognitionRef.current?.start();
               } catch {
                 // ignore
               }
             }
-          }, 350);
+          }, 850);
         }
       };
 
@@ -326,18 +369,18 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
 
         recognition.onend = () => {
           setIsListening(false);
-          // Continuous conversational loop: auto-rearm if still in voice mode and not currently speaking
-          if (isVoiceEnabledRef.current && !isSpeakingRef.current) {
+          // Only re-arm if started by mic, voice mode is active, and J.A.R.V.I.S. is not speaking
+          if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
             if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
             rearmTimerRef.current = window.setTimeout(() => {
-              if (isVoiceEnabledRef.current && !isSpeakingRef.current) {
+              if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
                 try {
                   recognition.start();
                 } catch {
                   // ignore
                 }
               }
-            }, 300);
+            }, 850);
           }
         };
 
@@ -346,6 +389,11 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
         };
 
         recognition.onresult = (event) => {
+          // Immediately return and ignore any transcript if J.A.R.V.I.S. is speaking or synthesis is active
+          if (isSpeakingRef.current || (typeof window !== 'undefined' && window.speechSynthesis?.speaking)) {
+            return;
+          }
+
           let interimText = '';
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             const resultItem = event.results[i];
@@ -371,7 +419,10 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     }
 
     return () => {
-      if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
+      if (rearmTimerRef.current) {
+        clearTimeout(rearmTimerRef.current);
+        rearmTimerRef.current = null;
+      }
       clearKeepAlive();
       if (recognitionRef.current) {
         try {
@@ -391,17 +442,14 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
       const next = !prev;
       isVoiceEnabledRef.current = next;
       if (next) {
-        // Unlock browser audio immediately on user click & announce readiness
-        speak('J.A.R.V.I.S. voice systems online. At your service.', undefined, true);
-        if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
-        rearmTimerRef.current = window.setTimeout(() => {
-          try {
-            recognitionRef.current?.start();
-          } catch {
-            // ignore
-          }
-        }, 300);
+        // Only enable spoken responses and announce readiness - do NOT auto-start the mic!
+        speak('Jarvis voice systems online.', undefined, true);
       } else {
+        wasStartedByMicRef.current = false;
+        if (rearmTimerRef.current) {
+          clearTimeout(rearmTimerRef.current);
+          rearmTimerRef.current = null;
+        }
         cancelSpeech();
         stopListening();
       }
@@ -419,5 +467,6 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     stopListening,
     speak,
     cancelSpeech,
+    stopSpeaking: cancelSpeech,
   };
 }

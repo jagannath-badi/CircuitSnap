@@ -196,7 +196,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
               </span>
               <Mic className="w-3.5 h-3.5 text-[#00A6E8]" />
               <span className="font-semibold text-[11px] tracking-wide hidden xs:inline">
-                {isListening ? 'Listening...' : isSpeaking ? 'Speaking...' : 'J.A.R.V.I.S. Voice'}
+                {isListening ? 'Listening...' : isSpeaking ? 'Speaking...' : 'Voice On'}
               </span>
             </>
           ) : (
