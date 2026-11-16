@@ -105,10 +105,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
           <div>
             <h3 className="text-xs font-mono font-bold tracking-wider uppercase text-cyan-300">
-              OPERATOR PROTOCOL
+              Account Sign In
             </h3>
             <p className="text-[11px] text-slate-400">
-              Sign in to anchor diagnostic telemetry to your callsign
+              Sign in to save and access your circuit sessions
             </p>
           </div>
         </div>
@@ -150,13 +150,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <User className="w-3 h-3 text-cyan-400" />
-              <span>Operator Callsign / Username</span>
+              <span>Username</span>
             </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. quantum_cadet"
+              placeholder="Enter your username"
               required
               className="bg-white/[0.04] border border-white/10 focus:border-cyan-500/50 rounded-xl px-3 py-2 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/30 font-mono transition-all"
             />
@@ -165,7 +165,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Lock className="w-3 h-3 text-cyan-400" />
-              <span>Security Key / Password</span>
+              <span>Password</span>
             </label>
             <input
               type="password"
@@ -192,16 +192,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {isLoading ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>AUTHORIZING...</span>
+                <span>SIGNING IN...</span>
               </>
             ) : (
-              <span>{mode === 'login' ? 'INITIALIZE SESSION' : 'REGISTER CALLSIGN'}</span>
+              <span>{mode === 'login' ? 'Sign In' : 'Create Account'}</span>
             )}
           </button>
         </form>
 
         <p className="text-center text-[10px] text-slate-500 font-mono">
-          Workbench is operational in Guest Mode without logging in.
+          You can continue using CircuitSnap without signing in.
         </p>
       </div>
     </div>

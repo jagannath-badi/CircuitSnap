@@ -28,11 +28,11 @@ export interface TelemetryHeaderProps {
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
-  { id: 'auto', label: 'Auto (Smart Router)', provider: 'router', specialty: 'Autonomous Task & Vision Routing', supports_vision: true },
-  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Active Default)', provider: 'gemini', specialty: 'Optical Scope, SMD Vision & General Telemetry', supports_vision: true },
-  { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Math', provider: 'gemini', specialty: 'Circuit Derivations, Symbolic Formulas & KaTeX', supports_vision: true },
-  { id: 'llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B', provider: 'groq', specialty: 'Sub-Second Pinout & Spec Table Lookups', supports_vision: false },
-  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'gemini', specialty: 'Dense Schematics & Deep Datasheets', supports_vision: true },
+  { id: 'auto', label: 'Auto (Smart Router)', provider: 'router', specialty: 'Automatically picks the best model', supports_vision: true },
+  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Active Default)', provider: 'gemini', specialty: 'Best for circuit photos, parts & general help', supports_vision: true },
+  { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Math', provider: 'gemini', specialty: 'Best for step-by-step circuit math & formulas', supports_vision: true },
+  { id: 'llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B', provider: 'groq', specialty: 'Fast text answers, pinouts & spec tables', supports_vision: false },
+  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'gemini', specialty: 'Best for complex schematics & long datasheets', supports_vision: true },
 ];
 
 export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
@@ -182,7 +182,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           {isOpen && (
             <div className="fixed inset-x-3 top-[68px] sm:absolute sm:inset-x-auto sm:top-full sm:mt-2 sm:right-0 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1.5 z-50 sm:min-w-[310px] sm:max-w-[360px] max-h-[390px] overflow-y-auto flex flex-col gap-1 diagnostic-feed-scrollbar">
               <div className="px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-white/5 flex items-center justify-between">
-                <span>AI SPECIALIZATION ROSTER</span>
+                <span>Select AI Model</span>
                 <span className="text-cyan-400 font-semibold">{modelsToDisplay.length} MODELS</span>
               </div>
               {modelsToDisplay.map((opt) => {

@@ -222,16 +222,16 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-mono font-bold tracking-wider uppercase text-cyan-300">
-                  DIAGNOSTIC VAULT
+                  Saved Sessions
                 </h2>
                 {currentUser && (
                   <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/[0.04] border border-white/[0.08] text-slate-400">
-                    {sessions.length} RUNS
+                    {sessions.length} SAVED
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-slate-400 font-mono">
-                ARCHIVED HARDWARE SESSIONS
+                Your saved circuit sessions
               </p>
             </div>
           </div>
@@ -240,7 +240,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
             onClick={onClose}
             type="button"
             className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-            title="Close Vault"
+            title="Close"
           >
             <X className="w-4 h-4" />
           </button>
@@ -263,10 +263,10 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
               </div>
               <div>
                 <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-                  GUEST MODE ACTIVE
+                  Sign In to Save Sessions
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                  Authenticate your station callsign to unlock persistent diagnostic archives, optical scope snapshots, and telemetry history.
+                  Sign in to save your circuit conversations, uploaded photos, and review past sessions.
                 </p>
               </div>
               <button
@@ -277,7 +277,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
                 }}
                 className="mt-2 w-full py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono text-xs uppercase tracking-wider font-semibold transition-all active:scale-[0.98] shadow-lg shadow-cyan-950/50"
               >
-                INITIALIZE OPERATOR PROTOCOL
+                Sign In / Register
               </button>
             </div>
           ) : (
@@ -292,7 +292,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
                     ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/20 hover:border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.1)]'
                     : 'bg-white/[0.02] border-white/[0.06] text-slate-500 cursor-not-allowed'
                 }`}
-                title="Archive current diagnostic workbench session"
+                title="Save current circuit session"
               >
                 <div className="flex items-center gap-2">
                   {isSaving ? (
@@ -301,7 +301,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
                     <BookmarkPlus className="w-4 h-4 text-cyan-400" />
                   )}
                   <span className="font-semibold uppercase tracking-wider">
-                    {isSaving ? 'ARCHIVING SESSION...' : 'ARCHIVE CURRENT RUN'}
+                    {isSaving ? 'SAVING SESSION...' : 'SAVE CURRENT SESSION'}
                   </span>
                 </div>
                 <span className="text-[10px] text-slate-400">
@@ -312,22 +312,22 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
               {/* Sessions List */}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider px-1">
-                  STORED TELEMETRY SESSIONS
+                  Saved Sessions
                 </span>
 
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 font-mono text-xs">
                     <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
-                    <span>SYNCHRONIZING VAULT...</span>
+                    <span>Loading saved sessions...</span>
                   </div>
                 ) : sessions.length === 0 ? (
                   <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/[0.04] flex flex-col items-center text-center gap-2.5 my-6">
                     <Archive className="w-8 h-8 text-slate-600" />
                     <span className="text-xs font-mono font-medium text-slate-300 uppercase">
-                      VAULT STORAGE EMPTY
+                      No Saved Sessions
                     </span>
                     <p className="text-[11px] text-slate-500 max-w-[240px]">
-                      No archived runs found. Submit component queries or optical photos, then click &quot;Archive Current Run&quot;.
+                      No saved sessions found. Ask questions or upload a photo, then click &quot;Save Current Session&quot;.
                     </p>
                   </div>
                 ) : (
@@ -396,8 +396,8 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
 
         {/* Footer */}
         <div className="p-3 border-t border-white/[0.08] text-[10px] font-mono text-slate-500 flex items-center justify-between">
-          <span>CIRCUITSNAP // VAULT CORE</span>
-          <span className="text-cyan-400">SQLITE ENCRYPTED</span>
+          <span>CircuitSnap</span>
+          <span className="text-cyan-400">Saved locally</span>
         </div>
       </div>
     </div>

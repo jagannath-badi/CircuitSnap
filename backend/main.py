@@ -71,21 +71,21 @@ async def get_models() -> ModelsResponse:
             id="auto",
             label="Auto (Smart Router)",
             provider="router",
-            specialty="Autonomous Task & Vision Routing",
+            specialty="Automatically picks the best model",
             supports_vision=True,
         ),
         ModelOption(
             id="gemini-3.8-flash",
             label="Gemini 3.8 Flash (Active Default)",
             provider="gemini",
-            specialty="Optical Scope, SMD Vision & General Telemetry",
+            specialty="Best for circuit photos, parts & general help",
             supports_vision=True,
         ),
         ModelOption(
             id="gemini-3.6-flash",
             label="Gemini 3.6 Math",
             provider="gemini",
-            specialty="Circuit Derivations, Symbolic Formulas & KaTeX",
+            specialty="Best for step-by-step circuit math & formulas",
             supports_vision=True,
         ),
     ]
@@ -96,7 +96,7 @@ async def get_models() -> ModelsResponse:
                 id="llama-3.3-70b-versatile",
                 label="Groq Llama 3.3 70B",
                 provider="groq",
-                specialty="Sub-Second Pinout & Spec Table Lookups",
+                specialty="Fast text answers, pinouts & spec tables",
                 supports_vision=False,
             )
         )
@@ -106,7 +106,7 @@ async def get_models() -> ModelsResponse:
             id="gemini-1.5-pro",
             label="Gemini 1.5 Pro",
             provider="gemini",
-            specialty="Dense Schematics & Deep Datasheets",
+            specialty="Best for complex schematics & long datasheets",
             supports_vision=True,
         )
     )
