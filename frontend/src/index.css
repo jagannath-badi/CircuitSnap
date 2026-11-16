@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
 :root {
+  --ease-spring-snappy: linear(
+    0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%,
+    0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.007 50.1%, 1.015 55%, 1.015 60.7%,
+    1.001 72.8%, 0.998 80.8%, 1
+  );
+  --ease-spring-float: cubic-bezier(0.34, 1.56, 0.64, 1);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   color: #f3f4f6;
   background-color: #090d16;
@@ -43,6 +49,9 @@ body {
 }
 
 /* Subtle dark scrollbar for Diagnostic Feed and scrollable panels */
+.diagnostic-feed-scrollbar {
+  scroll-behavior: smooth;
+}
 .diagnostic-feed-scrollbar::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -57,6 +66,57 @@ body {
 .diagnostic-feed-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(6, 182, 212, 0.5);
   box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+}
+
+/* Tactile Spring Physics (OriginOS Spec) */
+.tactile-spring {
+  transition: transform 260ms var(--ease-spring-snappy),
+              background-color 150ms ease,
+              border-color 150ms ease,
+              box-shadow 200ms ease;
+  will-change: transform;
+}
+.tactile-spring:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+}
+.tactile-spring:active:not(:disabled) {
+  transform: scale(0.96);
+  transition-duration: 120ms;
+}
+
+/* Top-Edge Specular Glass Rim Lighting */
+.specular-glass {
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* Diagnostic Feed Message Entry Spring Settle */
+@keyframes message-settle {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-message-settle {
+  animation: message-settle 360ms var(--ease-spring-snappy) forwards;
+}
+
+/* Accessibility: Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    transform: none !important;
+  }
 }
 
 /* Utility to hide scrollbars while maintaining scroll functionality */

@@ -80,7 +80,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
     modelsToDisplay.find((opt) => opt.id === selectedModel) || modelsToDisplay[0];
 
   return (
-    <header className="bg-slate-950/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-40 px-3 sm:px-5 py-2 h-[65px] flex items-center justify-between gap-2 transition-colors">
+    <header className="bg-slate-950/70 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-40 px-3 sm:px-5 py-2 h-[65px] flex items-center justify-between gap-2 transition-colors specular-glass">
       {/* Left Branding & Hardware LED */}
       <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.15)] flex-shrink-0">
@@ -165,7 +165,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className="min-h-[40px] text-xs font-mono text-slate-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 rounded-full px-2.5 py-1 flex items-center gap-1.5 transition-all shadow-sm group active:scale-95"
+            className="min-h-[40px] text-xs font-mono text-slate-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 rounded-full px-2.5 py-1 flex items-center gap-1.5 transition-all shadow-sm group tactile-spring"
             title="Select AI Model Architecture"
           >
             <span className="text-slate-500 text-[10px] hidden xs:inline">MODEL</span>
@@ -198,7 +198,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
                         setIsOpen(false);
                       }
                     }}
-                    className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-start justify-between gap-2.5 ${
+                    className={`w-full text-left px-2.5 py-2 rounded-lg transition-all flex items-start justify-between gap-2.5 tactile-spring ${
                       isSelected
                         ? 'bg-cyan-500/15 border border-cyan-500/30 text-white'
                         : 'hover:bg-white/[0.05] text-slate-300 hover:text-white border border-transparent'
@@ -238,7 +238,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             <button
               type="button"
               onClick={() => setIsUserMenuOpen((prev) => !prev)}
-              className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-200 bg-cyan-950/40 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-500/50 transition-all flex items-center gap-1.5 active:scale-95 shadow-[0_0_8px_rgba(6,182,212,0.15)]"
+              className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-200 bg-cyan-950/40 hover:bg-cyan-950/60 border border-cyan-500/30 hover:border-cyan-500/50 transition-all flex items-center gap-1.5 shadow-[0_0_8px_rgba(6,182,212,0.15)] tactile-spring"
               title="Operator Profile"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
@@ -279,7 +279,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenAuthModal}
-            className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
+            className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group tactile-spring"
             title="Authenticate as Station Operator"
           >
             <User className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
@@ -292,7 +292,7 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         <button
           type="button"
           onClick={currentUser ? onOpenVault : onOpenAuthModal}
-          className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group active:scale-95"
+          className="min-h-[40px] px-2.5 py-1 rounded-full text-xs font-mono text-slate-300 hover:text-cyan-300 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all flex items-center gap-1.5 group tactile-spring"
           title={currentUser ? 'Open Diagnostic Vault' : 'Authenticate to Access Diagnostic Vault'}
         >
           <Archive className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
@@ -307,10 +307,10 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         <button
           onClick={onResetWorkbench}
           disabled={!hasActiveSession}
-          className={`min-h-[40px] px-2 sm:px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-xs font-mono transition-all ${
+          className={`min-h-[40px] px-2 sm:px-2.5 py-1 rounded-lg flex items-center gap-1.5 text-xs font-mono transition-all tactile-spring ${
             hasActiveSession
-              ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 active:scale-95'
-              : 'text-slate-600 cursor-not-allowed opacity-40'
+              ? 'text-slate-300 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30'
+              : 'border border-white/15 text-slate-400/80 bg-white/[0.02] cursor-not-allowed opacity-75'
           }`}
           title="Reset Workbench and clear all active telemetry & scope image"
         >

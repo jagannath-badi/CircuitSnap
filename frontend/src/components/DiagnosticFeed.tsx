@@ -262,7 +262,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   };
 
   return (
-    <section className="flex flex-col h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-[#080d1a]/80 backdrop-blur-md">
+    <section className="flex flex-col h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-[#080d1a]/80 backdrop-blur-md specular-glass">
       {/* Feed Header */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
           messages.map((msg) => (
             <div
               key={msg.id}
-              className={`flex ${
+              className={`flex animate-message-settle ${
                 msg.role === 'user' ? 'justify-end' : 'justify-start'
               }`}
             >
@@ -388,7 +388,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
 
       {/* Footer Input Composer */}
       <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20">
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-2xl p-2.5 mx-auto max-w-full focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all">
+        <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-2xl p-2.5 mx-auto max-w-full focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all specular-glass">
           {/* Active Scope Attachment Indicator in Composer */}
           {attachedFile && (
             <div className="mb-2 px-2.5 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-between text-xs font-mono text-cyan-300 w-fit max-w-full">
@@ -414,7 +414,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               onClick={onAttachClick}
               disabled={isLoading}
               title="Load Photo to Optical Scope (JPEG, PNG, WEBP, GIF up to 10 MB)"
-              className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 ${
+              className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
                 attachedFile
                   ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
                   : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-cyan-300 hover:border-cyan-500/30 hover:bg-white/[0.05]'
@@ -443,13 +443,17 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               type="button"
               onClick={onSendMessage}
               disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
-              className="p-2 min-h-[40px] min-w-[40px] rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-30 disabled:hover:bg-emerald-500 text-slate-950 font-bold shadow-[0_0_16px_rgba(16,185,129,0.35)] transition-all active:scale-95 flex-shrink-0 flex items-center justify-center"
+              className={`p-2 min-h-[40px] min-w-[40px] rounded-xl font-bold flex-shrink-0 flex items-center justify-center transition-all tactile-spring ${
+                !isLoading && (inputPrompt.trim() || attachedFile)
+                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_0_16px_rgba(16,185,129,0.35)]'
+                  : 'bg-emerald-950/30 border border-white/15 text-emerald-400/60 shadow-none cursor-not-allowed'
+              }`}
               title="Execute CircuitSnap Query (Enter)"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
               ) : (
-                <Send className="w-4 h-4 text-slate-950" />
+                <Send className="w-4 h-4" />
               )}
             </button>
           </div>

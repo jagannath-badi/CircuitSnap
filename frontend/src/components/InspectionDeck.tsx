@@ -10,6 +10,7 @@ import {
   Layers,
   AlertTriangle,
   RotateCcw,
+  Zap,
   X,
 } from 'lucide-react';
 
@@ -54,6 +55,12 @@ const QUICK_ACTION_CHIPS = [
     icon: AlertTriangle,
     prompt:
       'Analyze this circuit for potential issues: check for ground loop vulnerability, missing decoupling capacitors, polarity inversion, or short circuits.',
+  },
+  {
+    label: 'BJT / MOSFET Biasing',
+    icon: Zap,
+    prompt:
+      'Analyze the DC biasing point (Q-point), calculate terminal currents (I_B, I_C / I_D), determine V_CE / V_DS, and verify whether the transistor is operating in active, saturation, or cutoff region.',
   },
 ];
 
@@ -102,7 +109,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
   };
 
   return (
-    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl">
+    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl specular-glass">
       {/* Scope Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -178,7 +185,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 type="button"
                 onClick={handleTriggerFileInput}
                 disabled={isLoading}
-                className="px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-white/10 text-slate-200 text-[11px] font-mono transition-all hover:border-cyan-500/40 shadow-sm flex items-center gap-1 active:scale-95"
+                className="px-2.5 py-1 rounded-lg bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-white/10 text-slate-200 text-[11px] font-mono transition-all hover:border-cyan-500/40 shadow-sm flex items-center gap-1 tactile-spring"
                 title="Replace scope image"
               >
                 <RotateCcw className="w-3 h-3 text-cyan-400" />
@@ -188,7 +195,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 type="button"
                 onClick={onEjectDut}
                 disabled={isLoading}
-                className="p-1 rounded-lg bg-rose-950/50 hover:bg-rose-900/80 backdrop-blur-md border border-rose-800/40 text-rose-300 transition-all hover:text-white shadow-sm active:scale-95"
+                className="p-1 rounded-lg bg-rose-950/50 hover:bg-rose-900/80 backdrop-blur-md border border-rose-800/40 text-rose-300 transition-all hover:text-white shadow-sm tactile-spring"
                 title="Eject / Clear DUT"
               >
                 <X className="w-3.5 h-3.5" />
@@ -284,7 +291,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => onQuickAction(chip.prompt)}
-                className="rounded-xl px-2.5 py-1.5 bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.06] hover:border-cyan-500/30 transition-all text-xs text-slate-300 font-medium flex items-center gap-2 group active:scale-95 text-left"
+                className="rounded-xl px-2.5 py-1.5 bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.06] hover:border-cyan-500/30 transition-all text-xs text-slate-300 font-medium flex items-center gap-2 group text-left tactile-spring"
               >
                 <Icon className="w-3.5 h-3.5 text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
                 <span className="truncate">{chip.label}</span>
