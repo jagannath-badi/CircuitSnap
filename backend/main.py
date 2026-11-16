@@ -9,8 +9,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-import models
-import providers
 from backend.database import init_db
 from backend.routers import analyze, auth, chat, vault
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
@@ -23,9 +21,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CircuitSnap API",
-    description="API for CircuitSnap's electronics assistant.",
-    version="1.0.0",
+    title="CircuitSnap J.A.R.V.I.S. API",
+    description="Sub-50ms offline intelligence API for CircuitSnap's ECE workstation.",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -49,69 +47,50 @@ app.include_router(vault.router)
 
 @app.get("/api/health", response_model=HealthResponse)
 async def health_check():
-    default_name = models.get_default_model()
-    config = models.get_model(default_name)
-
     return HealthResponse(
         status="healthy",
         models={
-            "default": default_name,
-            "model_id": config.get("model_id"),
-            "provider": config.get("provider"),
+            "default": "jarvis-auto",
+            "model_id": "jarvis-auto",
+            "provider": "J.A.R.V.I.S. Core",
         },
     )
 
 
 @app.get("/api/models", response_model=ModelsResponse)
 async def get_models() -> ModelsResponse:
-    has_groq = bool(providers._get_api_key("GROQ_API_KEY"))
-
     available: list[ModelOption] = [
         ModelOption(
-            id="auto",
-            label="Auto (Smart Router)",
-            provider="router",
-            specialty="Automatically picks the best model",
+            id="jarvis-auto",
+            label="Auto (J.A.R.V.I.S. Smart Router)",
+            provider="J.A.R.V.I.S. Core",
+            specialty="Autonomous offline routing for circuits, math & vision",
             supports_vision=True,
         ),
         ModelOption(
-            id="gemini-3.8-flash",
-            label="Gemini 3.8 Flash (Active Default)",
-            provider="gemini",
-            specialty="Best for circuit photos, parts & general help",
+            id="jarvis-math",
+            label="J.A.R.V.I.S. Math Engine",
+            provider="J.A.R.V.I.S. Core",
+            specialty="Instant SymPy formulas, KaTeX derivations & biasing",
+            supports_vision=False,
+        ),
+        ModelOption(
+            id="jarvis-vision",
+            label="J.A.R.V.I.S. Optical Vision",
+            provider="J.A.R.V.I.S. Core",
+            specialty="Local SMD, color bands & optical component inspection",
             supports_vision=True,
         ),
         ModelOption(
-            id="gemini-3.6-flash",
-            label="Gemini 3.6 Math",
-            provider="gemini",
-            specialty="Best for step-by-step circuit math & formulas",
-            supports_vision=True,
+            id="jarvis-datasheets",
+            label="J.A.R.V.I.S. Datasheet Archive",
+            provider="J.A.R.V.I.S. Core",
+            specialty="Offline IC pinouts, max ratings & spec tables",
+            supports_vision=False,
         ),
     ]
 
-    if has_groq:
-        available.append(
-            ModelOption(
-                id="llama-3.3-70b-versatile",
-                label="Groq Llama 3.3 70B",
-                provider="groq",
-                specialty="Fast text answers, pinouts & spec tables",
-                supports_vision=False,
-            )
-        )
-
-    available.append(
-        ModelOption(
-            id="gemini-1.5-pro",
-            label="Gemini 1.5 Pro",
-            provider="gemini",
-            specialty="Best for complex schematics & long datasheets",
-            supports_vision=True,
-        )
-    )
-
     return ModelsResponse(
         models=available,
-        default_model="gemini-3.8-flash",
+        default_model="jarvis-auto",
     )

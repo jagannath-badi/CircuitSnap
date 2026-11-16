@@ -29,36 +29,42 @@ const QUICK_ACTION_CHIPS = [
   {
     label: 'Decode Color Bands',
     icon: Palette,
+    accent: 'border-[#00A6E8]/30 hover:border-[#00A6E8]/70 hover:bg-[#00A6E8]/10 text-[#00A6E8]',
     prompt:
       'Decode the color bands on this resistor. State the nominal resistance, tolerance, standard E-series designation, and verification tips.',
   },
   {
     label: 'Op-Amp Pinout & Specs',
     icon: Cpu,
+    accent: 'border-[#FF2D95]/30 hover:border-[#FF2D95]/70 hover:bg-[#FF2D95]/10 text-[#FF2D95]',
     prompt:
       'Identify this operational amplifier, explain its pinout diagram, maximum ratings, supply rail requirements, and typical negative feedback configuration.',
   },
   {
     label: '555 Timer Astable Calc',
     icon: Clock,
+    accent: 'border-amber-500/30 hover:border-amber-500/70 hover:bg-amber-500/10 text-amber-400',
     prompt:
       'Explain the pinout and calculate the timing components (R1, R2, C) for this 555 timer in astable mode.',
   },
   {
     label: 'Identify Package & SMD',
     icon: Layers,
+    accent: 'border-emerald-500/30 hover:border-emerald-500/70 hover:bg-emerald-500/10 text-emerald-400',
     prompt:
       'Identify the package type (SOIC, QFN, TO-220, etc.), pin pitch, SMD top marking code, and manufacturer specifications for this device.',
   },
   {
     label: 'Troubleshoot Short / Noise',
     icon: AlertTriangle,
+    accent: 'border-rose-500/30 hover:border-rose-500/70 hover:bg-rose-500/10 text-rose-400',
     prompt:
       'Analyze this circuit for potential issues: check for ground loop vulnerability, missing decoupling capacitors, polarity inversion, or short circuits.',
   },
   {
     label: 'BJT / MOSFET Biasing',
     icon: Zap,
+    accent: 'border-purple-500/30 hover:border-purple-500/70 hover:bg-purple-500/10 text-purple-400',
     prompt:
       'Analyze the DC biasing point (Q-point), calculate terminal currents (I_B, I_C / I_D), determine V_CE / V_DS, and verify whether the transistor is operating in active, saturation, or cutoff region.',
   },
@@ -109,19 +115,19 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
   };
 
   return (
-    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-900/40 backdrop-blur-xl border border-white/[0.08] border-t-white/15 rounded-2xl p-4 sm:p-5 shadow-2xl specular-glass">
+    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-950/60 backdrop-blur-2xl border border-white/[0.08] border-t-white/15 rounded-3xl p-4 sm:p-5 shadow-2xl specular-glass">
       {/* Scope Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
         <div className="flex items-center gap-2">
-          <Scan className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-300">
+          <Scan className="w-4 h-4 text-[#00A6E8]" />
+          <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-200">
             Upload Circuit Photo
           </h2>
         </div>
         <span
           className={`text-[10px] font-mono font-medium px-2.5 py-0.5 rounded-full border transition-all ${
             activeDutImage
-              ? 'bg-cyan-950/60 text-cyan-400 border-cyan-800/60 animate-pulse'
+              ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/40 shadow-[0_0_10px_rgba(0,166,232,0.3)] animate-pulse'
               : 'bg-white/[0.03] text-slate-500 border-white/[0.06]'
           }`}
         >
@@ -142,16 +148,16 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
       <div className="flex-1 my-3 relative flex flex-col justify-center min-h-[220px] overflow-hidden">
         {activeDutImage ? (
           /* Active Loaded Component Scope with Reticle Overlays & Floating Glass Controls */
-          <div className="relative w-full h-full min-h-[240px] rounded-xl bg-slate-950/60 border border-white/[0.08] flex flex-col items-center justify-center overflow-hidden p-3 group">
-            {/* Scope Corner HUD Reticles */}
-            <div className="absolute top-2.5 left-2.5 w-3 h-3 border-t-2 border-l-2 border-cyan-400/60 pointer-events-none z-20" />
-            <div className="absolute top-2.5 right-2.5 w-3 h-3 border-t-2 border-r-2 border-cyan-400/60 pointer-events-none z-20" />
-            <div className="absolute bottom-2.5 left-2.5 w-3 h-3 border-b-2 border-l-2 border-cyan-400/60 pointer-events-none z-20" />
-            <div className="absolute bottom-2.5 right-2.5 w-3 h-3 border-b-2 border-r-2 border-cyan-400/60 pointer-events-none z-20" />
+          <div className="relative w-full h-full min-h-[240px] rounded-2xl bg-slate-950/80 border border-white/[0.08] flex flex-col items-center justify-center overflow-hidden p-3 group">
+            {/* Dual Cerulean / Neon Rose Corner HUD Reticles */}
+            <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 border-[#00A6E8] pointer-events-none z-20 shadow-[0_0_8px_#00A6E8]" />
+            <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 border-[#FF2D95] pointer-events-none z-20 shadow-[0_0_8px_#FF2D95]" />
+            <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 border-[#FF2D95] pointer-events-none z-20 shadow-[0_0_8px_#FF2D95]" />
+            <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 border-[#00A6E8] pointer-events-none z-20 shadow-[0_0_8px_#00A6E8]" />
 
             {/* Optical Center Crosshairs overlay */}
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-25 z-10">
-              <Crosshair className="w-14 h-14 text-cyan-400" strokeWidth={1} />
+              <Crosshair className="w-14 h-14 text-[#00A6E8]" strokeWidth={1} />
             </div>
 
             {/* Subtle Vignette Overlay */}
@@ -282,7 +288,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {QUICK_ACTION_CHIPS.map((chip, idx) => {
             const Icon = chip.icon;
             return (
@@ -290,9 +296,9 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 key={idx}
                 type="button"
                 onClick={() => onQuickAction(chip.prompt)}
-                className="rounded-xl px-2.5 py-1.5 bg-white/[0.03] hover:bg-cyan-500/10 border border-white/[0.06] hover:border-cyan-500/30 transition-all text-xs text-slate-300 font-medium flex items-center gap-2 group text-left tactile-spring"
+                className={`rounded-xl px-2.5 py-2 bg-slate-900/50 border transition-all text-xs text-slate-200 font-medium flex items-center gap-2 group text-left tactile-spring shadow-sm ${chip.accent}`}
               >
-                <Icon className="w-3.5 h-3.5 text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
+                <Icon className="w-3.5 h-3.5 flex-shrink-0 transition-transform group-hover:scale-110" />
                 <span className="truncate">{chip.label}</span>
               </button>
             );

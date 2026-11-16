@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut, Archive } from 'lucide-react';
+import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut, Archive, Mic, MicOff } from 'lucide-react';
 import type { HealthResponse, ModelOption, OperatorUser } from '../api';
 
 export interface TelemetryData {
@@ -25,14 +25,17 @@ export interface TelemetryHeaderProps {
   onLogout?: () => void;
   onOpenVault?: () => void;
   vaultSessionCount?: number;
+  isVoiceEnabled?: boolean;
+  onToggleVoice?: () => void;
+  isListening?: boolean;
+  isSpeaking?: boolean;
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
-  { id: 'auto', label: 'Auto (Smart Router)', provider: 'router', specialty: 'Automatically picks the best model', supports_vision: true },
-  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Active Default)', provider: 'gemini', specialty: 'Best for circuit photos, parts & general help', supports_vision: true },
-  { id: 'gemini-3.6-flash', label: 'Gemini 3.6 Math', provider: 'gemini', specialty: 'Best for step-by-step circuit math & formulas', supports_vision: true },
-  { id: 'llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B', provider: 'groq', specialty: 'Fast text answers, pinouts & spec tables', supports_vision: false },
-  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'gemini', specialty: 'Best for complex schematics & long datasheets', supports_vision: true },
+  { id: 'jarvis-auto', label: 'Auto (J.A.R.V.I.S. Smart Router)', provider: 'J.A.R.V.I.S. Core', specialty: 'Autonomous offline routing for circuits, math & vision', supports_vision: true },
+  { id: 'jarvis-math', label: 'J.A.R.V.I.S. Math Engine', provider: 'J.A.R.V.I.S. Core', specialty: 'Instant SymPy formulas, KaTeX derivations & biasing', supports_vision: false },
+  { id: 'jarvis-vision', label: 'J.A.R.V.I.S. Optical Vision', provider: 'J.A.R.V.I.S. Core', specialty: 'Local SMD, color bands & optical component inspection', supports_vision: true },
+  { id: 'jarvis-datasheets', label: 'J.A.R.V.I.S. Datasheet Archive', provider: 'J.A.R.V.I.S. Core', specialty: 'Offline IC pinouts, max ratings & spec tables', supports_vision: false },
 ];
 
 export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
@@ -51,6 +54,10 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
   onLogout,
   onOpenVault,
   vaultSessionCount,
+  isVoiceEnabled = false,
+  onToggleVoice,
+  isListening = false,
+  isSpeaking = false,
 }) => {
   const isHealthy = health?.status === 'healthy';
   const [isOpen, setIsOpen] = useState(false);
@@ -158,8 +165,48 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
         )}
       </div>
 
-      {/* Right Controls: Model Selector, Operator Status, Vault & Reset */}
+      {/* Right Controls: Voice Toggle, Model Selector, Operator Status, Vault & Reset */}
       <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 overflow-x-auto sm:overflow-visible scrollbar-none py-1">
+        {/* Hands-Free J.A.R.V.I.S. Voice Mode Toggle */}
+        <button
+          type="button"
+          onClick={onToggleVoice}
+          className={`min-h-[40px] px-2.5 sm:px-3 py-1 rounded-full text-xs font-mono transition-all flex items-center gap-1.5 shadow-sm tactile-spring ${
+            isVoiceEnabled
+              ? isListening || isSpeaking
+                ? 'bg-[#FF2D95]/20 text-[#FF2D95] border border-[#FF2D95]/50 animate-pulse-ring-rose'
+                : 'bg-[#00A6E8]/20 text-[#00A6E8] border border-[#00A6E8]/50 shadow-[0_0_12px_rgba(0,166,232,0.3)]'
+              : 'bg-white/[0.03] text-slate-400 hover:text-slate-200 border border-white/[0.08] hover:border-white/20'
+          }`}
+          title="Toggle Hands-Free Two-Way J.A.R.V.I.S. Voice Assistant"
+        >
+          {isVoiceEnabled ? (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    isListening ? 'bg-[#FF2D95]' : 'bg-[#00A6E8]'
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    isListening ? 'bg-[#FF2D95]' : 'bg-[#00A6E8]'
+                  }`}
+                />
+              </span>
+              <Mic className="w-3.5 h-3.5 text-[#00A6E8]" />
+              <span className="font-semibold text-[11px] tracking-wide hidden xs:inline">
+                {isListening ? 'Listening...' : isSpeaking ? 'Speaking...' : 'J.A.R.V.I.S. Voice'}
+              </span>
+            </>
+          ) : (
+            <>
+              <MicOff className="w-3.5 h-3.5 text-slate-500" />
+              <span className="text-[11px] hidden xs:inline">Voice Off</span>
+            </>
+          )}
+        </button>
+
         {/* Interactive Model Selector Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button

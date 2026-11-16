@@ -10,6 +10,10 @@ import {
   Image as ImageIcon,
   X,
   Send,
+  Mic,
+  Zap,
+  BookOpen,
+  Palette,
 } from 'lucide-react';
 
 export interface DisplayMessage {
@@ -36,6 +40,11 @@ export interface DiagnosticFeedProps {
   onRemoveAttachment: () => void;
   onAttachClick: () => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  isVoiceEnabled?: boolean;
+  isListening?: boolean;
+  isSpeaking?: boolean;
+  onToggleListening?: () => void;
+  onQuickAction?: (prompt: string) => void;
 }
 
 /**
@@ -245,6 +254,11 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   onRemoveAttachment,
   onAttachClick,
   textareaRef,
+  isVoiceEnabled: _isVoiceEnabled = false,
+  isListening = false,
+  isSpeaking = false,
+  onToggleListening,
+  onQuickAction,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -262,13 +276,13 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   };
 
   return (
-    <section className="flex flex-col h-full min-h-0 overflow-hidden rounded-xl border border-white/10 bg-[#080d1a]/80 backdrop-blur-md specular-glass">
+    <section className="flex flex-col h-full min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-[#060911]/85 backdrop-blur-2xl specular-glass shadow-2xl">
       {/* Feed Header */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-cyan-400" />
-          <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-300">
-            Circuit Assistant
+          <Layers className="w-4 h-4 text-[#00A6E8]" />
+          <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-200">
+            J.A.R.V.I.S. Assistant
           </h2>
         </div>
         <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
@@ -291,19 +305,61 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
         }`}
       >
         {messages.length === 0 ? (
-          /* Empty Feed State - Centered ONLY when messages.length === 0 */
-          <div className="flex flex-col items-center justify-center text-center p-6 max-w-md mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-cyan-400 shadow-xl mb-3">
-              <Sparkles className="w-6 h-6" />
+          /* Empty Feed State - Glowing J.A.R.V.I.S. Core Emblem & 3 Clickable Starter Cards */
+          <div className="flex flex-col items-center justify-center text-center p-6 max-w-lg mx-auto">
+            {/* Glowing J.A.R.V.I.S. Core Emblem with Concentric Rings */}
+            <div className="relative w-16 h-16 flex items-center justify-center mb-4">
+              <div className="absolute inset-0 rounded-full border border-[#00A6E8]/30 animate-ping pointer-events-none" />
+              <div className="absolute inset-1 rounded-full border border-dashed border-[#FF2D95]/40 animate-spin [animation-duration:14s]" />
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#00A6E8]/20 to-[#FF2D95]/20 border border-[#00A6E8]/50 flex items-center justify-center text-[#00A6E8] shadow-[0_0_24px_rgba(0,166,232,0.45)] animate-jarvis-glow">
+                <Sparkles className="w-6 h-6 text-[#00A6E8]" />
+              </div>
             </div>
-            <h3 className="text-sm font-semibold text-slate-100 tracking-wide">
-              How can I help with your circuit?
+
+            <h3 className="text-base font-bold text-white tracking-wide font-display">
+              J.A.R.V.I.S. Electronics Core Online
             </h3>
-            <p className="text-xs text-slate-400 mt-1.5 mb-4 leading-relaxed">
-              Pick a quick question on the left, upload a photo, or ask anything below.
+            <p className="text-xs text-slate-400 mt-1.5 mb-5 leading-relaxed">
+              Sub-50ms offline intelligence for ECE pinouts, SymPy circuit math, and optical vision inspection.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] text-[11px] font-mono text-slate-300">
-              <span>Ask about resistor codes, pinouts, formulas & circuit issues</span>
+
+            {/* 3 Clickable Starter Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full mb-2">
+              <button
+                type="button"
+                onClick={() => onQuickAction?.('NE555 pinout & specs')}
+                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-[#00A6E8]/10 border border-[#00A6E8]/30 hover:border-[#00A6E8]/60 text-left transition-all group tactile-spring shadow-sm"
+              >
+                <div className="w-7 h-7 rounded-lg bg-[#00A6E8]/20 flex items-center justify-center text-[#00A6E8] mb-2 group-hover:scale-110 transition-transform">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300">NE555 Pinout</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">8-pin IC connections & specs</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onQuickAction?.('Decode brown black red gold resistor')}
+                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-[#FF2D95]/10 border border-[#FF2D95]/30 hover:border-[#FF2D95]/60 text-left transition-all group tactile-spring shadow-sm"
+              >
+                <div className="w-7 h-7 rounded-lg bg-[#FF2D95]/20 flex items-center justify-center text-[#FF2D95] mb-2 group-hover:scale-110 transition-transform">
+                  <Palette className="w-4 h-4" />
+                </div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-rose-300">Decode Resistor</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">Color bands & SMD codes</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onQuickAction?.('555 Astable Calc')}
+                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group tactile-spring shadow-sm"
+              >
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-amber-300">555 Astable Math</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">SymPy frequency & duty cycle</div>
+              </button>
             </div>
           </div>
         ) : (
@@ -352,7 +408,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                 {/* Assistant Engine Metadata Badge with High-Contrast Muted Tags */}
                 {msg.metadata && (
                   <div className="mt-3 pt-2.5 border-t border-white/[0.08] flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
-                    <span className="px-2.5 py-0.5 rounded-full bg-cyan-950/60 border border-cyan-500/40 text-cyan-200 font-medium">
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#00A6E8]/15 border border-[#00A6E8]/30 text-[#00A6E8] font-medium">
                       {msg.metadata.provider} / {msg.metadata.model_id}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-white/[0.05] border border-white/10 text-slate-300 font-medium">
@@ -405,7 +461,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
             </div>
           )}
 
-          {/* Input & Phosphor Emerald Trigger */}
+          {/* Input, Mic & Cerulean Trigger */}
           <div className="flex items-end gap-2">
             <button
               type="button"
@@ -414,12 +470,29 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               title="Upload Circuit Photo (JPEG, PNG, WEBP, GIF up to 10 MB)"
               className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
                 attachedFile
-                  ? 'bg-cyan-950/60 text-cyan-300 border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
-                  : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-cyan-300 hover:border-cyan-500/30 hover:bg-white/[0.05]'
+                  ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/50 shadow-[0_0_12px_rgba(0,166,232,0.3)]'
+                  : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
               }`}
             >
               <ImageIcon className="w-4 h-4" />
             </button>
+
+            {onToggleListening && (
+              <button
+                type="button"
+                onClick={onToggleListening}
+                title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
+                className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
+                  isListening
+                    ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/60 animate-pulse-ring-rose shadow-[0_0_14px_rgba(255,45,149,0.4)]'
+                    : isSpeaking
+                    ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/60 animate-pulse-ring-cerulean shadow-[0_0_14px_rgba(0,166,232,0.4)]'
+                    : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
+                }`}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
 
             <textarea
               ref={textareaRef}
@@ -429,27 +502,29 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               placeholder={
                 attachedFile
                   ? 'Ask a question about this photo or leave blank to identify...'
-                  : 'Ask a question about your circuit...'
+                  : isListening
+                  ? 'Listening to speech... Speak clearly'
+                  : 'Ask a question or speak to J.A.R.V.I.S...'
               }
               rows={1}
               disabled={isLoading}
               className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-100 placeholder:text-slate-500 max-h-32 py-1.5 px-2 font-sans leading-relaxed"
             />
 
-            {/* Phosphor Emerald Send Trigger */}
+            {/* Flagship #00A6E8 Cerulean Send Trigger */}
             <button
               type="button"
               onClick={onSendMessage}
               disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
               className={`p-2 min-h-[40px] min-w-[40px] rounded-xl font-bold flex-shrink-0 flex items-center justify-center transition-all tactile-spring ${
                 !isLoading && (inputPrompt.trim() || attachedFile)
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-[0_0_16px_rgba(16,185,129,0.35)]'
-                  : 'bg-emerald-950/30 border border-white/15 text-emerald-400/60 shadow-none cursor-not-allowed'
+                  ? 'bg-gradient-to-r from-[#00A6E8] to-[#0284c7] hover:from-[#00A6E8] hover:to-[#38bdf8] text-slate-950 font-bold shadow-[0_0_18px_rgba(0,166,232,0.45)]'
+                  : 'bg-[#00A6E8]/10 border border-white/10 text-slate-500 shadow-none cursor-not-allowed'
               }`}
               title="Send message (Enter)"
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-[#00A6E8]" />
               ) : (
                 <Send className="w-4 h-4" />
               )}

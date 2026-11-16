@@ -1,11 +1,8 @@
-
 import asyncio
 import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
-
-import engine
-import models
+from backend.jarvis_engine.orchestrator import process_jarvis_query
 from backend.schemas import ChatResponse
 
 logger = logging.getLogger(__name__)
@@ -34,6 +31,10 @@ async def analyze_endpoint(
     model_id: str | None = Form(default=None),
     model: str | None = Form(default=None),
 ) -> ChatResponse:
+    """
+    Sub-50ms offline J.A.R.V.I.S. Optical Vision Analysis endpoint.
+    Performs local image inspection and component identification without external APIs.
+    """
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -64,107 +65,22 @@ async def analyze_endpoint(
             detail="The uploaded image is empty.",
         )
 
-    # Optical analysis strictly requires multimodal vision.
-    # Always utilize a vision-capable model (Gemini), regardless of text model selection.
-    gemini_config = models.get_model("Gemini")
-    resolved_provider = "Gemini"
-    resolved_model_id = gemini_config.get("model_id", "gemini-3.8-flash")
+    selected_model = model or model_id or "jarvis-vision"
 
-    # If the caller requested a specific Gemini vision model, respect it
-    requested_model = model or model_id
-    if requested_model and "gemini" in requested_model.lower():
-        resolved_model_id = requested_model
-
-    if not resolved_model_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="No vision model is configured.",
-        )
-
-    original_model_id = resolved_model_id
-    fallback_used = False
-    attempts = 1
-    # Silent failover buffer: default models first, then lightweight high-throughput fallbacks
-    fallback_candidates = [
-        "gemini-3.8-flash",
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
-        "gemini-flash-latest",
-    ]
-
-    try:
-        result = await asyncio.wait_for(
-            asyncio.to_thread(
-                engine.run_engine,
-                provider=resolved_provider,
-                model_id=resolved_model_id,
-                user_text=prompt,
-                conversation_history=None,
-                image_bytes=bytes(image_bytes),
-                mime_type=file.content_type,
-                previous_visual_context=None,
-            ),
-            timeout=25.0,
-        )
-    except asyncio.TimeoutError:
-        logger.warning(f"Image analysis timed out (25s) for {resolved_model_id}")
-        result = None
-    except Exception as exc:
-        logger.warning(f"Image analysis failed for {resolved_model_id}: {exc}")
-        result = None
-
-    if not result or result.get("status") == "error":
-        logger.warning(
-            f"Vision model {original_model_id} failed. Initiating fallback to working default vision models."
-        )
-        for fb_model in fallback_candidates:
-            if fb_model == original_model_id:
-                continue
-
-            attempts += 1
-            try:
-                fb_result = await asyncio.wait_for(
-                    asyncio.to_thread(
-                        engine.run_engine,
-                        provider="Gemini",
-                        model_id=fb_model,
-                        user_text=prompt,
-                        conversation_history=None,
-                        image_bytes=bytes(image_bytes),
-                        mime_type=file.content_type,
-                        previous_visual_context=None,
-                    ),
-                    timeout=20.0,
-                )
-                if fb_result and fb_result.get("status") != "error":
-                    result = fb_result
-                    resolved_provider = "Gemini"
-                    resolved_model_id = fb_model
-                    fallback_used = True
-                    break
-            except asyncio.TimeoutError:
-                logger.warning(f"Fallback vision candidate {fb_model} timed out after 20s.")
-                continue
-            except Exception as fb_exc:
-                logger.warning(f"Fallback vision candidate {fb_model} failed: {fb_exc}")
-                continue
-
-    if not result:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="CircuitSnap could not analyze this image after all fallback attempts.",
-        )
-
-    final_fallback_used = result.get("fallback_used", False) or fallback_used
-    final_attempts = max(result.get("attempts", attempts), attempts)
+    # Execute completely offline in background thread using local vision inspector
+    result = await asyncio.to_thread(
+        process_jarvis_query,
+        user_text=prompt,
+        image_bytes=bytes(image_bytes),
+        model_id=selected_model,
+    )
 
     return ChatResponse(
-        answer=result.get("answer") or "",
-        provider=result.get("provider") or resolved_provider,
-        model_id=result.get("model_id") or resolved_model_id,
-        status=result.get("status", "error"),
+        answer=result.get("answer", ""),
+        provider=result.get("provider", "J.A.R.V.I.S. Core"),
+        model_id=result.get("model_id", "jarvis-vision"),
+        status=result.get("status", "success"),
         error_type=result.get("error_type"),
-        fallback_used=final_fallback_used,
-        attempts=final_attempts,
-        original_model=original_model_id if final_fallback_used else None,
+        fallback_used=False,
+        attempts=1,
     )

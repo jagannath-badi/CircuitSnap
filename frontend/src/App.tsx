@@ -10,6 +10,7 @@ import { InspectionDeck } from './components/InspectionDeck';
 import { DiagnosticFeed, type DisplayMessage } from './components/DiagnosticFeed';
 import { AuthModal } from './components/AuthModal';
 import { VaultDrawer } from './components/VaultDrawer';
+import { useJarvisVoice } from './hooks/useJarvisVoice';
 
 export default function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -35,6 +36,10 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeObjectUrlsRef = useRef<Set<string>>(new Set());
+
+  const { isVoiceEnabled, isListening, isSpeaking, toggleVoiceMode, startListening, stopListening, speak } = useJarvisVoice({
+    onTranscript: (t) => { setInputPrompt(t); textareaRef.current?.focus(); },
+  });
 
   const fetchHealth = useCallback(async () => {
     setIsHealthLoading(true);
@@ -142,7 +147,7 @@ export default function App() {
     if (fileToUpload && selectedModel !== 'auto') {
       const chosen = availableModels.find((m) => m.id === selectedModel);
       if (chosen && !chosen.supports_vision) {
-        setVisionNotice('Routing to Gemini Optical Vision Engine');
+        setVisionNotice('Routing to J.A.R.V.I.S. Optical Vision Engine');
         setTimeout(() => setVisionNotice(null), 4000);
       }
     }
@@ -157,6 +162,7 @@ export default function App() {
         ...prev,
         { id: `assistant-${Date.now()}`, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used, original_model: response.original_model } },
       ]);
+      if (isVoiceEnabled && response.answer) speak(response.answer);
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.');
       setInputPrompt(text);
@@ -168,27 +174,19 @@ export default function App() {
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-[#050811] text-slate-100 selection:bg-cyan-900 selection:text-cyan-200">
       <TelemetryHeader
-        health={health}
-        isHealthLoading={isHealthLoading}
-        healthError={healthError}
-        onRefreshHealth={fetchHealth}
-        telemetry={telemetry}
-        onResetWorkbench={handleClearChat}
+        health={health} isHealthLoading={isHealthLoading} healthError={healthError} onRefreshHealth={fetchHealth}
+        telemetry={telemetry} onResetWorkbench={handleClearChat}
         hasActiveSession={messages.length > 0 || attachedFile !== null || activeDutImage !== null}
-        availableModels={availableModels}
-        selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
-        currentUser={currentUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onLogout={handleLogout}
-        onOpenVault={() => setIsVaultOpen(true)}
-        vaultSessionCount={vaultCount}
+        availableModels={availableModels} selectedModel={selectedModel} onSelectModel={setSelectedModel}
+        currentUser={currentUser} onOpenAuthModal={() => setIsAuthModalOpen(true)} onLogout={handleLogout}
+        onOpenVault={() => setIsVaultOpen(true)} vaultSessionCount={vaultCount}
+        isVoiceEnabled={isVoiceEnabled} onToggleVoice={toggleVoiceMode} isListening={isListening} isSpeaking={isSpeaking}
       />
 
       {visionNotice && (
-        <div className="px-4 py-1.5 bg-cyan-950/90 border-b border-cyan-500/40 text-cyan-200 flex items-center justify-between text-xs font-mono z-30 animate-pulse">
+        <div className="px-4 py-1.5 bg-[#00A6E8]/20 border-b border-[#00A6E8]/40 text-[#00A6E8] flex items-center justify-between text-xs font-mono z-30 animate-pulse">
           <span>⚡ [OPTICAL ROUTER]: {visionNotice}</span>
-          <button onClick={() => setVisionNotice(null)} className="text-cyan-400 hover:text-white p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setVisionNotice(null)} className="text-[#00A6E8] hover:text-white p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
 
@@ -203,41 +201,28 @@ export default function App() {
 
       <main className="flex-1 min-h-0 w-full overflow-hidden p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
         <InspectionDeck
-          activeDutImage={activeDutImage}
-          activeDutName={activeDutName}
-          attachedFile={attachedFile}
-          isLoading={isLoading}
-          onFileSelect={handleFileSelect}
-          onEjectDut={handleEjectDut}
-          onReplaceDut={() => fileInputRef.current?.click()}
+          activeDutImage={activeDutImage} activeDutName={activeDutName} attachedFile={attachedFile} isLoading={isLoading}
+          onFileSelect={handleFileSelect} onEjectDut={handleEjectDut} onReplaceDut={() => fileInputRef.current?.click()}
           onQuickAction={(prompt) => { setInputPrompt(prompt); textareaRef.current?.focus(); }}
         />
 
         <div className="h-full min-h-0 overflow-hidden lg:col-span-7 flex flex-col">
           <DiagnosticFeed
-            messages={messages}
-            isLoading={isLoading}
-            inputPrompt={inputPrompt}
-            onInputChange={setInputPrompt}
-            onSendMessage={handleSendMessage}
-            attachedFile={attachedFile}
-            onRemoveAttachment={removeAttachedFile}
-            onAttachClick={() => fileInputRef.current?.click()}
-            textareaRef={textareaRef}
+            messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt}
+            onSendMessage={handleSendMessage} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile}
+            onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef}
+            isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking}
+            onToggleListening={() => (isListening ? stopListening() : startListening())}
+            onQuickAction={(p) => { setInputPrompt(p); textareaRef.current?.focus(); }}
           />
         </div>
       </main>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={setCurrentUser} />
       <VaultDrawer
-        isOpen={isVaultOpen}
-        onClose={() => setIsVaultOpen(false)}
-        currentUser={currentUser}
-        currentMessages={messages}
-        currentDutImage={activeDutImage}
-        onRestoreSession={handleRestoreSession}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onSessionsChange={setVaultCount}
+        isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} currentUser={currentUser}
+        currentMessages={messages} currentDutImage={activeDutImage} onRestoreSession={handleRestoreSession}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)} onSessionsChange={setVaultCount}
       />
     </div>
   );
