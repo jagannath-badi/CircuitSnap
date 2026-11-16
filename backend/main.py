@@ -10,7 +10,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from backend.database import init_db
-from backend.routers import analyze, auth, chat, vault
+from backend.routers import analyze, auth, chat, vault, voice
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
 
 
@@ -43,6 +43,7 @@ app.include_router(chat.router)
 app.include_router(analyze.router)
 app.include_router(auth.router)
 app.include_router(vault.router)
+app.include_router(voice.router)
 
 
 @app.get("/api/health", response_model=HealthResponse)

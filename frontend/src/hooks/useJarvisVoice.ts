@@ -1,37 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-// Browser Web Speech API type declarations
-interface IWindowSpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: { error: string }) => void) | null;
-  onresult: ((event: {
-    resultIndex: number;
-    results: {
-      length: number;
-      item: (index: number) => {
-        isFinal: boolean;
-        item: (idx: number) => { transcript: string };
-      };
-      [index: number]: {
-        isFinal: boolean;
-        [index: number]: { transcript: string };
-      };
-    };
-  }) => void) | null;
-}
-
-interface WindowWithSpeech extends Window {
-  SpeechRecognition?: { new (): IWindowSpeechRecognition };
-  webkitSpeechRecognition?: { new (): IWindowSpeechRecognition };
-}
-
 export interface UseJarvisVoiceOptions {
   onTranscript?: (transcript: string) => void;
   onFinalTranscript?: (transcript: string) => void;
@@ -82,8 +50,8 @@ export function cleanTextForSpeech(raw: string): string {
   text = text.replace(/(?:^|\n)\s*#{1,6}\s*/g, ' ');
 
   // Strip confidence badges entirely (CONFIRMED, LIKELY, CANNOT CONFIRM)
-  text = text.replace(/\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:-–—]?/gi, '');
-  text = text.replace(/\b(?:CONFIRMED|CANNOT CONFIRM)\b\s*[:-–—]?/gi, '');
+  text = text.replace(/\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:\-\u2013\u2014]?/gi, '');
+  text = text.replace(/\b(?:CONFIRMED|CANNOT CONFIRM)\b\s*[:\-\u2013\u2014]?/gi, '');
 
   // Replace common LaTeX formulas with natural spoken equivalents
   text = text.replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ');
@@ -143,56 +111,32 @@ export function cleanTextForSpeech(raw: string): string {
   return text;
 }
 
-/**
- * Finds the best crisp British English male voice available on the host machine.
- */
-function selectBritishJarvisVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | null {
-  if (!voices || voices.length === 0) return null;
-
-  const ukVoices = voices.filter(
-    (v) => v.lang === 'en-GB' || v.lang === 'en_GB' || v.lang.startsWith('en-GB')
-  );
-
-  // 1. Prioritize natural UK voices (Ryan Online, George, Oliver, Arthur, Google UK English Male)
-  const prioritized = ukVoices.find((v) =>
-    /Ryan|George|Oliver|Arthur|Google UK English Male/i.test(v.name)
-  );
-  if (prioritized) return prioritized;
-
-  // 2. Male UK voice
-  const maleUk = ukVoices.find((v) => !/female|zira|hazel|susan|catherine/i.test(v.name));
-  if (maleUk) return maleUk;
-
-  if (ukVoices.length > 0) return ukVoices[0];
-
-  // 3. Fallback to any natural English male voice
-  const enVoices = voices.filter((v) => v.lang.startsWith('en'));
-  const maleEn = enVoices.find((v) => /natural|guy|david|male/i.test(v.name));
-  return maleEn || enVoices[0] || voices[0];
-}
-
 export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoiceOptions = {}) {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [supported] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    const win = window as WindowWithSpeech;
-    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
-    const hasSynthesis = 'speechSynthesis' in window;
-    return !!(SpeechRecognition && hasSynthesis);
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+    return 'mediaDevices' in navigator && 'MediaRecorder' in window;
   });
 
-  const recognitionRef = useRef<IWindowSpeechRecognition | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const vadIntervalRef = useRef<number | null>(null);
+  const hasSpokenRef = useRef(false);
+
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   const onFinalTranscriptRef = useRef(onFinalTranscript);
   const isVoiceEnabledRef = useRef(isVoiceEnabled);
   const isSpeakingRef = useRef(isSpeaking);
   const wasStartedByMicRef = useRef(false);
   const rearmTimerRef = useRef<number | null>(null);
-  const keepAliveIntervalRef = useRef<number | null>(null);
-  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
+  // Synchronize latest functions and state across all renders to eliminate stale closures
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
     onFinalTranscriptRef.current = onFinalTranscript;
@@ -200,93 +144,119 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     isSpeakingRef.current = isSpeaking;
   });
 
-  // Preload voices
+  // Pre-initialize single unlocked HTML5 Audio element
   useEffect(() => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-    const updateVoices = () => {
-      voicesRef.current = window.speechSynthesis.getVoices();
-    };
-    updateVoices();
-    window.speechSynthesis.onvoiceschanged = updateVoices;
+    if (typeof Audio !== 'undefined') {
+      audioElRef.current = new Audio();
+    }
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
+      if (audioElRef.current) {
+        audioElRef.current.pause();
+        audioElRef.current.src = '';
+      }
     };
   }, []);
 
-  const clearKeepAlive = () => {
-    if (keepAliveIntervalRef.current) {
-      clearInterval(keepAliveIntervalRef.current);
-      keepAliveIntervalRef.current = null;
-    }
-  };
-
   const cancelSpeech = useCallback(() => {
-    clearKeepAlive();
     if (rearmTimerRef.current) {
       clearTimeout(rearmTimerRef.current);
       rearmTimerRef.current = null;
+    }
+    if (audioElRef.current) {
+      audioElRef.current.pause();
+      audioElRef.current.currentTime = 0;
     }
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    isSpeakingRef.current = false;
+  }, []);
+
+  // Internal helper to stop VAD recording tracks and analysis loop
+  const stopListeningInternal = useCallback((allowProcessing: boolean) => {
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
+    }
+    if (!allowProcessing) {
+      hasSpokenRef.current = false;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // ignore
+      }
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      try {
+        void audioCtxRef.current.close();
+      } catch {
+        // ignore
+      }
+      audioCtxRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  // Fallback to browser Web SpeechSynthesis if neural TTS is unreachable
+  const fallbackBrowserSpeak = useCallback((rawText: string, onEnd?: () => void) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setIsSpeaking(false);
       isSpeakingRef.current = false;
+      onEnd?.();
+      return;
     }
+    window.speechSynthesis.cancel();
+    const cleaned = cleanTextForSpeech(rawText);
+    const utterance = new SpeechSynthesisUtterance(cleaned);
+    utterance.pitch = 0.88;
+    utterance.rate = 1.04;
+
+    const voices = window.speechSynthesis.getVoices();
+    const ukVoice = voices.find(
+      (v) => (v.lang === 'en-GB' || v.lang.startsWith('en-GB')) && !/female/i.test(v.name)
+    );
+    if (ukVoice) utterance.voice = ukVoice;
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      onEnd?.();
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      onEnd?.();
+    };
+
+    window.speechSynthesis.speak(utterance);
   }, []);
 
-  const startListening = useCallback(() => {
-    if (!recognitionRef.current) return;
-    cancelSpeech();
-    wasStartedByMicRef.current = true;
-    try {
-      recognitionRef.current.start();
-    } catch {
-      // recognition already active
-    }
-  }, [cancelSpeech]);
-
-  const stopListening = useCallback(() => {
-    wasStartedByMicRef.current = false;
-    if (rearmTimerRef.current) {
-      clearTimeout(rearmTimerRef.current);
-      rearmTimerRef.current = null;
-    }
-    if (!recognitionRef.current) return;
-    try {
-      recognitionRef.current.stop();
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  // Voice speech synthesis with strict acoustic echo protection
+  // Neural British TTS (`POST /api/tts` with fallback)
   const speak = useCallback(
-    (rawText: string, onEndCallback?: () => void, force = false) => {
-      if ((!isVoiceEnabledRef.current && !force) || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    async (rawText: string, onEndCallback?: () => void, force = false) => {
+      if (!isVoiceEnabledRef.current && !force) {
         return;
       }
 
-      // 1. Immediately abort active speech recognition and mark listening false
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
-      }
-      setIsListening(false);
+      // 1. Immediately abort active VAD mic listening before audio plays
+      stopListeningInternal(false);
+      cancelSpeech();
 
-      // 2. Clear any pending re-arm timer so mic cannot start while speaking
+      // 2. Clear any pending re-arm timer so mic cannot wake while speaking
       if (rearmTimerRef.current) {
         clearTimeout(rearmTimerRef.current);
         rearmTimerRef.current = null;
       }
 
-      // 3. Set speaking flags BEFORE invoking speechSynthesis
       setIsSpeaking(true);
       isSpeakingRef.current = true;
-
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.resume();
 
       const cleaned = cleanTextForSpeech(rawText);
       if (!cleaned) {
@@ -295,155 +265,198 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
         return;
       }
 
-      const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.pitch = 0.88;
-      utterance.rate = 1.04;
-
-      const voices = voicesRef.current.length > 0 ? voicesRef.current : window.speechSynthesis.getVoices();
-      const britishVoice = selectBritishJarvisVoice(voices);
-      if (britishVoice) {
-        utterance.voice = britishVoice;
-      }
-
-      utterance.onstart = () => {
-        setIsSpeaking(true);
-        isSpeakingRef.current = true;
-        clearKeepAlive();
-        // Chrome keep-alive
-        keepAliveIntervalRef.current = window.setInterval(() => {
-          if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
-            window.speechSynthesis.pause();
-            window.speechSynthesis.resume();
-          } else {
-            clearKeepAlive();
-          }
-        }, 10000);
-      };
-
-      const handleSpeechComplete = () => {
-        clearKeepAlive();
-        setIsSpeaking(false);
-        isSpeakingRef.current = false;
-        onEndCallback?.();
-
-        // ONLY re-arm startListening() if wasStartedByMicRef.current is true AND wait at least 850ms
-        if (wasStartedByMicRef.current && isVoiceEnabledRef.current) {
-          if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
-          rearmTimerRef.current = window.setTimeout(() => {
-            if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
-              try {
-                recognitionRef.current?.start();
-              } catch {
-                // ignore
-              }
-            }
-          }, 850);
-        }
-      };
-
-      utterance.onend = handleSpeechComplete;
-      utterance.onerror = handleSpeechComplete;
-
-      window.speechSynthesis.speak(utterance);
-    },
-    []
-  );
-
-  // Initialize Speech Recognition
-  useEffect(() => {
-    if (!supported) return;
-
-    const win = window as WindowWithSpeech;
-    const SpeechRecognition = win.SpeechRecognition || win.webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
       try {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        const response = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: cleaned }),
+        });
 
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
+        if (!response.ok) {
+          throw new Error(`TTS server error: ${response.status}`);
+        }
 
-        recognition.onend = () => {
-          setIsListening(false);
-          // Only re-arm if started by mic, voice mode is active, and J.A.R.V.I.S. is not speaking
-          if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
+        const blob = await response.blob();
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = audioElRef.current || new Audio();
+        audioElRef.current = audio;
+
+        const handleEnded = () => {
+          URL.revokeObjectURL(audioUrl);
+          audio.removeEventListener('ended', handleEnded);
+          audio.removeEventListener('error', handleError);
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          onEndCallback?.();
+
+          // Strict acoustic lock: only re-arm if user started mic, waiting 850ms
+          if (wasStartedByMicRef.current && isVoiceEnabledRef.current) {
             if (rearmTimerRef.current) clearTimeout(rearmTimerRef.current);
             rearmTimerRef.current = window.setTimeout(() => {
               if (wasStartedByMicRef.current && isVoiceEnabledRef.current && !isSpeakingRef.current) {
-                try {
-                  recognition.start();
-                } catch {
-                  // ignore
-                }
+                void startListening();
               }
             }, 850);
           }
         };
 
-        recognition.onerror = () => {
-          setIsListening(false);
+        const handleError = () => {
+          URL.revokeObjectURL(audioUrl);
+          audio.removeEventListener('ended', handleEnded);
+          audio.removeEventListener('error', handleError);
+          fallbackBrowserSpeak(rawText, onEndCallback);
         };
 
-        recognition.onresult = (event) => {
-          // Immediately return and ignore any transcript if J.A.R.V.I.S. is speaking or synthesis is active
-          if (isSpeakingRef.current || (typeof window !== 'undefined' && window.speechSynthesis?.speaking)) {
-            return;
-          }
-
-          let interimText = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const resultItem = event.results[i];
-            const transcript = resultItem[0].transcript;
-            if (resultItem.isFinal) {
-              const cleaned = stripWakeWord(transcript);
-              if (cleaned && onFinalTranscriptRef.current) {
-                onFinalTranscriptRef.current(cleaned);
-              }
-            } else {
-              interimText += transcript;
-            }
-          }
-          if (interimText && onTranscriptRef.current) {
-            onTranscriptRef.current(stripWakeWord(interimText));
-          }
-        };
-
-        recognitionRef.current = recognition;
+        audio.addEventListener('ended', handleEnded);
+        audio.addEventListener('error', handleError);
+        audio.src = audioUrl;
+        await audio.play();
       } catch {
-        // Ignore initialization error
+        fallbackBrowserSpeak(rawText, onEndCallback);
       }
-    }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cancelSpeech, fallbackBrowserSpeak, stopListeningInternal]
+  );
 
+  // Hands-Free VAD Audio Recording + Local Whisper STT (`POST /api/stt`)
+  const startListening = useCallback(async () => {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) return;
+    cancelSpeech();
+    wasStartedByMicRef.current = true;
+
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      streamRef.current = stream;
+
+      const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioCtx = new AudioCtxClass();
+      audioCtxRef.current = audioCtx;
+
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : 'audio/mp4';
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const chunks = chunksRef.current;
+        if (chunks.length > 0 && hasSpokenRef.current && !isSpeakingRef.current) {
+          const audioBlob = new Blob(chunks, { type: mimeType });
+          try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'speech.webm');
+            const res = await fetch('/api/stt', { method: 'POST', body: formData });
+            if (res.ok) {
+              const data = await res.json();
+              const rawText = data.text || '';
+              const clean = stripWakeWord(rawText);
+              if (clean.trim()) {
+                // Auto-submit immediately to chat!
+                onFinalTranscriptRef.current?.(clean.trim());
+              }
+            }
+          } catch (err) {
+            console.warn('STT upload error:', err);
+          }
+        }
+      };
+
+      mediaRecorder.start(250);
+      setIsListening(true);
+
+      hasSpokenRef.current = false;
+      let silenceStart: number | null = null;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      if (vadIntervalRef.current) clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = window.setInterval(() => {
+        if (isSpeakingRef.current) {
+          stopListeningInternal(false);
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+
+        // VAD threshold for voice activity
+        if (avg > 12) {
+          hasSpokenRef.current = true;
+          silenceStart = null;
+        } else if (hasSpokenRef.current) {
+          if (silenceStart === null) {
+            silenceStart = Date.now();
+          } else if (Date.now() - silenceStart > 1200) {
+            // 1.2s silence detected after user spoke - auto-stop & transcribe
+            stopListeningInternal(true);
+          }
+        }
+      }, 50);
+    } catch (err) {
+      console.warn('Microphone initialization failed:', err);
+      setIsListening(false);
+      wasStartedByMicRef.current = false;
+    }
+  }, [cancelSpeech, stopListeningInternal]);
+
+  const stopListening = useCallback(() => {
+    wasStartedByMicRef.current = false;
+    if (rearmTimerRef.current) {
+      clearTimeout(rearmTimerRef.current);
+      rearmTimerRef.current = null;
+    }
+    stopListeningInternal(false);
+  }, [stopListeningInternal]);
+
+  // Clean unmount
+  useEffect(() => {
     return () => {
       if (rearmTimerRef.current) {
         clearTimeout(rearmTimerRef.current);
         rearmTimerRef.current = null;
       }
-      clearKeepAlive();
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore cleanup abort
-        }
-      }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
+      stopListeningInternal(false);
+      cancelSpeech();
     };
-  }, [supported]);
+  }, [cancelSpeech, stopListeningInternal]);
 
   const toggleVoiceMode = useCallback(() => {
     setIsVoiceEnabled((prev) => {
       const next = !prev;
       isVoiceEnabledRef.current = next;
       if (next) {
-        // Only enable spoken responses and announce readiness - do NOT auto-start the mic!
-        speak('Jarvis voice systems online.', undefined, true);
+        // Announce readiness via neural voice without auto-starting the mic
+        void speak('Jarvis voice systems online.', undefined, true);
       } else {
         wasStartedByMicRef.current = false;
         if (rearmTimerRef.current) {
