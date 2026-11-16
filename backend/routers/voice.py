@@ -83,6 +83,13 @@ def normalize_ece_speech(text: str) -> str:
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:kilo\s*hertz|khz)\b", r"\1kHz", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:mega\s*hertz|mhz)\b", r"\1MHz", t, flags=re.IGNORECASE)
 
+    # Multi-Discipline Engineering terms
+    t = re.sub(r"\b(?:la\s*place)\b", "Laplace", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(?:reynolds?|raynolds?)\s*(?:number)?\b", "Reynolds number", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(?:car\s*no|carnot)\b", "Carnot", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(?:big\s*o)\b", "Big-O", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(?:youngs?|young's)\s*modulus\b", "Young's modulus", t, flags=re.IGNORECASE)
+
     # Clean whitespace & punctuation
     t = re.sub(r"\s+", " ", t).strip()
     return t
@@ -180,7 +187,9 @@ def _transcribe_file(file_path: str) -> str:
             no_speech_threshold=0.6,
             condition_on_previous_text=False,
             initial_prompt=(
-                "Jarvis, CircuitSnap, NE555, LM741, LM358, TL072, LM7805, BC547, "
+                "Jarvis, CircuitSnap, Laplace, eigenvalue, Reynolds number, Bernoulli, "
+                "stress, strain, Young's modulus, Carnot, binary, hexadecimal, subnet, CIDR, "
+                "Big-O, truth table, NE555, LM741, LM358, TL072, LM7805, BC547, "
                 "IRFZ44N, MOSFET, BJT, resistor, capacitor, inductor, diode, "
                 "ohms, kilo-ohms, microfarads, astable, cutoff frequency"
             ),

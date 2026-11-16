@@ -270,3 +270,139 @@ body {
   font-size: 1.05em;
   text-rendering: auto;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Google Flow-Inspired Fluid Spatial Physics & Aurora Lighting
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --flow-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --flow-snappy: cubic-bezier(0.16, 1, 0.3, 1);
+  --flow-cerulean: #00A6E8;
+  --flow-rose: #FF2D95;
+}
+
+/* Smooth fluid spring transitions */
+.flow-spring {
+  transition: all 350ms var(--flow-spring);
+}
+
+.flow-spring-fast {
+  transition: all 200ms var(--flow-snappy);
+}
+
+/* Google Flow dynamic ambient aurora backlight */
+.flow-aurora-bg {
+  position: relative;
+}
+.flow-aurora-bg::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, rgba(0, 166, 232, 0.35), rgba(255, 45, 149, 0.3));
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 400ms var(--flow-spring), filter 400ms var(--flow-spring);
+  filter: blur(8px);
+}
+.flow-aurora-bg:hover::before {
+  opacity: 1;
+  filter: blur(14px);
+}
+
+/* Fluid Pill Mode Selectors */
+.flow-pill {
+  transition: transform 220ms var(--flow-spring), background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, color 220ms ease;
+}
+.flow-pill:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  box-shadow: 0 0 12px -2px rgba(0, 166, 232, 0.35);
+}
+.flow-pill:active {
+  transform: translateY(0.5px) scale(0.98);
+}
+
+/* Fluid Card Surface with Depth */
+.flow-card {
+  transition: transform 300ms var(--flow-spring), box-shadow 300ms var(--flow-spring), border-color 300ms ease;
+}
+.flow-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -10px rgba(0, 166, 232, 0.18), 0 4px 12px -2px rgba(255, 45, 149, 0.12);
+}
+
+/* Staggered Google Flow Card Entrance */
+@keyframes flow-card-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.flow-stagger-1 {
+  animation: flow-card-appear 420ms var(--flow-spring) backwards;
+}
+.flow-stagger-2 {
+  animation: flow-card-appear 420ms var(--flow-spring) 90ms backwards;
+}
+.flow-stagger-3 {
+  animation: flow-card-appear 420ms var(--flow-spring) 180ms backwards;
+}
+
+/* Subtle Magnetic Border Hover Glow on Bento Cards */
+.flow-bento-card {
+  transition: transform 320ms var(--flow-spring), border-color 280ms ease, box-shadow 320ms var(--flow-spring);
+}
+.flow-bento-card:hover {
+  border-color: rgba(0, 166, 232, 0.4);
+  box-shadow: 0 0 24px -4px rgba(0, 166, 232, 0.16), 0 0 12px -2px rgba(255, 45, 149, 0.1);
+}
+
+/* Live Cognitive Trace Shimmer */
+@keyframes flow-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.flow-shimmer-text {
+  background: linear-gradient(90deg, #00A6E8 0%, #ffffff 50%, #FF2D95 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: flow-shimmer 2.4s linear infinite;
+}
+
+/* Streaming token cursor */
+@keyframes flow-cursor-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scaleY(0.7);
+  }
+}
+
+.flow-streaming-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  vertical-align: -0.15em;
+  margin-left: 3px;
+  background: linear-gradient(180deg, #00A6E8, #FF2D95);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(0, 166, 232, 0.6);
+  animation: flow-cursor-blink 0.8s ease-in-out infinite;
+}
+

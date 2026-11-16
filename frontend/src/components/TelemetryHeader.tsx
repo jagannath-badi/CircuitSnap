@@ -32,10 +32,10 @@ export interface TelemetryHeaderProps {
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
-  { id: 'jarvis-auto', label: 'Auto (J.A.R.V.I.S. Smart Router)', provider: 'J.A.R.V.I.S. Core', specialty: 'Autonomous offline routing for circuits, math & vision', supports_vision: true },
-  { id: 'jarvis-math', label: 'J.A.R.V.I.S. Math Engine', provider: 'J.A.R.V.I.S. Core', specialty: 'Instant SymPy formulas, KaTeX derivations & biasing', supports_vision: false },
-  { id: 'jarvis-vision', label: 'J.A.R.V.I.S. Optical Vision', provider: 'J.A.R.V.I.S. Core', specialty: 'Local SMD, color bands & optical component inspection', supports_vision: true },
-  { id: 'jarvis-datasheets', label: 'J.A.R.V.I.S. Datasheet Archive', provider: 'J.A.R.V.I.S. Core', specialty: 'Offline IC pinouts, max ratings & spec tables', supports_vision: false },
+  { id: 'jarvis-auto', label: 'Auto (J.A.R.V.I.S. Smart Router)', provider: 'J.A.R.V.I.S. Core', specialty: 'Smart router across all engineering branches', supports_vision: true },
+  { id: 'jarvis-math', label: 'J.A.R.V.I.S. Math Engine', provider: 'J.A.R.V.I.S. Core', specialty: 'Symbolic calculus, Laplace, circuits & mechanics math', supports_vision: false },
+  { id: 'jarvis-vision', label: 'J.A.R.V.I.S. Optical Vision', provider: 'J.A.R.V.I.S. Core', specialty: 'Scan diagrams, circuits, lab setups & handwritten notes', supports_vision: true },
+  { id: 'jarvis-datasheets', label: 'J.A.R.V.I.S. Datasheet Archive', provider: 'J.A.R.V.I.S. Core', specialty: 'IC pinouts, Big-O tables, material & thermo constants', supports_vision: false },
 ];
 
 export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({

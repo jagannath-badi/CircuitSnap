@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import {
-  checkHealth, sendChatMessage, analyzeImage, fetchAvailableModels,
-  fetchCurrentOperator, logoutOperator, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES,
-  type ChatResponse, type HealthResponse, type ModelOption, type OperatorUser,
+  checkHealth, analyzeImage, fetchAvailableModels, fetchCurrentOperator, logoutOperator,
+  ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, streamChatMessage, fetchVaultStats,
+  ingestVaultDocument, sendFeedbackToVault, type ChatResponse, type HealthResponse,
+  type ModelOption, type OperatorUser,
 } from './api';
 import { TelemetryHeader, type TelemetryData } from './components/TelemetryHeader';
 import { InspectionDeck } from './components/InspectionDeck';
@@ -32,11 +33,15 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isVaultOpen, setIsVaultOpen] = useState(false);
   const [vaultCount, setVaultCount] = useState(0);
+  const [vaultConcepts, setVaultConcepts] = useState(10);
+  const [responseStyle, setResponseStyle] = useState('auto');
+  const [cognitiveStep, setCognitiveStep] = useState<string | null>(null);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeObjectUrlsRef = useRef<Set<string>>(new Set());
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const { isVoiceEnabled, isListening, isSpeaking, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech } = useJarvisVoice({
     onTranscript: (t) => { setInputPrompt(t); textareaRef.current?.focus(); },
@@ -44,8 +49,7 @@ export default function App() {
   });
 
   const fetchHealth = useCallback(async () => {
-    setIsHealthLoading(true);
-    setHealthError(null);
+    setIsHealthLoading(true); setHealthError(null);
     try {
       const data = await checkHealth();
       setHealth(data);
@@ -57,11 +61,8 @@ export default function App() {
         }));
       }
     } catch (err: unknown) {
-      setHealthError(err instanceof Error ? err.message : 'Failed to reach backend');
-      setHealth(null);
-    } finally {
-      setIsHealthLoading(false);
-    }
+      setHealthError(err instanceof Error ? err.message : 'Failed to reach backend'); setHealth(null);
+    } finally { setIsHealthLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export default function App() {
       void fetchHealth();
       void fetchAvailableModels().then(setAvailableModels).catch(() => {});
       void fetchCurrentOperator().then(setCurrentUser).catch(() => {});
+      void fetchVaultStats().then((s) => setVaultConcepts(s.total_chunks)).catch(() => {});
     }, 0);
     return () => clearTimeout(timer);
   }, [fetchHealth]);
@@ -79,16 +81,22 @@ export default function App() {
 
   useEffect(() => {
     const urls = activeObjectUrlsRef.current;
-    return () => { urls.forEach((url) => URL.revokeObjectURL(url)); urls.clear(); };
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url)); urls.clear();
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
   }, []);
 
   const handleFileSelect = useCallback((file: File) => {
     setErrorMessage(null);
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) { setErrorMessage('Unsupported file type. Please upload a JPEG, PNG, WEBP, or GIF image.'); return; }
-    if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMessage(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max size is 10 MB.`); return; }
+    const isImg = ALLOWED_IMAGE_TYPES.includes(file.type);
+    const isDoc = file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.name.endsWith('.txt') || file.name.endsWith('.md');
+    if (!isImg && !isDoc) { setErrorMessage('Unsupported file. Please upload an image (JPG/PNG/WEBP) or syllabus note (PDF/TXT/MD).'); return; }
+    if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMessage(`File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Max is 10 MB.`); return; }
     const objectUrl = URL.createObjectURL(file);
     activeObjectUrlsRef.current.add(objectUrl);
     setAttachedFile(file); setImagePreview(objectUrl); setActiveDutImage(objectUrl); setActiveDutName(file.name);
+    if (isDoc) { void ingestVaultDocument(file).then((r) => setVaultConcepts((c) => c + r.chunks_indexed)).catch(() => {}); }
   }, []);
 
   useEffect(() => {
@@ -110,12 +118,11 @@ export default function App() {
   const handleEjectDut = () => { setActiveDutImage(null); setActiveDutName(null); removeAttachedFile(); };
 
   const handleClearChat = () => {
-    cancelSpeech(); setSpeakingMsgId(null);
-    activeObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
-    activeObjectUrlsRef.current.clear();
+    if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
+    cancelSpeech(); setSpeakingMsgId(null); setCognitiveStep(null); setIsLoading(false);
+    activeObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url)); activeObjectUrlsRef.current.clear();
     setActiveDutImage(null); setActiveDutName(null);
-    setMessages([]); setErrorMessage(null); setVisionNotice(null);
-    removeAttachedFile();
+    setMessages([]); setErrorMessage(null); setVisionNotice(null); removeAttachedFile();
   };
 
   const handleLogout = () => { logoutOperator(); setCurrentUser(null); };
@@ -128,22 +135,11 @@ export default function App() {
   const handleSendMessage = async (overridePrompt?: string) => {
     const text = (overridePrompt !== undefined ? overridePrompt : inputPrompt).trim();
     if (!text && !attachedFile) return;
-
-    setErrorMessage(null);
-    setIsLoading(true);
-
+    setErrorMessage(null); setIsLoading(true);
     let messageImageUrl: string | undefined = undefined;
-    if (attachedFile) {
-      messageImageUrl = URL.createObjectURL(attachedFile);
-      activeObjectUrlsRef.current.add(messageImageUrl);
-    }
-
-    setMessages((prev) => [
-      ...prev,
-      { id: `user-${Date.now()}`, role: 'user', content: text || '(Optical Inspection Photo Submitted for Component Identification)', imagePreviewUrl: messageImageUrl },
-    ]);
+    if (attachedFile) { messageImageUrl = URL.createObjectURL(attachedFile); activeObjectUrlsRef.current.add(messageImageUrl); }
+    setMessages((prev) => [...prev, { id: `user-${Date.now()}`, role: 'user', content: text || '(Inspection artifact submitted)', imagePreviewUrl: messageImageUrl }]);
     setInputPrompt('');
-
     const fileToUpload = attachedFile;
     removeAttachedFile();
 
@@ -155,26 +151,38 @@ export default function App() {
       }
     }
 
-    try {
-      const response: ChatResponse = fileToUpload
-        ? await analyzeImage(fileToUpload, text || undefined, selectedModel)
-        : await sendChatMessage(text, messages.map((m) => ({ role: m.role, content: m.content })), selectedModel);
-
+    if (fileToUpload) {
+      try {
+        const response: ChatResponse = await analyzeImage(fileToUpload, text || undefined, selectedModel);
+        const assistantId = `assistant-${Date.now()}`;
+        setTelemetry({ provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used });
+        setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used, original_model: response.original_model } }]);
+        if (isVoiceEnabled && response.answer) { setSpeakingMsgId(assistantId); speak(response.answer, () => setSpeakingMsgId(null)); }
+      } catch (err: unknown) {
+        setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.'); setInputPrompt(text);
+      } finally { setIsLoading(false); }
+    } else {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      const ctrl = new AbortController();
+      abortControllerRef.current = ctrl;
       const assistantId = `assistant-${Date.now()}`;
-      setTelemetry({ provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used });
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantId, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used, original_model: response.original_model } },
-      ]);
-      if (isVoiceEnabled && response.answer) {
-        setSpeakingMsgId(assistantId);
-        speak(response.answer, () => setSpeakingMsgId(null));
-      }
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.');
-      setInputPrompt(text);
-    } finally {
-      setIsLoading(false);
+      setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: '', metadata: { provider: 'J.A.R.V.I.S. Core', model_id: selectedModel, attempts: 1, fallback_used: false } }]);
+      try {
+        await streamChatMessage(text, messages.map((m) => ({ role: m.role, content: m.content })), {
+          model: selectedModel, responseStyle, signal: ctrl.signal,
+          onStep: (s) => setCognitiveStep(s),
+          onChunk: (chunk) => setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))),
+          onDone: (res) => {
+            setCognitiveStep(null);
+            setTelemetry({ provider: res.provider, model_id: res.model_id, attempts: res.attempts, fallback_used: res.fallback_used });
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: res.answer, metadata: { provider: res.provider, model_id: res.model_id, attempts: res.attempts, fallback_used: res.fallback_used } } : m)));
+            if (isVoiceEnabled && res.answer) { setSpeakingMsgId(assistantId); speak(res.answer, () => setSpeakingMsgId(null)); }
+          },
+          onError: (err) => { setErrorMessage(err.message); setInputPrompt(text); },
+        });
+      } catch (err: unknown) {
+        setErrorMessage(err instanceof Error ? err.message : 'Streaming error occurred.'); setInputPrompt(text);
+      } finally { setIsLoading(false); setCognitiveStep(null); abortControllerRef.current = null; }
     }
   };
 
@@ -194,30 +202,26 @@ export default function App() {
         onOpenVault={() => setIsVaultOpen(true)} vaultSessionCount={vaultCount}
         isVoiceEnabled={isVoiceEnabled} onToggleVoice={toggleVoiceMode} isListening={isListening} isSpeaking={isSpeaking}
       />
-
       {visionNotice && (
         <div className="px-4 py-1.5 bg-[#00A6E8]/20 border-b border-[#00A6E8]/40 text-[#00A6E8] flex items-center justify-between text-xs font-mono z-30 animate-pulse">
           <span>⚡ [OPTICAL ROUTER]: {visionNotice}</span>
-          <button onClick={() => setVisionNotice(null)} className="text-[#00A6E8] hover:text-white p-0.5 transition-colors"><X className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setVisionNotice(null)} className="text-[#00A6E8] hover:text-white p-0.5"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
-
       {errorMessage && (
         <div className="px-4 py-2 bg-rose-950/80 border-b border-rose-800 text-rose-200 flex items-center justify-between text-xs font-mono z-30">
           <div className="flex items-center gap-2"><AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" /><span>[FAULT DETECTED]: {errorMessage}</span></div>
-          <button onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-white p-1 rounded transition-colors"><X className="w-3.5 h-3.5" /></button>
+          <button onClick={() => setErrorMessage(null)} className="text-rose-400 hover:text-white p-1"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
-
-      <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" />
-
+      <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,.pdf,.txt,.md" className="hidden" />
       <main className="flex-1 min-h-0 w-full overflow-hidden p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
         <InspectionDeck
           activeDutImage={activeDutImage} activeDutName={activeDutName} attachedFile={attachedFile} isLoading={isLoading}
           onFileSelect={handleFileSelect} onEjectDut={handleEjectDut} onReplaceDut={() => fileInputRef.current?.click()}
           onQuickAction={(prompt) => { setInputPrompt(prompt); textareaRef.current?.focus(); }}
+          vaultConceptCount={vaultConcepts}
         />
-
         <div className="h-full min-h-0 overflow-hidden lg:col-span-7 flex flex-col">
           <DiagnosticFeed
             messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt}
@@ -227,10 +231,11 @@ export default function App() {
             onToggleListening={() => (isListening ? stopListening() : startListening())}
             onQuickAction={(p) => { setInputPrompt(p); textareaRef.current?.focus(); }}
             speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud}
+            responseStyle={responseStyle} onResponseStyleChange={setResponseStyle}
+            cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }}
           />
         </div>
       </main>
-
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={setCurrentUser} />
       <VaultDrawer
         isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} currentUser={currentUser}

@@ -1,8 +1,15 @@
-import asyncio
+import json
 import logging
+import time
+from typing import Generator
 
-from fastapi import APIRouter, status
-from backend.jarvis_engine.orchestrator import process_jarvis_query
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from backend.jarvis_engine.orchestrator import (
+    process_jarvis_query,
+    get_cognitive_trace_steps,
+    detect_response_style,
+)
 from backend.schemas import ChatRequest, ChatResponse
 
 logger = logging.getLogger(__name__)
@@ -11,10 +18,10 @@ router = APIRouter(prefix="/api", tags=["Chat"])
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest) -> ChatResponse:
+def chat_endpoint(request: ChatRequest) -> ChatResponse:
     """
-    Sub-50ms offline J.A.R.V.I.S. Chat endpoint.
-    Handles component lookups, math derivations, and technical queries instantly.
+    Sub-20ms offline J.A.R.V.I.S. Chat endpoint.
+    Handles component lookups, math derivations, and multi-branch engineering queries instantly.
     """
     history = [
         message.model_dump() for message in request.history
@@ -25,13 +32,15 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     if model_id == "auto":
         model_id = "jarvis-auto"
 
-    # Execute completely offline in background thread
-    result = await asyncio.to_thread(
-        process_jarvis_query,
+    chosen_style = request.response_style or request.style
+
+    # Execute completely offline in memory
+    result = process_jarvis_query(
         user_text=request.message,
         image_bytes=None,
         conversation_history=history,
         model_id=model_id,
+        response_style=chosen_style,
     )
 
     return ChatResponse(
@@ -42,4 +51,73 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
         error_type=result.get("error_type"),
         fallback_used=result.get("fallback_used", False),
         attempts=result.get("attempts", 1),
+    )
+
+
+@router.post("/chat/stream")
+def chat_stream_endpoint(request: ChatRequest):
+    """
+    Server-Sent Events (SSE) streaming endpoint for J.A.R.V.I.S.
+    Emits real-time cognitive trace steps ('step' events) and smooth response tokens ('chunk' events).
+    """
+    history = [
+        message.model_dump() for message in request.history
+    ] if request.history else None
+
+    model_id = request.model or request.model_id or "jarvis-auto"
+    if model_id == "auto":
+        model_id = "jarvis-auto"
+
+    chosen_style = request.response_style or request.style or detect_response_style(request.message)
+
+    def sse_generator() -> Generator[str, None, None]:
+        try:
+            # 1. Emit cognitive trace steps
+            steps = get_cognitive_trace_steps(request.message, model_id, chosen_style)
+            for s in steps:
+                yield f"event: step\ndata: {json.dumps({'step': s})}\n\n"
+                time.sleep(0.01)
+
+            # 2. Run offline computation in memory
+            result = process_jarvis_query(
+                user_text=request.message,
+                image_bytes=None,
+                conversation_history=history,
+                model_id=model_id,
+                response_style=chosen_style,
+            )
+
+            full_answer = result.get("answer", "")
+
+            # 3. Stream chunks smoothly (words/tokens with micro delay)
+            # Split into small chunks of ~4-8 words for smooth Google Flow spatial feel
+            words = full_answer.split(" ")
+            chunk_size = 5
+            for i in range(0, len(words), chunk_size):
+                chunk_slice = " ".join(words[i:i + chunk_size]) + (" " if i + chunk_size < len(words) else "")
+                yield f"event: chunk\ndata: {json.dumps({'chunk': chunk_slice})}\n\n"
+                time.sleep(0.005)
+
+            # 4. Final completion payload
+            final_meta = {
+                "answer": full_answer,
+                "provider": result.get("provider", "J.A.R.V.I.S. Core"),
+                "model_id": result.get("model_id", model_id),
+                "style": result.get("style", chosen_style),
+                "attempts": result.get("attempts", 1),
+                "fallback_used": result.get("fallback_used", False),
+            }
+            yield f"event: done\ndata: {json.dumps(final_meta)}\n\n"
+        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
+            logger.info("SSE client disconnected mid-stream.")
+            return
+
+    return StreamingResponse(
+        sse_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )

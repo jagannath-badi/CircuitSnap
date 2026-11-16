@@ -10,7 +10,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from backend.database import init_db
-from backend.routers import analyze, auth, chat, vault, voice
+from backend.routers import analyze, auth, chat, learn, vault, voice
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
 
 
@@ -44,6 +44,39 @@ app.include_router(analyze.router)
 app.include_router(auth.router)
 app.include_router(vault.router)
 app.include_router(voice.router)
+app.include_router(learn.router)
+
+
+DEFAULT_MODEL_ROSTER: list[ModelOption] = [
+    ModelOption(
+        id="jarvis-auto",
+        label="Auto (J.A.R.V.I.S. Smart Router)",
+        provider="J.A.R.V.I.S. Core",
+        specialty="Smart router across all engineering branches",
+        supports_vision=True,
+    ),
+    ModelOption(
+        id="jarvis-math",
+        label="J.A.R.V.I.S. Math Engine",
+        provider="J.A.R.V.I.S. Core",
+        specialty="Symbolic calculus, Laplace, circuits & mechanics math",
+        supports_vision=False,
+    ),
+    ModelOption(
+        id="jarvis-vision",
+        label="J.A.R.V.I.S. Optical Vision",
+        provider="J.A.R.V.I.S. Core",
+        specialty="Scan diagrams, circuits, lab setups & handwritten notes",
+        supports_vision=True,
+    ),
+    ModelOption(
+        id="jarvis-datasheets",
+        label="J.A.R.V.I.S. Datasheet Archive",
+        provider="J.A.R.V.I.S. Core",
+        specialty="IC pinouts, Big-O tables, material & thermo constants",
+        supports_vision=False,
+    ),
+]
 
 
 @app.get("/api/health", response_model=HealthResponse)
@@ -60,38 +93,7 @@ async def health_check():
 
 @app.get("/api/models", response_model=ModelsResponse)
 async def get_models() -> ModelsResponse:
-    available: list[ModelOption] = [
-        ModelOption(
-            id="jarvis-auto",
-            label="Auto (J.A.R.V.I.S. Smart Router)",
-            provider="J.A.R.V.I.S. Core",
-            specialty="Autonomous offline routing for circuits, math & vision",
-            supports_vision=True,
-        ),
-        ModelOption(
-            id="jarvis-math",
-            label="J.A.R.V.I.S. Math Engine",
-            provider="J.A.R.V.I.S. Core",
-            specialty="Instant SymPy formulas, KaTeX derivations & biasing",
-            supports_vision=False,
-        ),
-        ModelOption(
-            id="jarvis-vision",
-            label="J.A.R.V.I.S. Optical Vision",
-            provider="J.A.R.V.I.S. Core",
-            specialty="Local SMD, color bands & optical component inspection",
-            supports_vision=True,
-        ),
-        ModelOption(
-            id="jarvis-datasheets",
-            label="J.A.R.V.I.S. Datasheet Archive",
-            provider="J.A.R.V.I.S. Core",
-            specialty="Offline IC pinouts, max ratings & spec tables",
-            supports_vision=False,
-        ),
-    ]
-
     return ModelsResponse(
-        models=available,
+        models=DEFAULT_MODEL_ROSTER,
         default_model="jarvis-auto",
     )

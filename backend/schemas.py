@@ -95,6 +95,8 @@ class ChatRequest(BaseModel):
     provider: str | None = None
     model_id: str | None = None
     model: str | None = None
+    style: str | None = None
+    response_style: str | None = None
     previous_visual_context: dict[str, Any] | None = None
 
 

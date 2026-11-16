@@ -4,14 +4,14 @@ import {
   Crosshair,
   Camera,
   Terminal,
-  Palette,
   Cpu,
-  Clock,
-  Layers,
-  AlertTriangle,
+  Calculator,
+  Compass,
+  Binary,
   RotateCcw,
-  Zap,
   X,
+  BookOpen,
+  FileText,
 } from 'lucide-react';
 
 export interface InspectionDeckProps {
@@ -23,50 +23,45 @@ export interface InspectionDeckProps {
   onEjectDut: () => void;
   onReplaceDut?: () => void;
   onQuickAction: (prompt: string) => void;
+  vaultConceptCount?: number;
 }
 
 const QUICK_ACTION_CHIPS = [
   {
-    label: 'Decode Color Bands',
-    icon: Palette,
+    label: 'Laplace & ODEs',
+    icon: Calculator,
     accent: 'border-[#00A6E8]/30 hover:border-[#00A6E8]/70 hover:bg-[#00A6E8]/10 text-[#00A6E8]',
-    prompt:
-      'Decode the color bands on this resistor. State the nominal resistance, tolerance, standard E-series designation, and verification tips.',
+    prompt: 'Solve Laplace transform of sin(2*t) and solve 2nd order ODE y\'\' + 4y = 0',
   },
   {
-    label: 'Op-Amp Pinout & Specs',
+    label: 'SFD, BMD & Soil',
+    icon: Compass,
+    accent: 'border-amber-500/30 hover:border-amber-500/70 hover:bg-amber-500/10 text-amber-400',
+    prompt: 'Calculate SFD and maximum bending moment for simply supported beam L=6m with point load P=20kN at center, and find soil void ratio e for porosity n=0.4',
+  },
+  {
+    label: 'Manning Flow & Bernoulli',
+    icon: Compass,
+    accent: 'border-emerald-500/30 hover:border-emerald-500/70 hover:bg-emerald-500/10 text-emerald-400',
+    prompt: 'Calculate open channel discharge with Manning equation n=0.015 A=2.5m^2 R=0.6m S=0.002, and Bernoulli head loss',
+  },
+  {
+    label: '3-Phase & Control Systems',
     icon: Cpu,
     accent: 'border-[#FF2D95]/30 hover:border-[#FF2D95]/70 hover:bg-[#FF2D95]/10 text-[#FF2D95]',
-    prompt:
-      'Identify this operational amplifier, explain its pinout diagram, maximum ratings, supply rail requirements, and typical negative feedback configuration.',
+    prompt: 'Calculate 3-phase real and reactive power for V_L=415V I_L=15A pf=0.85, and 2nd order damping ratio zeta and peak overshoot for wn=10 rad/s',
   },
   {
-    label: '555 Timer Astable Calc',
-    icon: Clock,
-    accent: 'border-amber-500/30 hover:border-amber-500/70 hover:bg-amber-500/10 text-amber-400',
-    prompt:
-      'Explain the pinout and calculate the timing components (R1, R2, C) for this 555 timer in astable mode.',
+    label: 'NE555 & Pinouts',
+    icon: Cpu,
+    accent: 'border-cyan-500/30 hover:border-cyan-500/70 hover:bg-cyan-500/10 text-cyan-300',
+    prompt: 'Display NE555 pinout table and calculate astable timing for R1=10k R2=47k C=10uF',
   },
   {
-    label: 'Identify Package & SMD',
-    icon: Layers,
-    accent: 'border-emerald-500/30 hover:border-emerald-500/70 hover:bg-emerald-500/10 text-emerald-400',
-    prompt:
-      'Identify the package type (SOIC, QFN, TO-220, etc.), pin pitch, SMD top marking code, and manufacturer specifications for this device.',
-  },
-  {
-    label: 'Troubleshoot Short / Noise',
-    icon: AlertTriangle,
-    accent: 'border-rose-500/30 hover:border-rose-500/70 hover:bg-rose-500/10 text-rose-400',
-    prompt:
-      'Analyze this circuit for potential issues: check for ground loop vulnerability, missing decoupling capacitors, polarity inversion, or short circuits.',
-  },
-  {
-    label: 'BJT / MOSFET Biasing',
-    icon: Zap,
+    label: 'FCFS, Subnet & Big-O',
+    icon: Binary,
     accent: 'border-purple-500/30 hover:border-purple-500/70 hover:bg-purple-500/10 text-purple-400',
-    prompt:
-      'Analyze the DC biasing point (Q-point), calculate terminal currents (I_B, I_C / I_D), determine V_CE / V_DS, and verify whether the transistor is operating in active, saturation, or cutoff region.',
+    prompt: 'Simulate FCFS CPU scheduling for burst times [5, 3, 8], subnet 192.168.1.0/24, and explain 3NF vs BCNF',
   },
 ];
 
@@ -79,6 +74,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
   onEjectDut,
   onReplaceDut,
   onQuickAction,
+  vaultConceptCount,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -115,24 +111,30 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
   };
 
   return (
-    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-950/60 backdrop-blur-2xl border border-white/[0.08] border-t-white/15 rounded-3xl p-4 sm:p-5 shadow-2xl specular-glass">
+    <section className="lg:col-span-5 min-h-[380px] lg:h-full flex flex-col overflow-hidden bg-slate-950/60 backdrop-blur-2xl border border-white/[0.08] border-t-white/15 rounded-3xl p-4 sm:p-5 shadow-2xl specular-glass flow-bento-card flow-stagger-1">
       {/* Scope Header */}
       <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] flex-shrink-0">
         <div className="flex items-center gap-2">
           <Scan className="w-4 h-4 text-[#00A6E8]" />
           <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-200">
-            Upload Circuit Photo
+            Study & Inspection Deck
           </h2>
         </div>
-        <span
-          className={`text-[10px] font-mono font-medium px-2.5 py-0.5 rounded-full border transition-all ${
-            activeDutImage
-              ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/40 shadow-[0_0_10px_rgba(0,166,232,0.3)] animate-pulse'
-              : 'bg-white/[0.03] text-slate-500 border-white/[0.06]'
-          }`}
-        >
-          {activeDutImage ? 'Photo Added' : 'Ready'}
-        </span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-cyan-950/40 border border-cyan-500/30 text-[10px] font-mono text-cyan-300">
+            <BookOpen className="w-3 h-3 text-[#00A6E8]" />
+            <span>Vault: {vaultConceptCount ?? 10}+ Concepts</span>
+          </div>
+          <span
+            className={`text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border transition-all ${
+              activeDutImage
+                ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/40 shadow-[0_0_10px_rgba(0,166,232,0.3)] animate-pulse'
+                : 'bg-white/[0.03] text-slate-500 border-white/[0.06]'
+            }`}
+          >
+            {activeDutImage ? 'File Ready' : 'Ready'}
+          </span>
+        </div>
       </div>
 
       {/* Hidden File Input */}
@@ -140,7 +142,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
         type="file"
         ref={fileInputRef}
         onChange={handleFileInputChange}
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,.pdf,.txt,.md"
         className="hidden"
       />
 
@@ -178,12 +180,26 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
               </div>
             )}
 
-            {/* Component Preview Image with aspect ratio guarantee */}
-            <img
-              src={activeDutImage}
-              alt={activeDutName || 'Loaded Component Under Scope'}
-              className="max-h-60 sm:max-h-64 w-auto max-w-full object-contain rounded-lg relative z-10 shadow-2xl transition-transform duration-300 group-hover:scale-[1.01]"
-            />
+            {/* Component Preview Image or Engineering Document Preview */}
+            {activeDutName?.toLowerCase().endsWith('.pdf') ||
+            activeDutName?.toLowerCase().endsWith('.txt') ||
+            activeDutName?.toLowerCase().endsWith('.md') ? (
+              <div className="w-full h-full max-h-60 flex flex-col items-center justify-center p-6 bg-slate-900/60 rounded-xl border border-white/10 relative z-10 text-center">
+                <FileText className="w-14 h-14 text-[#00A6E8] mb-2.5 animate-pulse" />
+                <span className="text-xs font-mono text-slate-100 font-semibold truncate max-w-[260px]">
+                  {activeDutName}
+                </span>
+                <span className="text-[10px] font-mono text-cyan-400 mt-1 uppercase tracking-wider">
+                  Engineering Syllabus / Notes Loaded
+                </span>
+              </div>
+            ) : (
+              <img
+                src={activeDutImage}
+                alt={activeDutName || 'Loaded Component Under Scope'}
+                className="max-h-60 sm:max-h-64 w-auto max-w-full object-contain rounded-lg relative z-10 shadow-2xl transition-transform duration-300 group-hover:scale-[1.01]"
+              />
+            )}
 
             {/* Top-Right Floating Semi-Transparent Glass Controls */}
             <div className="absolute top-3 right-3 z-30 flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
@@ -255,10 +271,10 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
             </div>
 
             <h3 className="text-xs font-mono font-semibold tracking-wider text-slate-200 group-hover:text-cyan-300 transition-colors uppercase relative z-10">
-              Drop a circuit photo here
+              Drop circuit photo or lecture notes/PDF
             </h3>
-            <p className="text-[11px] text-slate-400 mt-1 max-w-[260px] leading-relaxed relative z-10">
-              Upload a photo, <span className="text-cyan-400 underline underline-offset-2 decoration-cyan-500/40">browse files</span>, or paste with Ctrl+V
+            <p className="text-[11px] text-slate-400 mt-1 max-w-[280px] leading-relaxed relative z-10">
+              Upload photos, diagrams, or syllabus notes (.pdf, .txt, .md), or paste with Ctrl+V
             </p>
 
             <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[10px] font-mono text-slate-400 relative z-10">
@@ -269,7 +285,7 @@ export const InspectionDeck: React.FC<InspectionDeckProps> = ({
                 <span className="text-slate-300">to paste</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08]">
-                <span className="text-slate-300">JPG, PNG, WEBP</span>
+                <span className="text-slate-300">Images, PDFs & Notes</span>
               </span>
               <span className="px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-slate-400">
                 Max 10 MB

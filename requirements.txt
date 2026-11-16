@@ -12,3 +12,4 @@ PyJWT>=2.8.0
 faster-whisper>=1.0.0
 av>=11.0.0,<14.0.0
 edge-tts>=6.1.12
+pypdf>=5.0.0

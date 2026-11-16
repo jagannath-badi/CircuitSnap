@@ -89,6 +89,14 @@ export interface SaveSessionPayload {
   messages: unknown[];
 }
 
+export interface VaultStats {
+  total_documents: number;
+  total_chunks: number;
+  branches: Record<string, number>;
+  source_types: Record<string, number>;
+  database_size_bytes: number;
+}
+
 
 const TOKEN_KEY = 'circuitsnap_token';
 
@@ -405,6 +413,190 @@ export async function deleteVaultSession(id: string): Promise<void> {
   });
   if (!response.ok) {
     throw new Error(`Failed to delete session (${response.status})`);
+  }
+}
+
+/**
+ * Fetches statistics from the Self-Evolving Knowledge Vault.
+ */
+export async function fetchVaultStats(): Promise<VaultStats> {
+  const response = await fetch('/api/learn/stats');
+  if (!response.ok) {
+    throw new Error(`Failed to fetch vault stats (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Ingests a syllabus note, PDF, or markdown document into the Self-Evolving Knowledge Vault.
+ */
+export async function ingestVaultDocument(
+  file: File,
+  branch = 'ALL'
+): Promise<{ message: string; title: string; chunks_indexed: number }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('branch', branch);
+
+  const response = await fetch('/api/learn/ingest', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Document ingestion failed (${response.status})`;
+    try {
+      const err = await response.json();
+      if (err?.detail) {
+        errorDetail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+/**
+ * Teaches or records user knowledge/feedback into the Knowledge Vault.
+ */
+export async function sendFeedbackToVault(
+  text: string,
+  branch = 'ALL',
+  title = 'User Knowledge Contribution'
+): Promise<{ message: string; chunks_indexed: number }> {
+  const response = await fetch('/api/learn/feedback', {
+    method: 'POST',
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ text, branch, title }),
+  });
+
+  if (!response.ok) {
+    let errorDetail = `Feedback ingestion failed (${response.status})`;
+    try {
+      const err = await response.json();
+      if (err?.detail) {
+        errorDetail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail);
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(errorDetail);
+  }
+
+  return response.json();
+}
+
+export interface StreamChatOptions {
+  model?: string;
+  provider?: string;
+  modelId?: string;
+  responseStyle?: string;
+  signal?: AbortSignal;
+  onStep?: (step: string) => void;
+  onChunk?: (chunk: string) => void;
+  onDone?: (res: ChatResponse) => void;
+  onError?: (err: Error) => void;
+}
+
+/**
+ * Streams a chat query via Server-Sent Events (SSE) with real-time cognitive trace steps and chunk delivery.
+ */
+export async function streamChatMessage(
+  message: string,
+  history: ChatMessage[] = [],
+  options: StreamChatOptions = {}
+): Promise<void> {
+  const { model, provider, modelId, responseStyle, signal, onStep, onChunk, onDone, onError } = options;
+
+  try {
+    const response = await fetch('/api/chat/stream', {
+      method: 'POST',
+      signal,
+      headers: getAuthHeaders({
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify({
+        message,
+        history,
+        model: model || undefined,
+        provider: provider || undefined,
+        model_id: modelId || undefined,
+        response_style: responseStyle || undefined,
+      }),
+    });
+
+    if (!response.ok || !response.body) {
+      // Fallback to standard chat endpoint if streaming fails
+      const fallbackRes = await sendChatMessage(message, history, model, provider, modelId);
+      onChunk?.(fallbackRes.answer);
+      onDone?.(fallbackRes);
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+
+        let eventType = 'message';
+        let dataStr = '';
+
+        const subLines = line.split('\n');
+        for (const sub of subLines) {
+          if (sub.startsWith('event:')) {
+            eventType = sub.replace('event:', '').trim();
+          } else if (sub.startsWith('data:')) {
+            dataStr = sub.replace('data:', '').trim();
+          }
+        }
+
+        if (!dataStr) continue;
+
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (eventType === 'step' && parsed.step) {
+            onStep?.(parsed.step);
+          } else if (eventType === 'chunk' && parsed.chunk) {
+            onChunk?.(parsed.chunk);
+          } else if (eventType === 'done') {
+            const chatRes: ChatResponse = {
+              answer: parsed.answer || '',
+              provider: parsed.provider || 'J.A.R.V.I.S. Core',
+              model_id: parsed.model_id || 'jarvis-auto',
+              status: 'success',
+              fallback_used: parsed.fallback_used ?? false,
+              attempts: parsed.attempts ?? 1,
+            };
+            onDone?.(chatRes);
+          }
+        } catch {
+          // ignore malformed SSE line
+        }
+      }
+    }
+  } catch (err: unknown) {
+    if ((err as Error)?.name === 'AbortError') {
+      return;
+    }
+    if (onError) {
+      onError(err instanceof Error ? err : new Error(String(err)));
+    } else {
+      throw err;
+    }
   }
 }
 
