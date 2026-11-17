@@ -111,6 +111,19 @@ def chat_stream_endpoint(request: ChatRequest):
         except (GeneratorExit, ConnectionResetError, BrokenPipeError):
             logger.info("SSE client disconnected mid-stream.")
             return
+        except Exception as err:
+            logger.error("SSE stream encountered unexpected error: %s", err, exc_info=True)
+            fallback_payload = {
+                "answer": "An unexpected error occurred while processing the engineering response. Please try again or rephrase your query.",
+                "provider": "J.A.R.V.I.S. Core",
+                "model_id": model_id,
+                "style": chosen_style,
+                "attempts": 1,
+                "fallback_used": True,
+                "status": "error",
+                "error_type": type(err).__name__,
+            }
+            yield f"event: done\ndata: {json.dumps(fallback_payload)}\n\n"
 
     return StreamingResponse(
         sse_generator(),

@@ -23,6 +23,7 @@ import {
   BookmarkPlus,
   Check,
 } from 'lucide-react';
+import type { VoiceState } from '../hooks/useJarvisVoice';
 
 export interface DisplayMessage {
   id: string;
@@ -59,6 +60,8 @@ export interface DiagnosticFeedProps {
   onResponseStyleChange?: (style: string) => void;
   cognitiveStep?: string | null;
   onSaveToVault?: (text: string) => Promise<boolean | void> | boolean | void;
+  voiceState?: VoiceState;
+  onHardResetVoice?: () => void;
 }
 
 /**
@@ -287,6 +290,8 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   onResponseStyleChange,
   cognitiveStep = null,
   onSaveToVault,
+  voiceState = 'idle',
+  onHardResetVoice,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [savedMsgIds, setSavedMsgIds] = useState<Set<string>>(new Set());
@@ -615,6 +620,38 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               >
                 <X className="w-3 h-3" />
               </button>
+            </div>
+          )}
+
+          {/* Active Voice State Live HUD Pill */}
+          {voiceState && voiceState !== 'idle' && (
+            <div className="mb-2 px-3 py-1 rounded-full border border-white/10 bg-slate-950/80 backdrop-blur-md flex items-center justify-between text-xs font-mono w-fit max-w-full animate-panel-pop shadow-md">
+              {voiceState === 'listening' ? (
+                <div className="flex items-center gap-2 text-[#FF2D95]">
+                  <span className="w-2 h-2 rounded-full bg-[#FF2D95] animate-ping" />
+                  <span className="font-semibold text-[11px]">Listening... (Speak query)</span>
+                </div>
+              ) : voiceState === 'transcribing' ? (
+                <div className="flex items-center gap-2 text-[#00A6E8]">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00A6E8]" />
+                  <span className="font-semibold text-[11px] flow-shimmer-text">Transcribing neural audio...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-cyan-300">
+                  <Volume2 className="w-3.5 h-3.5 animate-pulse text-[#00A6E8]" />
+                  <span className="font-semibold text-[11px]">J.A.R.V.I.S. Speaking...</span>
+                </div>
+              )}
+              {onHardResetVoice && (
+                <button
+                  type="button"
+                  onClick={onHardResetVoice}
+                  className="ml-3 px-1.5 py-0.5 rounded-full bg-white/[0.08] hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 text-[10px] transition-colors"
+                  title="Stop voice activity & reset engine"
+                >
+                  Stop
+                </button>
+              )}
             </div>
           )}
 

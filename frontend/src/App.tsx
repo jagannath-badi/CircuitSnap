@@ -43,7 +43,7 @@ export default function App() {
   const activeObjectUrlsRef = useRef<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { isVoiceEnabled, isListening, isSpeaking, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech } = useJarvisVoice({
+  const { isVoiceEnabled, voiceState, isListening, isSpeaking, voiceSettings, updateVoiceSettings, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech, hardResetVoice, testVoicePersona } = useJarvisVoice({
     onTranscript: (t) => { setInputPrompt(t); textareaRef.current?.focus(); },
     onFinalTranscript: (t) => { if (t.trim()) void handleSendMessage(t.trim()); },
   });
@@ -119,7 +119,7 @@ export default function App() {
 
   const handleClearChat = () => {
     if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
-    cancelSpeech(); setSpeakingMsgId(null); setCognitiveStep(null); setIsLoading(false);
+    hardResetVoice(); setSpeakingMsgId(null); setCognitiveStep(null); setIsLoading(false);
     activeObjectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url)); activeObjectUrlsRef.current.clear();
     setActiveDutImage(null); setActiveDutName(null);
     setMessages([]); setErrorMessage(null); setVisionNotice(null); removeAttachedFile();
@@ -157,7 +157,7 @@ export default function App() {
         const assistantId = `assistant-${Date.now()}`;
         setTelemetry({ provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used });
         setMessages((prev) => [...prev, { id: assistantId, role: 'assistant', content: response.answer, metadata: { provider: response.provider, model_id: response.model_id, attempts: response.attempts, fallback_used: response.fallback_used, original_model: response.original_model } }]);
-        if (isVoiceEnabled && response.answer) { setSpeakingMsgId(assistantId); speak(response.answer, () => setSpeakingMsgId(null)); }
+        if (isVoiceEnabled && response.answer) { setSpeakingMsgId(assistantId); void speak(response.answer, () => setSpeakingMsgId(null)); }
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : 'An unexpected error occurred.'); setInputPrompt(text);
       } finally { setIsLoading(false); }
@@ -176,7 +176,7 @@ export default function App() {
             setCognitiveStep(null);
             setTelemetry({ provider: res.provider, model_id: res.model_id, attempts: res.attempts, fallback_used: res.fallback_used });
             setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: res.answer, metadata: { provider: res.provider, model_id: res.model_id, attempts: res.attempts, fallback_used: res.fallback_used } } : m)));
-            if (isVoiceEnabled && res.answer) { setSpeakingMsgId(assistantId); speak(res.answer, () => setSpeakingMsgId(null)); }
+            if (isVoiceEnabled && res.answer) { setSpeakingMsgId(assistantId); void speak(res.answer, () => setSpeakingMsgId(null)); }
           },
           onError: (err) => { setErrorMessage(err.message); setInputPrompt(text); },
         });
@@ -188,7 +188,7 @@ export default function App() {
 
   const handleReadAloud = (id: string, text: string) => {
     if (speakingMsgId === id) { cancelSpeech(); setSpeakingMsgId(null); }
-    else { setSpeakingMsgId(id); speak(text, () => setSpeakingMsgId(null), true); }
+    else { setSpeakingMsgId(id); void speak(text, () => setSpeakingMsgId(null), true); }
   };
 
   return (
@@ -201,6 +201,7 @@ export default function App() {
         currentUser={currentUser} onOpenAuthModal={() => setIsAuthModalOpen(true)} onLogout={handleLogout}
         onOpenVault={() => setIsVaultOpen(true)} vaultSessionCount={vaultCount}
         isVoiceEnabled={isVoiceEnabled} onToggleVoice={toggleVoiceMode} isListening={isListening} isSpeaking={isSpeaking}
+        voiceSettings={voiceSettings} onUpdateVoiceSettings={updateVoiceSettings} onTestVoice={testVoicePersona}
       />
       {visionNotice && (
         <div className="px-4 py-1.5 bg-[#00A6E8]/20 border-b border-[#00A6E8]/40 text-[#00A6E8] flex items-center justify-between text-xs font-mono z-30 animate-pulse">
@@ -228,11 +229,12 @@ export default function App() {
             onSendMessage={handleSendMessage} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile}
             onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef}
             isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking}
-            onToggleListening={() => (isListening ? stopListening() : startListening())}
+            onToggleListening={() => (isListening ? stopListening() : void startListening())}
             onQuickAction={(p) => { setInputPrompt(p); textareaRef.current?.focus(); }}
             speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud}
             responseStyle={responseStyle} onResponseStyleChange={setResponseStyle}
             cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }}
+            voiceState={voiceState} onHardResetVoice={hardResetVoice}
           />
         </div>
       </main>

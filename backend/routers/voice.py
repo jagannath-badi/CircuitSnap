@@ -3,11 +3,10 @@ import logging
 import os
 import re
 import tempfile
-from typing import AsyncGenerator
+from typing import Dict, Optional
 
 import edge_tts
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, File, HTTPException, Response, UploadFile, status
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -53,7 +52,7 @@ def normalize_ece_speech(text: str) -> str:
 
     # Wake-word normalization (e.g. "hey divers", "hey service", "a jarvis", "hi divers")
     t = re.sub(
-        r"\b(?:hey|hi|hello|ok|okay|a)?\s*(?:service|jarvis|job\s*is|travis|divers)\b",
+        r"\b(?:(?:hey|hi|hello|ok|okay|a)\s+(?:service|job\s*is|travis|divers)|(?:(?:hey|hi|hello|ok|okay|a)\s+)?jarvis)\b",
         "hey jarvis",
         t,
         flags=re.IGNORECASE,
@@ -72,9 +71,10 @@ def normalize_ece_speech(text: str) -> str:
     t = re.sub(r"\b(?:1n|1 n)\s*4148\b", "1N4148", t, flags=re.IGNORECASE)
 
     # Electrical units & values
-    t = re.sub(r"\b(?:oms|homes?|arms?|home)\b", "ohms", t, flags=re.IGNORECASE)
-    t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:kilo\s*ohms?|k\s*ohms?|kilo)\b", r"\1kΩ", t, flags=re.IGNORECASE)
-    t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:mega\s*ohms?|m\s*ohms?)\b", r"\1MΩ", t, flags=re.IGNORECASE)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:oms|homes?|ohms?)\b", r"\1 ohms", t, flags=re.IGNORECASE)
+    t = re.sub(r"\boms\b", "ohms", t, flags=re.IGNORECASE)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:kilo\s*(?:ohms?|homes?)|k\s*ohms?|kilo)\b", r"\1kΩ", t, flags=re.IGNORECASE)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:mega\s*(?:ohms?|homes?)|m\s*ohms?)\b", r"\1MΩ", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:micro\s*farads?|u\s*farads?|microfarads?|uf)\b", r"\1uF", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:nano\s*farads?|n\s*farads?|nanofarads?|nf)\b", r"\1nF", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:pico\s*farads?|p\s*farads?|picofarads?|pf)\b", r"\1pF", t, flags=re.IGNORECASE)
@@ -160,12 +160,50 @@ def clean_tts_text(raw: str) -> str:
     if len(text) < 12:
         return "Specifications and calculations are displayed on screen."
 
-    if len(text) > 320:
-        period_idx = text.find(".", 200)
-        if period_idx != -1 and period_idx < 420:
-            text = text[: period_idx + 1]
+    # Cap spoken text to ~480 characters at a clean sentence boundary
+    if len(text) > 480:
+        cut = text[:480]
+        # Look for sentence boundary between 240 and 480
+        match = list(re.finditer(r"[.!?](?:\s|$)", cut))
+        if match and match[-1].end() >= 220:
+            text = cut[: match[-1].end()].strip()
+        else:
+            text = cut.rsplit(" ", 1)[0].rstrip(",;:-") + "."
 
     return text
+
+
+SUPPORTED_VOICES: Dict[str, Dict[str, str]] = {
+    "en-GB-SoniaNeural": {
+        "name": "Sonia — J.A.R.V.I.S. Pro Elite Female",
+        "default_pitch": "+2Hz",
+        "default_rate": "+4%",
+        "gender": "female",
+        "accent": "British",
+    },
+    "en-US-AriaNeural": {
+        "name": "Aria — Studio Female",
+        "default_pitch": "+0Hz",
+        "default_rate": "+3%",
+        "gender": "female",
+        "accent": "American",
+    },
+    "en-US-JennyNeural": {
+        "name": "Jenny — Warm Tutor",
+        "default_pitch": "+0Hz",
+        "default_rate": "+2%",
+        "gender": "female",
+        "accent": "American",
+    },
+    "en-GB-RyanNeural": {
+        "name": "Ryan — Classic British Male",
+        "default_pitch": "-4Hz",
+        "default_rate": "+5%",
+        "gender": "male",
+        "accent": "British",
+    },
+}
+DEFAULT_VOICE = "en-GB-SoniaNeural"
 
 
 class STTResponse(BaseModel):
@@ -174,6 +212,28 @@ class STTResponse(BaseModel):
 
 class TTSRequest(BaseModel):
     text: str
+    voice: Optional[str] = DEFAULT_VOICE
+    rate: Optional[str] = "+4%"
+    pitch: Optional[str] = "+2Hz"
+
+
+@router.get("/voices")
+def list_voices():
+    """Returns supported neural voice personas and their defaults."""
+    return {
+        "default": DEFAULT_VOICE,
+        "personas": [
+            {
+                "id": k,
+                "name": v["name"],
+                "default_pitch": v["default_pitch"],
+                "default_rate": v["default_rate"],
+                "gender": v["gender"],
+                "accent": v["accent"],
+            }
+            for k, v in SUPPORTED_VOICES.items()
+        ],
+    }
 
 
 def _transcribe_file(file_path: str) -> str:
@@ -211,46 +271,87 @@ async def speech_to_text(file: UploadFile = File(...)) -> STTResponse:
     Sub-200ms local speech-to-text using faster-whisper and ECE phonetic normalizer.
     Accepts raw audio blob from VAD recorder (webm/wav/ogg).
     """
+    content = await file.read()
+    if len(content) < 512:
+        return STTResponse(text="")
+
     suffix = ".webm"
     if file.filename and "." in file.filename:
         suffix = f".{file.filename.rsplit('.', 1)[-1]}"
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        tmp_path = tmp.name
-        content = await file.read()
-        tmp.write(content)
-
+    tmp_path = None
     try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp_path = tmp.name
+            tmp.write(content)
+
         clean_text = await asyncio.to_thread(_transcribe_file, tmp_path)
         return STTResponse(text=clean_text)
     finally:
-        if os.path.exists(tmp_path):
+        if tmp_path and os.path.exists(tmp_path):
             try:
                 os.remove(tmp_path)
             except Exception:
                 pass
 
 
+async def _fetch_tts_bytes(communicate: edge_tts.Communicate) -> bytes:
+    """Streams audio chunks from edge-tts and aggregates into a complete MP3 buffer."""
+    chunks = []
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            chunks.append(chunk["data"])
+    return b"".join(chunks)
+
+
 @router.post("/tts")
 async def text_to_speech(payload: TTSRequest):
     """
-    Neural British English Text-to-Speech using edge-tts (en-GB-RyanNeural).
-    Streams MP3 audio directly to browser HTML5 Audio element.
+    Neural Text-to-Speech using edge-tts with selectable persona (default: en-GB-SoniaNeural).
+    Streams MP3 audio with 8.0s timeout safety to eliminate hanging connections.
     """
     cleaned_text = clean_tts_text(payload.text)
     if not cleaned_text:
         cleaned_text = "Specifications and calculations are displayed on screen."
 
+    voice = payload.voice if payload.voice in SUPPORTED_VOICES else DEFAULT_VOICE
+    profile = SUPPORTED_VOICES[voice]
+    rate = payload.rate or profile["default_rate"]
+    pitch = payload.pitch or profile["default_pitch"]
+
     communicate = edge_tts.Communicate(
         text=cleaned_text,
-        voice="en-GB-RyanNeural",
-        rate="+5%",
-        pitch="-4Hz",
+        voice=voice,
+        rate=rate,
+        pitch=pitch,
     )
 
-    async def audio_stream() -> AsyncGenerator[bytes, None]:
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                yield chunk["data"]
+    try:
+        audio_bytes = await asyncio.wait_for(_fetch_tts_bytes(communicate), timeout=8.0)
+    except asyncio.TimeoutError:
+        logger.warning("TTS generation timed out after 8.0s for voice %s", voice)
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Neural TTS synthesis timed out after 8.0 seconds.",
+        )
+    except Exception as err:
+        logger.error("TTS generation error: %s", err)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Neural TTS synthesis failed: {str(err)}",
+        )
 
-    return StreamingResponse(audio_stream(), media_type="audio/mpeg")
+    if not audio_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Neural TTS returned empty audio payload.",
+        )
+
+    return Response(
+        content=audio_bytes,
+        media_type="audio/mpeg",
+        headers={
+            "Content-Length": str(len(audio_bytes)),
+            "Cache-Control": "no-cache",
+        },
+    )

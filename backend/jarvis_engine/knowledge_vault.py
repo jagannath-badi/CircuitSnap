@@ -19,12 +19,17 @@ except ImportError:
     pypdf = None
 
 
-DB_PATH = Path(__file__).resolve().parent.parent / "knowledge_vault.db"
+DB_PATH = (
+    Path(os.getenv("VAULT_DB_PATH"))
+    if os.getenv("VAULT_DB_PATH")
+    else (Path(__file__).resolve().parent.parent / "knowledge_vault.db")
+)
 
 
 def get_db_connection() -> sqlite3.Connection:
     """Returns a thread-safe SQLite connection configured for WAL mode, busy timeout, and fast queries."""
-    conn = sqlite3.connect(str(DB_PATH), timeout=30.0, check_same_thread=False)
+    target_path = Path(os.getenv("VAULT_DB_PATH")) if os.getenv("VAULT_DB_PATH") else DB_PATH
+    conn = sqlite3.connect(str(target_path), timeout=30.0, check_same_thread=False)
     conn.execute("PRAGMA journal_mode = WAL;")
     conn.execute("PRAGMA synchronous = NORMAL;")
     conn.execute("PRAGMA busy_timeout = 5000;")
@@ -123,13 +128,16 @@ def extract_text_from_pdf(pdf_bytes: bytes) -> str:
     if pypdf is None:
         raise RuntimeError("pypdf is not installed. Please install pypdf to ingest PDFs.")
 
-    reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-    pages_text = []
-    for idx, page in enumerate(reader.pages):
-        text = page.extract_text() or ""
-        if text.strip():
-            pages_text.append(f"--- Page {idx + 1} ---\n{text.strip()}")
-    return "\n\n".join(pages_text)
+    try:
+        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+        pages_text = []
+        for idx, page in enumerate(reader.pages):
+            text = page.extract_text() or ""
+            if text.strip():
+                pages_text.append(f"--- Page {idx + 1} ---\n{text.strip()}")
+        return "\n\n".join(pages_text)
+    except Exception as err:
+        raise ValueError(f"Could not read PDF: {err}") from err
 
 
 def chunk_text(text: str, chunk_size: int = 800, overlap: int = 150) -> List[Tuple[str, str]]:
@@ -183,14 +191,17 @@ def ingest_document(filename: str, file_bytes: bytes, branch: str = "ALL") -> Di
     """Ingests a file (PDF, Markdown, or plain text) into the Knowledge Vault."""
     init_vault_db()
     lower_name = filename.lower()
-    branch = branch.upper().strip()
+    branch = branch.upper().strip() or "ALL"
 
-    if lower_name.endswith(".pdf"):
-        full_text = extract_text_from_pdf(file_bytes)
-        source_type = "pdf"
-    else:
-        full_text = file_bytes.decode("utf-8", errors="replace")
-        source_type = "text"
+    try:
+        if lower_name.endswith(".pdf"):
+            full_text = extract_text_from_pdf(file_bytes)
+            source_type = "pdf"
+        else:
+            full_text = file_bytes.decode("utf-8", errors="replace")
+            source_type = "text"
+    except ValueError as err:
+        return {"status": "error", "message": str(err)}
 
     if not full_text.strip():
         return {"status": "error", "message": f"No text could be extracted from {filename}."}
@@ -229,6 +240,7 @@ def ingest_document(filename: str, file_bytes: bytes, branch: str = "ALL") -> Di
 def ingest_user_taught_concept(text: str, branch: str = "ALL", title: Optional[str] = None) -> Dict[str, Any]:
     """Ingests a user-taught formula or correction (e.g. 'Learn: ...' or message feedback)."""
     init_vault_db()
+    branch = branch.upper().strip() or "ALL"
     clean = text.strip()
     clean = re.sub(r"^(?:learn|remember|teach|note|vault):\s*", "", clean, flags=re.IGNORECASE).strip()
 
@@ -244,7 +256,7 @@ def ingest_user_taught_concept(text: str, branch: str = "ALL", title: Optional[s
         cursor.execute("""
             INSERT INTO vault_chunks (doc_id, branch, title, content, tags)
             VALUES (NULL, ?, ?, ?, ?);
-        """, (branch.upper().strip(), inferred_title, clean, tags))
+        """, (branch, inferred_title, clean, tags))
         chunk_id = cursor.lastrowid
 
     return {

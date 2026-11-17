@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut, Archive, Mic, MicOff } from 'lucide-react';
+import { Cpu, RefreshCw, RotateCcw, Activity, ShieldAlert, ChevronDown, User, LogOut, Archive, Mic, MicOff, SlidersHorizontal } from 'lucide-react';
 import type { HealthResponse, ModelOption, OperatorUser } from '../api';
+import type { VoiceSettings } from '../hooks/useJarvisVoice';
+import { VoiceSettingsPopover } from './VoiceSettingsPopover';
 
 export interface TelemetryData {
   provider: string;
@@ -29,6 +31,9 @@ export interface TelemetryHeaderProps {
   onToggleVoice?: () => void;
   isListening?: boolean;
   isSpeaking?: boolean;
+  voiceSettings?: VoiceSettings;
+  onUpdateVoiceSettings?: (partial: Partial<VoiceSettings>) => void;
+  onTestVoice?: (voiceId?: string) => Promise<void>;
 }
 
 const DEFAULT_MODEL_ROSTER: ModelOption[] = [
@@ -58,10 +63,14 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
   onToggleVoice,
   isListening = false,
   isSpeaking = false,
+  voiceSettings,
+  onUpdateVoiceSettings,
+  onTestVoice,
 }) => {
   const isHealthy = health?.status === 'healthy';
   const [isOpen, setIsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -206,6 +215,22 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
             </>
           )}
         </button>
+
+        {/* Sleek Voice Settings Trigger */}
+        {voiceSettings && onUpdateVoiceSettings && (
+          <button
+            type="button"
+            onClick={() => setIsVoiceSettingsOpen((prev) => !prev)}
+            className={`min-h-[40px] px-2.5 py-1 rounded-full border transition-all tactile-spring flex items-center justify-center ${
+              isVoiceSettingsOpen
+                ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/50 shadow-[0_0_12px_rgba(255,45,149,0.3)]'
+                : 'bg-white/[0.03] text-slate-400 hover:text-cyan-300 border-white/[0.08] hover:border-cyan-500/40'
+            }`}
+            title="Configure J.A.R.V.I.S. Voice Persona & Modes"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {/* Interactive Model Selector Dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -364,6 +389,17 @@ export const TelemetryHeader: React.FC<TelemetryHeaderProps> = ({
           <span className="hidden sm:inline">Clear</span>
         </button>
       </div>
+
+      {voiceSettings && onUpdateVoiceSettings && (
+        <VoiceSettingsPopover
+          isOpen={isVoiceSettingsOpen}
+          onClose={() => setIsVoiceSettingsOpen(false)}
+          voiceSettings={voiceSettings}
+          onUpdateSettings={onUpdateVoiceSettings}
+          onTestVoice={onTestVoice || (async () => {})}
+          isSpeaking={isSpeaking}
+        />
+      )}
     </header>
   );
 };
