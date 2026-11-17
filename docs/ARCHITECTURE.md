@@ -4,31 +4,30 @@ This document details the software architecture, runtime topology, data flows, a
 
 ---
 
-## 1. System Overview & Dual-Stack Topology
+## 1. System Overview & Architecture Topology
 
-CircuitSnap is an AI-powered electronics verification and diagnostic assistant tailored for Electronics and Communication Engineering (ECE) students and laboratory researchers.
+CircuitSnap is an AI-powered engineering verification and diagnostic assistant tailored for engineering students (specializing in ECE, Electrical, Computer Science, Mechanical, Civil, and Engineering Mathematics) and laboratory researchers.
 
-The system is deployed in a dual-stack configuration during the migration from the original monolithic Streamlit application to a decoupled modern web application:
+The system is deployed as a high-performance decoupled modern web application:
 
 ```mermaid
 flowchart TD
     subgraph Client Tier
-        Browser["Web Browser (Port 5173 / 8501)"]
+        Browser["Web Browser (Port 5173)"]
     end
 
-    subgraph Legacy Runtime
-        Streamlit["Streamlit Application (app.py:8501)"]
-        UI_Streamlit["Streamlit UI (ui.py, styles.css)"]
-    end
-
-    subgraph Modern Architecture
+    subgraph Frontend Application
         ReactApp["React 19 Frontend (Vite:5173)"]
         ViteProxy["Vite Dev Proxy (/api -> :8000)"]
-        FastAPI["FastAPI Backend (backend.main:app:8000)"]
-        Routers["APIRouters (chat.py, analyze.py)"]
     end
 
-    subgraph Shared Core Intelligence
+    subgraph Backend Application
+        FastAPI["FastAPI Backend (backend.main:app:8000)"]
+        Routers["APIRouters (chat.py, analyze.py, voice.py, learn.py)"]
+        JarvisEngine["J.A.R.V.I.S. Cognitive Engines (math, mech, vault)"]
+    end
+
+    subgraph Core Intelligence Layer
         Engine["Engine (engine.py)"]
         Models["Model Registry (models.py)"]
         Prompts["Prompts & Calibration (prompts.py)"]
@@ -40,14 +39,11 @@ flowchart TD
         GroqAPI["Groq Cloud API (Qwen 3.8 27B)"]
     end
 
-    Browser -->|HTTP:8501| Streamlit
-    Streamlit --> UI_Streamlit
-    Streamlit --> Engine
-
     Browser -->|HTTP:5173| ReactApp
     ReactApp --> ViteProxy
     ViteProxy -->|HTTP:8000| FastAPI
     FastAPI --> Routers
+    FastAPI --> JarvisEngine
     Routers --> Engine
 
     Engine --> Models
@@ -59,9 +55,9 @@ flowchart TD
 
 ---
 
-## 2. Shared Core Intelligence Layer
+## 2. Core Intelligence Layer
 
-The core reasoning logic is completely decoupled from presentation frameworks, allowing Streamlit and FastAPI to share identical intelligence guarantees:
+The core reasoning logic is completely decoupled from presentation frameworks, providing reliable intelligence guarantees:
 
 1. **`models.py` (Model Registry)**:
    - Configures model identifiers, fallback cascades, vision flags, and human-readable metadata.

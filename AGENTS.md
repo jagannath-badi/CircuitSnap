@@ -4,13 +4,12 @@ This document provides mandatory operational instructions, verified commands, ar
 
 ---
 
-## 1. Project Architecture & Dual-Stack Preservation
+## 1. Project Architecture & Standards
 
-CircuitSnap is an AI-powered electronics assistant for Electronics and Communication Engineering (ECE) students. The repository is actively executing a migration from a monolithic Streamlit application to a decoupled **FastAPI backend** and **React + TypeScript + Vite frontend** on branch `migration/fastapi-react`.
+CircuitSnap is an AI-powered engineering assistant for engineering students (specializing in ECE, Electrical, Computer Science, Mechanical, Civil, and Engineering Mathematics). The architecture consists of a decoupled **FastAPI backend** and **React + TypeScript + Vite frontend**.
 
-### Critical Invariance Rule
-- **Preserve the Streamlit Application**: The legacy Streamlit application (`app.py`, `ui.py`, `styles.css`, `.streamlit/`) is operational and **must remain untouched and fully working**.
-- **Shared Python Core**: The files `engine.py`, `models.py`, `prompts.py`, and `providers.py` constitute the shared reasoning and provider core used by **both** Streamlit and FastAPI. Any modifications to these files must maintain strict backward compatibility with both runtimes.
+### Core Invariance Rule
+- **Shared Python Core**: The files `engine.py`, `models.py`, `prompts.py`, and `providers.py` constitute the core reasoning and provider layer used by the FastAPI backend. Any modifications to these files must maintain strict reliability and accuracy guarantees.
 
 ---
 
@@ -18,20 +17,20 @@ CircuitSnap is an AI-powered electronics assistant for Electronics and Communica
 
 ```text
 CircuitSnap/
-├── app.py                      # Streamlit application entry point & session state
-├── ui.py                       # Streamlit UI component rendering
-├── styles.css                  # Streamlit CSS custom styling
-├── engine.py                   # Shared intelligence orchestration & ECE workflow engine
-├── models.py                   # Shared model registry (Gemini default, Groq)
-├── prompts.py                  # Shared system prompt, adaptive calibration & prompt templates
-├── providers.py                # Shared AI client layer (Google GenAI SDK, Groq SDK)
-├── requirements.txt            # Python dependencies (Streamlit, google-genai, groq, pillow)
+├── engine.py                   # Shared intelligence orchestration & engineering workflow engine
+├── models.py                   # Model registry (Gemini default, Groq)
+├── prompts.py                  # System prompt, adaptive calibration & prompt templates
+├── providers.py                # AI client layer (Google GenAI SDK, Groq SDK)
+├── requirements.txt            # Python dependencies (FastAPI, google-genai, groq, pillow, etc.)
 ├── backend/                    # FastAPI Backend Application
 │   ├── main.py                 # FastAPI app entry point, CORS middleware, /api/health
 │   ├── schemas.py              # Pydantic v2 request & response models
+│   ├── jarvis_engine/          # Offline symbolic, mechanical, and knowledge vault engines
 │   └── routers/
-│       ├── chat.py             # POST /api/chat router (multi-turn text chat)
-│       └── analyze.py          # POST /api/analyze router (multipart image analysis)
+│       ├── chat.py             # POST /api/chat router (multi-turn text chat & SSE stream)
+│       ├── analyze.py          # POST /api/analyze router (multipart image analysis)
+│       ├── voice.py            # POST /api/tts & /api/stt voice endpoints
+│       └── learn.py            # POST /api/learn/ingest & knowledge vault routes
 ├── frontend/                   # React + TypeScript + Vite Frontend Application
 │   ├── index.html              # HTML shell
 │   ├── package.json            # Scripts: dev, build, lint, preview
@@ -40,9 +39,9 @@ CircuitSnap/
 │   ├── tsconfig.app.json       # App TypeScript configuration
 │   └── src/
 │       ├── main.tsx            # React root, index.css, and katex.min.css imports
-│       ├── App.tsx             # Two-Column Workbench layout, DUT state, AST badge plugin
+│       ├── App.tsx             # Workbench layout, DUT state, AST badge plugin
 │       ├── TelemetryHeader.tsx # Pinned header with health LED, telemetry chips, bench reset
-│       ├── api.ts              # Fetch client wrappers for health, chat, and analyze
+│       ├── api.ts              # Fetch client wrappers for health, chat, analyze, voice, learn
 │       ├── index.css           # Tailwind v4 import, custom scrollbars, KaTeX overrides
 │       └── assets/             # Static graphics
 └── docs/                       # Project documentation
@@ -55,12 +54,8 @@ CircuitSnap/
 
 All agents must use the following exact commands for running and verifying the application:
 
-### Python & Streamlit / FastAPI
+### Python & FastAPI Backend
 - **Virtual Environment**: Located at `.\venv\` on Windows (`.\venv\Scripts\python.exe`).
-- **Run Streamlit (Port 8501)**:
-  ```powershell
-  .\venv\Scripts\python.exe -m streamlit run app.py
-  ```
 - **Run FastAPI Backend (Port 8000)**:
   ```powershell
   .\venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8000
@@ -123,12 +118,11 @@ The Vite server (port `5173`) proxies all `/api` traffic directly to `http://127
 ## 5. Security, Secrets & Provider Isolation
 
 1. **Zero Secret Exposure**:
-   - Never read, grep, log, or disclose `.env`, `.streamlit/secrets.toml`, or environment API keys.
+   - Never read, grep, log, or disclose `.env` or environment API keys.
    - Do NOT log raw authorization headers or credentials.
 2. **Key Resolution Order**:
-   - `providers._get_api_key(name)` checks `os.environ.get(name)` first, then falls back to `st.secrets[name]`.
-   - In FastAPI mode, keys are read from the execution environment.
-   - In Streamlit mode, keys are loaded from `.streamlit/secrets.toml` or environment.
+   - `providers._get_api_key(name)` checks `os.environ.get(name)`.
+   - Keys are read securely from the execution environment.
 3. **Provider Failover**:
    - `providers.py` and `engine.py` manage automatic provider and model fallback (e.g., Gemini primary failing over to Groq/Qwen, or model degradation). Agents must not circumvent or strip the fallback logic.
 

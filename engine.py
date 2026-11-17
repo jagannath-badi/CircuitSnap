@@ -12,8 +12,6 @@ The engine decides:
     4. What evidence/accuracy rules are important
     5. How much technical depth is appropriate
     6. How the selected AI provider should answer
-
-The engine does NOT communicate with Streamlit UI directly.
 """
 
 from __future__ import annotations
@@ -260,8 +258,6 @@ def detect_intent(user_text: str) -> str:
         "wrong",
         "fault",
         "faulty",
-        "problem",
-        "issue",
         "troubleshoot",
         "why isn't",
         "why isnt",
@@ -561,7 +557,7 @@ def infer_previous_workflow(
 
         previous_input_type = infer_input_type_hint(
             user_text=previous_text,
-            has_image=True,
+            has_image=False,
         )
         return select_workflow(
             intent=previous_intent,

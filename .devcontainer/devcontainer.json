@@ -5,8 +5,7 @@
   "customizations": {
     "codespaces": {
       "openFiles": [
-        "README.md",
-        "app.py"
+        "README.md"
       ]
     },
     "vscode": {
@@ -17,17 +16,22 @@
       ]
     }
   },
-  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
+  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; echo '✅ Packages installed and Requirements met'",
   "postAttachCommand": {
-    "server": "streamlit run app.py"
+    "server": "uvicorn backend.main:app --reload --port 8000"
   },
   "portsAttributes": {
-    "8501": {
-      "label": "Application",
+    "8000": {
+      "label": "FastAPI Backend",
+      "onAutoForward": "openPreview"
+    },
+    "5173": {
+      "label": "Vite Frontend",
       "onAutoForward": "openPreview"
     }
   },
   "forwardPorts": [
-    8501
+    8000,
+    5173
   ]
 }

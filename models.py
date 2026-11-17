@@ -13,18 +13,18 @@ This file does not communicate with any AI provider.
 
 MODELS = {
     "Gemini": {
-    "provider": "Gemini",
-    "model_id": "gemini-3.8-flash",
-    "fallback_models": [
-        "gemini-3.6-flash",
-        "gemini-3.5-flash",
-        "gemini-flash-latest",
-    ],
-    "fallback_provider": "Groq",
-    "vision": True,
-    "reasoning": True,
-    "status": "Recommended",
-},
+        "provider": "Gemini",
+        "model_id": "gemini-3.8-flash",
+        "fallback_models": [
+            "gemini-3.6-flash",
+            "gemini-2.5-flash",
+            "gemini-flash-latest",
+        ],
+        "fallback_provider": "Groq",
+        "vision": True,
+        "reasoning": True,
+        "status": "Recommended",
+    },
 
     "Groq": {
         "provider": "Groq",

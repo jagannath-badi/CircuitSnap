@@ -12,10 +12,6 @@ import base64
 import os
 import re
 
-try:
-    import streamlit as st
-except ImportError:
-    st = None
 from google import genai
 from google.genai import types
 from groq import Groq
@@ -32,21 +28,8 @@ _CLIENT_CACHE = {}
 
 
 def _get_api_key(name: str):
-    """Retrieve API key from os.environ first, falling back to st.secrets if available."""
-    # 1. Direct environment variable (Render, production)
-    key = os.environ.get(name)
-    if key:
-        return key
-
-    # 2. Streamlit secrets fallback (local development)
-    if st is not None:
-        try:
-            if hasattr(st, "secrets") and name in st.secrets:
-                return st.secrets[name]
-        except Exception:
-            pass
-
-    return None
+    """Retrieve API key from os.environ."""
+    return os.environ.get(name)
 
 
 def get_gemini_client():
@@ -175,7 +158,7 @@ def ask_gemini(
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
-            max_output_tokens=2048,
+            max_output_tokens=4096,
             tools=None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         ),
@@ -271,7 +254,7 @@ def ask_groq(
     response = client.chat.completions.create(
         model=model_id,
         messages=messages,
-        max_completion_tokens=2048,
+        max_completion_tokens=4096,
     )
 
     if response.choices and response.choices[0].message:
@@ -512,7 +495,7 @@ def _classify_provider_error(error):
 def _is_fallback_eligible(error_type):
     """Return whether a known provider failure is safe to retry/fallback."""
 
-    return error_type in {"temporary_unavailability", "rate_limited"}
+    return error_type in {"temporary_unavailability", "rate_limited", "invalid_model"}
 
 
 def _format_provider_error(
@@ -850,10 +833,14 @@ def ask_provider(
             )
 
         if not _is_fallback_eligible(error_type):
-            return failure(
-                "Groq", model_id, error, error_type,
-                fallback_used=fallback_used, attempts=attempts,
-            )
+            if image_bytes is not None and error_type == "invalid_request":
+                # Fall through to Gemini vision fallback
+                pass
+            else:
+                return failure(
+                    "Groq", model_id, error, error_type,
+                    fallback_used=fallback_used, attempts=attempts,
+                )
 
         # Retry once if temporary unavailability
         if error_type == "temporary_unavailability":
@@ -875,10 +862,13 @@ def ask_provider(
                 )
 
             if not _is_fallback_eligible(error_type):
-                return failure(
-                    "Groq", model_id, error, error_type,
-                    fallback_used=fallback_used, attempts=attempts,
-                )
+                if image_bytes is not None and error_type == "invalid_request":
+                    pass
+                else:
+                    return failure(
+                        "Groq", model_id, error, error_type,
+                        fallback_used=fallback_used, attempts=attempts,
+                    )
 
         # Symmetric fallback to Gemini if configured
         fallback_provider = groq_config.get("fallback_provider")
