@@ -85,6 +85,7 @@ def ask_gemini(
     history=None,
     image_bytes=None,
     mime_type=None,
+    temperature: float = 0.55,
 ):
     """
     Send a request to Gemini.
@@ -158,6 +159,7 @@ def ask_gemini(
         contents=contents,
         config=types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
+            temperature=temperature,
             max_output_tokens=4096,
             tools=None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
@@ -177,6 +179,7 @@ def ask_groq(
     history=None,
     image_bytes=None,
     mime_type=None,
+    temperature: float = 0.55,
 ):
     """
     Send a request to Groq.
@@ -254,6 +257,7 @@ def ask_groq(
     response = client.chat.completions.create(
         model=model_id,
         messages=messages,
+        temperature=temperature,
         max_completion_tokens=4096,
     )
 
@@ -599,6 +603,7 @@ def ask_provider(
     image_bytes=None,
     mime_type=None,
     return_metadata=False,
+    temperature: float = 0.55,
 ):
     """
     Send a request to the selected provider.
@@ -670,6 +675,7 @@ def ask_provider(
                 history=history,
                 image_bytes=image_bytes,
                 mime_type=mime_type,
+                temperature=temperature,
             )
         )
 
@@ -695,6 +701,7 @@ def ask_provider(
                     history=history,
                     image_bytes=image_bytes,
                     mime_type=mime_type,
+                    temperature=temperature,
                 )
             )
 
@@ -721,6 +728,7 @@ def ask_provider(
                     history=history,
                     image_bytes=image_bytes,
                     mime_type=mime_type,
+                    temperature=temperature,
                 )
             )
 
@@ -775,6 +783,7 @@ def ask_provider(
                 history=history,
                 image_bytes=image_bytes,
                 mime_type=mime_type,
+                temperature=temperature,
             )
         )
 
@@ -823,6 +832,7 @@ def ask_provider(
                 history=history,
                 image_bytes=image_bytes,
                 mime_type=mime_type,
+                temperature=temperature,
             )
         )
 
@@ -852,6 +862,7 @@ def ask_provider(
                     history=history,
                     image_bytes=image_bytes,
                     mime_type=mime_type,
+                    temperature=temperature,
                 )
             )
 
@@ -910,6 +921,7 @@ def ask_provider(
                 history=history,
                 image_bytes=image_bytes,
                 mime_type=mime_type,
+                temperature=temperature,
             )
         )
 

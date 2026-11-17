@@ -95,82 +95,100 @@ def normalize_ece_speech(text: str) -> str:
     return t
 
 
-def clean_tts_text(raw: str) -> str:
-    """Strips markdown formatting, tables, and LaTeX math into natural spoken units for edge-tts."""
-    if not raw or not raw.strip():
+def format_for_voice(text: str) -> str:
+    """
+    Sanitizes Markdown, tables, and LaTeX math into natural spoken English for Sonia Neural TTS.
+    Converts mathematical symbols and fractions into spoken words, strips formatting syntax,
+    and caps length at clean sentence boundaries.
+    """
+    if not text or not text.strip():
         return "Specifications and calculations are displayed on screen."
 
-    text = raw
-    # Pronounce "Jarvis" as a single cohesive word
-    text = re.sub(r"J\.A\.R\.V\.I\.S\.?", "Jarvis", text, flags=re.IGNORECASE)
-    text = re.sub(r"\bJARVIS\b", "Jarvis", text)
+    t = text
+    # 1. Pronounce Jarvis smoothly
+    t = re.sub(r"J\.A\.R\.V\.I\.S\.?", "Jarvis", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bJARVIS\b", "Jarvis", t)
 
-    # Strip code blocks and inline code
-    text = re.sub(r"```[\s\S]*?```", " ", text)
-    text = re.sub(r"`([^`]+)`", r"\1", text)
+    # 2. Replace fenced code blocks and inline code
+    t = re.sub(r"```[\s\S]*?```", " See the code block on screen. ", t)
+    t = re.sub(r"`([^`]+)`", r"\1", t)
 
-    # Strip markdown tables completely
-    text = re.sub(r"^\s*\|.*\|\s*$", " ", text, flags=re.MULTILINE)
-    text = re.sub(r"\|[^\n]+\|", " ", text)
+    # 3. Strip Markdown tables completely
+    t = re.sub(r"^\s*\|.*\|\s*$", " ", t, flags=re.MULTILINE)
+    t = re.sub(r"\|[^\n]+\|", " ", t)
 
-    # Strip headers and badges
-    text = re.sub(r"(?:^|\n)\s*#{1,6}\s*", " ", text)
-    text = re.sub(r"\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:\-\u2013\u2014]?", "", text, flags=re.IGNORECASE)
-    text = re.sub(r"\b(?:CONFIRMED|CANNOT CONFIRM)\b\s*[:\-\u2013\u2014]?", "", text, flags=re.IGNORECASE)
+    # 4. Strip headers and confidence badges
+    t = re.sub(r"(?:^|\n)\s*#{1,6}\s*", " ", t)
+    t = re.sub(r"\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:\-\u2013\u2014]?", "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(?:CONFIRMED|CANNOT CONFIRM|LIKELY)\b\s*[:\-\u2013\u2014]?", "", t)
 
-    # LaTeX math conversion
-    text = re.sub(r"\$\$([\s\S]*?)\$\$", r" \1 ", text)
-    text = re.sub(r"\$([^$]+)\$", r" \1 ", text)
-    text = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"\1 over \2", text)
-    text = re.sub(r"\\sqrt\{([^}]+)\}", r"square root of \1", text)
-    text = re.sub(r"\\cdot|\\times", " times ", text)
-    text = re.sub(r"\\approx", " approximately ", text)
-    text = re.sub(r"\\pi", "pi", text)
-    text = re.sub(r"\\mu", "micro", text)
-    text = re.sub(r"\\Omega", "ohms", text)
-    text = re.sub(r"\\mathbf\{([^}]+)\}", r"\1", text)
-    text = re.sub(r"\\text\{([^}]+)\}", r"\1", text)
-    text = re.sub(r"\\[a-zA-Z]+", " ", text)
+    # 5. LaTeX math conversion to natural spoken English
+    while re.search(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", t):
+        t = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"\1 over \2", t)
+    t = re.sub(r"\\sqrt\{([^{}]+)\}", r"square root of \1", t)
+    t = re.sub(r"\\cdot|\\times", " times ", t)
+    t = re.sub(r"\\approx", " approximately ", t)
+    t = re.sub(r"\\implies|=>", " implies ", t)
+    t = re.sub(r"\\to|->", " leads to ", t)
+    t = re.sub(r"\\pi", "pi", t)
+    t = re.sub(r"\\mu", "micro", t)
+    t = re.sub(r"\\Omega", "ohms", t)
+    t = re.sub(r"\^2\b|\^{2}", " squared", t)
+    t = re.sub(r"\^3\b|\^{3}", " cubed", t)
+    t = re.sub(r"\\mathbf\{([^{}]+)\}", r"\1", t)
+    t = re.sub(r"\\text\{([^{}]+)\}", r"\1", t)
+    t = re.sub(r"\\[,;!]", " ", t)
+    t = re.sub(r"\\[a-zA-Z]+", " ", t)
 
-    # Spoken electrical units
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*MΩ", r"\1 mega-ohms", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*kΩ", r"\1 kilo-ohms", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*Ω", r"\1 ohms", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*µF", r"\1 microfarads", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*uF", r"\1 microfarads", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*nF", r"\1 nanofarads", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*pF", r"\1 picofarads", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*mH", r"\1 millihenries", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*µH", r"\1 microhenries", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*uH", r"\1 microhenries", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*kHz", r"\1 kilohertz", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*MHz", r"\1 megahertz", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*GHz", r"\1 gigahertz", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*Hz", r"\1 hertz", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*mA", r"\1 milliamps", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*mV", r"\1 millivolts", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*V(?![a-zA-Z])", r"\1 volts", text)
-    text = re.sub(r"(\d+(?:\.\d+)?)\s*W(?![a-zA-Z])", r"\1 watts", text)
+    # Remove LaTeX delimiters $ and $$
+    t = re.sub(r"\$\$([\s\S]*?)\$\$", r" \1 ", t)
+    t = re.sub(r"\$([^$]+)\$", r" \1 ", t)
+    t = t.replace("$", "")
 
-    # Strip Markdown bullets & symbols
-    text = re.sub(r"[*_~`>]+", " ", text)
-    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
-    text = re.sub(r"\s+", " ", text).strip()
+    # 6. Spoken electrical units
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*MΩ", r"\1 mega-ohms", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*kΩ", r"\1 kilo-ohms", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*Ω", r"\1 ohms", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*µF", r"\1 microfarads", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*uF", r"\1 microfarads", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*nF", r"\1 nanofarads", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*pF", r"\1 picofarads", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*mH", r"\1 millihenries", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*µH", r"\1 microhenries", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*uH", r"\1 microhenries", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*kHz", r"\1 kilohertz", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*MHz", r"\1 megahertz", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*GHz", r"\1 gigahertz", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*Hz", r"\1 hertz", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*mA", r"\1 milliamps", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*mV", r"\1 millivolts", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*V(?![a-zA-Z])", r"\1 volts", t)
+    t = re.sub(r"(\d+(?:\.\d+)?)\s*W(?![a-zA-Z])", r"\1 watts", t)
 
-    if len(text) < 12:
+    # 7. Strip Markdown bullets & symbols
+    t = re.sub(r"[*_~`>#]+", " ", t)
+    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
+    t = t.replace("\\", " ")
+
+    # 8. Collapse extra whitespace
+    t = re.sub(r"\s+", " ", t).strip()
+
+    if len(t) < 5:
         return "Specifications and calculations are displayed on screen."
 
     # Cap spoken text to ~480 characters at a clean sentence boundary
-    if len(text) > 480:
-        cut = text[:480]
-        # Look for sentence boundary between 240 and 480
+    if len(t) > 480:
+        cut = t[:480]
         match = list(re.finditer(r"[.!?](?:\s|$)", cut))
         if match and match[-1].end() >= 220:
-            text = cut[: match[-1].end()].strip()
+            t = cut[: match[-1].end()].strip()
         else:
-            text = cut.rsplit(" ", 1)[0].rstrip(",;:-") + "."
+            t = cut.rsplit(" ", 1)[0].rstrip(",;:-") + "."
 
-    return text
+    return t
+
+
+clean_tts_text = format_for_voice
 
 
 SUPPORTED_VOICES: Dict[str, Dict[str, str]] = {
@@ -310,7 +328,7 @@ async def text_to_speech(payload: TTSRequest):
     Neural Text-to-Speech using edge-tts with selectable persona (default: en-GB-SoniaNeural).
     Streams MP3 audio with 8.0s timeout safety to eliminate hanging connections.
     """
-    cleaned_text = clean_tts_text(payload.text)
+    cleaned_text = format_for_voice(payload.text)
     if not cleaned_text:
         cleaned_text = "Specifications and calculations are displayed on screen."
 

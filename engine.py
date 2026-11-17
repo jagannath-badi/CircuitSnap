@@ -90,6 +90,8 @@ class RequestContext:
 
     detail_level: str = "normal"
 
+    temperature: float = 0.55
+
     image_context: str = ""
 
     conversation_context: str = ""
@@ -970,6 +972,20 @@ def build_context(
             previous_visual_context.get("summary") or ""
         ).strip()[:2000]
 
+    if (
+        workflow in {
+            "calculation",
+            "circuit_troubleshooting",
+            "component_identification",
+            "circuit_analysis",
+            "exam_answer",
+        }
+        or detail_level in {"exam", "detailed"}
+    ):
+        temperature = 0.2
+    else:
+        temperature = 0.55
+
     return RequestContext(
         user_text=user_text.strip(),
         has_image=has_image,
@@ -977,6 +993,7 @@ def build_context(
         intent=intent,
         workflow=workflow,
         detail_level=detail_level,
+        temperature=temperature,
         image_context=image_context,
         conversation_context=conversation_context,
         evidence_rules=evidence_rules,
@@ -1052,6 +1069,16 @@ def build_engine_prompt(
         context.workflow,
         WORKFLOW_INSTRUCTIONS["general_electronics"],
     )
+
+    layout_directive = ""
+    if context.workflow == "comparison":
+        layout_directive = "OUTPUT FORMAT: Use a compact Markdown comparison table with concise cells."
+    elif context.workflow in {"circuit_troubleshooting", "troubleshoot"} or context.intent == "troubleshoot":
+        layout_directive = "OUTPUT FORMAT: Group strictly into 1. Confirmed Observations, 2. Likely Causes, 3. Safe Verification Steps."
+    elif context.workflow in {"calculation", "exam_answer"}:
+        layout_directive = "OUTPUT FORMAT: Numbered derivation steps with KaTeX formulas, defined symbols, and SI units."
+    elif context.workflow == "concept_learning" and context.detail_level == "simple":
+        layout_directive = "OUTPUT FORMAT: 1-2 sentence direct definition + 3 concise bullets with bold lead-ins (<110 words)."
 
     evidence = "\n".join(
         f"- {rule}"
@@ -1230,6 +1257,7 @@ The goal is to give exactly the amount of information needed
 to answer the user's current request clearly.
 
 OUTPUT FORMATTING:
+{layout_directive}
 - Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
 - Use bold lead-ins for every bullet item.
 - Use numbered lists only for sequential procedures.
@@ -1277,6 +1305,7 @@ def run_engine(
     image_bytes: Optional[bytes] = None,
     mime_type: Optional[str] = None,
     previous_visual_context: Optional[dict] = None,
+    temperature: Optional[float] = None,
 ):
     """
     Main CircuitSnap backend entry point.
@@ -1302,6 +1331,10 @@ def run_engine(
         previous_visual_context=previous_visual_context,
     )
 
+    effective_temperature = (
+        temperature if temperature is not None else context.temperature
+    )
+
     provider_result = ask_provider(
         provider=provider,
         model_id=model_id,
@@ -1310,6 +1343,7 @@ def run_engine(
         image_bytes=image_bytes,
         mime_type=mime_type,
         return_metadata=True,
+        temperature=effective_temperature,
     )
 
     return {
