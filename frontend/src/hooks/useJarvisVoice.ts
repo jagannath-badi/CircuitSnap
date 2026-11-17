@@ -11,7 +11,7 @@ export interface VoiceSettings {
 
 export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   voiceId: 'en-GB-SoniaNeural',
-  interactionMode: 'single',
+  interactionMode: 'live',
   speechRate: 1.04,
   autoSpeak: true,
 };
@@ -142,6 +142,8 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceSettings, setVoiceSettingsState] = useState<VoiceSettings>(loadVoiceSettings);
+  const [liveTranscript, setLiveTranscript] = useState<string>('');
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const [supported] = useState<boolean>(() => {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
@@ -153,6 +155,9 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const latestLiveTranscriptRef = useRef<string>('');
 
   const vadIntervalRef = useRef<number | null>(null);
   const recordingTimerRef = useRef<number | null>(null);
@@ -201,6 +206,10 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     };
   }, []);
 
+  const clearVoiceError = useCallback(() => {
+    setVoiceError(null);
+  }, []);
+
   /**
    * Master bulletproof reset: aborts active MediaRecorder, drops mic tracks,
    * closes audioCtx, clears all timers, aborts fetches, and resets voiceState to idle.
@@ -217,6 +226,15 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     if (rearmTimerRef.current) {
       clearTimeout(rearmTimerRef.current);
       rearmTimerRef.current = null;
+    }
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
     }
 
     if (sttAbortControllerRef.current) {
@@ -265,6 +283,9 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
 
     hasQualifiedSpeechRef.current = false;
     activeSpeechMsRef.current = 0;
+    latestLiveTranscriptRef.current = '';
+    setLiveTranscript('');
+    setVoiceError(null);
     setVoiceState('idle');
   }, []);
 
@@ -290,6 +311,14 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     if (recordingTimerRef.current) {
       clearTimeout(recordingTimerRef.current);
       recordingTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
     }
     if (!allowProcessing) {
       hasQualifiedSpeechRef.current = false;
@@ -346,7 +375,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
         if (isVoiceEnabledRef.current && voiceSettingsRef.current.interactionMode === 'live') {
           rearmTimerRef.current = window.setTimeout(() => {
             void startListeningRef.current();
-          }, 1000);
+          }, 800);
         }
       };
       utterance.onerror = () => {
@@ -430,7 +459,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
           if (isVoiceEnabledRef.current && voiceSettingsRef.current.interactionMode === 'live') {
             rearmTimerRef.current = window.setTimeout(() => {
               void startListeningRef.current();
-            }, 1000);
+            }, 800);
           }
         };
 
@@ -465,6 +494,9 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     if (voiceStateRef.current === 'listening' || voiceStateRef.current === 'transcribing') return;
 
     cancelSpeech();
+    setVoiceError(null);
+    setLiveTranscript('');
+    latestLiveTranscriptRef.current = '';
 
     try {
       if (streamRef.current) {
@@ -519,8 +551,24 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
       };
 
       mediaRecorder.onstop = async () => {
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.abort();
+          } catch {
+            // ignore
+          }
+          recognitionRef.current = null;
+        }
+
         const chunks = chunksRef.current;
-        if (chunks.length > 0 && hasQualifiedSpeechRef.current && voiceStateRef.current !== 'speaking') {
+        const liveFallbackText = latestLiveTranscriptRef.current.trim();
+        if (liveFallbackText) {
+          hasQualifiedSpeechRef.current = true;
+        }
+        const qualified = hasQualifiedSpeechRef.current || chunks.length > 0;
+        let sttDispatched = false;
+
+        if (chunks.length > 0 && qualified && voiceStateRef.current !== 'speaking') {
           setVoiceState('transcribing');
           const audioBlob = new Blob(chunks, mimeType ? { type: mimeType } : undefined);
 
@@ -546,7 +594,12 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
               const rawText = data.text || '';
               const clean = stripWakeWord(rawText);
               if (clean.trim()) {
+                sttDispatched = true;
+                setVoiceError(null);
+                setLiveTranscript(clean.trim());
+                onTranscriptRef.current?.(clean.trim());
                 onFinalTranscriptRef.current?.(clean.trim());
+                setTimeout(() => setLiveTranscript(''), 1000);
               }
             }
           } catch (err) {
@@ -557,12 +610,66 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
             }
           }
         }
+
+        // If Whisper /api/stt didn't dispatch, fallback to real-time recognized interim transcript
+        if (!sttDispatched) {
+          const fallbackText = stripWakeWord(latestLiveTranscriptRef.current);
+          if (fallbackText.trim() && voiceStateRef.current !== 'speaking') {
+            setVoiceError(null);
+            setLiveTranscript(fallbackText.trim());
+            onTranscriptRef.current?.(fallbackText.trim());
+            onFinalTranscriptRef.current?.(fallbackText.trim());
+            setTimeout(() => setLiveTranscript(''), 1000);
+          } else {
+            setVoiceError('No speech detected — check mic input or speak closer');
+            setTimeout(() => setLiveTranscript(''), 600);
+          }
+        }
+
         hasQualifiedSpeechRef.current = false;
         activeSpeechMsRef.current = 0;
+        latestLiveTranscriptRef.current = '';
         if (voiceStateRef.current === 'transcribing') {
           setVoiceState('idle');
         }
       };
+
+      // Parallel browser SpeechRecognition for immediate real-time interim preview
+      if (typeof window !== 'undefined') {
+        const SpeechRec =
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as unknown as { SpeechRecognition?: any }).SpeechRecognition ||
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as unknown as { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+        if (SpeechRec) {
+          try {
+            const rec = new SpeechRec();
+            rec.continuous = true;
+            rec.interimResults = true;
+            rec.lang = 'en-US';
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            rec.onresult = (event: any) => {
+              let interim = '';
+              for (let i = 0; i < event.results.length; i++) {
+                interim += event.results[i][0].transcript;
+              }
+              const trimmed = interim.trim();
+              if (trimmed) {
+                latestLiveTranscriptRef.current = trimmed;
+                setLiveTranscript(trimmed);
+                onTranscriptRef.current?.(trimmed);
+              }
+            };
+            rec.onerror = () => {
+              // Non-fatal interim preview error
+            };
+            rec.start();
+            recognitionRef.current = rec;
+          } catch {
+            // SpeechRecognition might fail if exclusive
+          }
+        }
+      }
 
       mediaRecorder.start(250);
       setVoiceState('listening');
@@ -594,9 +701,14 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
         }
         const rms = Math.sqrt(sumSquares / timeDomainData.length);
 
-        if (rms > 0.035) {
+        const hasLiveWords = latestLiveTranscriptRef.current.trim().length > 0;
+        if (hasLiveWords) {
+          hasQualifiedSpeechRef.current = true;
+        }
+
+        if (rms > 0.012 || hasLiveWords) {
           activeSpeechMsRef.current += 50;
-          if (activeSpeechMsRef.current >= 350) {
+          if (activeSpeechMsRef.current >= 150 || hasLiveWords) {
             hasQualifiedSpeechRef.current = true;
             silenceStart = null;
           }
@@ -618,6 +730,7 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
   startListeningRef.current = startListening;
 
   const stopListening = useCallback(() => {
+    hasQualifiedSpeechRef.current = true;
     stopListeningInternal(true);
   }, [stopListeningInternal]);
 
@@ -647,7 +760,13 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
       const next = !prev;
       isVoiceEnabledRef.current = next;
       if (next) {
-        void speak('Jarvis voice systems online.', undefined, true);
+        void speak(
+          'Jarvis voice systems online.',
+          () => {
+            void startListeningRef.current();
+          },
+          true
+        );
       } else {
         hardResetVoice();
       }
@@ -663,6 +782,9 @@ export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoi
     isTranscribing: voiceState === 'transcribing',
     supported,
     voiceSettings,
+    liveTranscript,
+    voiceError,
+    clearVoiceError,
     updateVoiceSettings,
     toggleVoiceMode,
     startListening,

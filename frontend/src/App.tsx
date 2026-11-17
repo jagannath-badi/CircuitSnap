@@ -43,7 +43,7 @@ export default function App() {
   const activeObjectUrlsRef = useRef<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const { isVoiceEnabled, voiceState, isListening, isSpeaking, voiceSettings, updateVoiceSettings, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech, hardResetVoice, testVoicePersona } = useJarvisVoice({
+  const { isVoiceEnabled, voiceState, isListening, isSpeaking, voiceSettings, liveTranscript, voiceError, clearVoiceError, updateVoiceSettings, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech, hardResetVoice, testVoicePersona } = useJarvisVoice({
     onTranscript: (t) => { setInputPrompt(t); textareaRef.current?.focus(); },
     onFinalTranscript: (t) => { if (t.trim()) void handleSendMessage(t.trim()); },
   });
@@ -234,7 +234,7 @@ export default function App() {
             speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud}
             responseStyle={responseStyle} onResponseStyleChange={setResponseStyle}
             cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }}
-            voiceState={voiceState} onHardResetVoice={hardResetVoice}
+            voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError}
           />
         </div>
       </main>

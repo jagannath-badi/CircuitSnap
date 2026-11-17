@@ -244,7 +244,7 @@ def _transcribe_file(file_path: str) -> str:
             file_path,
             beam_size=1,
             vad_filter=True,
-            no_speech_threshold=0.6,
+            no_speech_threshold=0.75,
             condition_on_previous_text=False,
             initial_prompt=(
                 "Jarvis, CircuitSnap, Laplace, eigenvalue, Reynolds number, Bernoulli, "
