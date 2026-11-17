@@ -215,12 +215,13 @@ def solve_carnot_efficiency(th_val: float = 500.0, tc_val: float = 30.0, is_cels
     eta_carnot = 1.0 - (tc_k / th_k)
     cop_refrig = tc_k / (th_k - tc_k)
     cop_heatpump = th_k / (th_k - tc_k)
+    unit_str = r"^\circ\text{C}" if is_celsius else r"\text{K}"
 
     return (
         f"### [CONFIRMED] Carnot Cycle Thermodynamic Efficiency\n\n"
         f"Reservoir Temperatures:\n"
-        f"- Hot Source $T_H = {th_val:,.1f}\\,{('^\\circ\\text{C}' if is_celsius else '\\text{K}')}$ $\\implies \\mathbf{{{th_k:,.2f}\\,\\text{{K}}}}$\n"
-        f"- Cold Sink $T_C = {tc_val:,.1f}\\,{('^\\circ\\text{C}' if is_celsius else '\\text{K}')}$ $\\implies \\mathbf{{{tc_k:,.2f}\\,\\text{{K}}}}$\n\n"
+        f"- Hot Source $T_H = {th_val:,.1f}\\,{unit_str}$ $\\implies \\mathbf{{{th_k:,.2f}\\,\\text{{K}}}}$\n"
+        f"- Cold Sink $T_C = {tc_val:,.1f}\\,{unit_str}$ $\\implies \\mathbf{{{tc_k:,.2f}\\,\\text{{K}}}}$\n\n"
         f"#### 1. Second Law Maximum Thermal Efficiency ($\\eta_{{\\text{{Carnot}}}}$)\n\n"
         f"$$\\eta_{{\\text{{Carnot}}}} = 1 - \\frac{{T_C}}{{T_H}} = 1 - \\frac{{{tc_k:,.2f}}}{{{th_k:,.2f}}} = \\mathbf{{{eta_carnot * 100:.2f}\\%}}$$\n\n"
         f"#### 2. Reverse Cycle Coefficients of Performance (COP)\n\n"
