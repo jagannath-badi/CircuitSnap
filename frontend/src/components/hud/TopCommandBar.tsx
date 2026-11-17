@@ -48,7 +48,7 @@ export const TopCommandBar: React.FC<TopCommandBarProps> = ({
               <span className="font-mono text-xs font-bold tracking-wider text-cyan-300">MARK 85</span>
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/40 whitespace-nowrap">PRO</span>
             </div>
-            <div className="text-[10px] text-slate-400 font-mono tracking-tight whitespace-nowrap">CircuitSnap Cognitive OS</div>
+            <div className="text-[10px] text-slate-400 font-mono tracking-tight whitespace-nowrap">Multi-Discipline Engineering OS</div>
           </div>
         </div>
 
@@ -71,15 +71,29 @@ export const TopCommandBar: React.FC<TopCommandBarProps> = ({
         </nav>
       </div>
 
-      {/* Middle Quick Search Bar */}
-      <div className="hidden xl:flex items-center flex-shrink-0">
+      {/* Desktop Compact Search (lg to 2xl) */}
+      <div className="hidden lg:flex 2xl:hidden items-center flex-shrink-0">
         <button
           onClick={onOpenQuickSearch}
-          className="flex items-center gap-2 px-3 py-1.5 min-h-[44px] rounded-md bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+          className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[44px] rounded-md bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+          title="Quick Lookup (Ctrl + K)"
         >
           <Search className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-          <span className="whitespace-nowrap">Quick Lookup (Components, Theorems, PYQs)</span>
-          <kbd className="ml-3 px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700">Ctrl + K</kbd>
+          <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700">Ctrl + K</kbd>
+        </button>
+      </div>
+
+      {/* Full Quick Search Bar (2xl+) */}
+      <div className="hidden 2xl:flex items-center min-w-0 flex-1 max-w-sm">
+        <button
+          onClick={onOpenQuickSearch}
+          className="w-full flex items-center justify-between gap-2 px-3 py-1.5 min-h-[44px] rounded-md bg-slate-900/80 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
+        >
+          <div className="flex items-center gap-2 truncate">
+            <Search className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+            <span className="truncate">Quick Lookup (Theorems, Formulas, Diagrams, PYQs)</span>
+          </div>
+          <kbd className="ml-2 px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-400 border border-slate-700 flex-shrink-0">Ctrl + K</kbd>
         </button>
       </div>
 

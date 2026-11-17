@@ -19,9 +19,9 @@ export const TasksApprovalsPanel: React.FC<TasksApprovalsPanelProps> = ({
   const rightNow = operations?.right_now;
 
   return (
-    <div className="w-full h-full flex flex-col gap-3 font-mono select-none overflow-y-auto pr-1 pb-4">
+    <div className="w-full h-full flex flex-col gap-2.5 font-mono select-none overflow-y-auto pr-1 pb-2">
       {/* 1. "Needs You" Human-in-the-Loop Approval Queue */}
-      <div className="p-3.5 rounded-xl bg-cyan-950/20 border border-cyan-500/40 shadow-lg flex-shrink-0 animate-in fade-in">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-lg flex-shrink-0 animate-in fade-in">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-cyan-900/50">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-300 uppercase">
             <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
@@ -88,7 +88,7 @@ export const TasksApprovalsPanel: React.FC<TasksApprovalsPanelProps> = ({
 
       {/* 2. "Right Now" Smart Study Recommendation */}
       {rightNow && (
-        <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-md flex-shrink-0">
+        <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md flex-shrink-0">
           <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-800/60 text-xs font-bold tracking-wider text-cyan-300 uppercase">
             <Compass className="w-3.5 h-3.5 text-cyan-400" />
             <span>Right Now Recommendation</span>
@@ -104,7 +104,7 @@ export const TasksApprovalsPanel: React.FC<TasksApprovalsPanelProps> = ({
       )}
 
       {/* 3. Active Background Solvers */}
-      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-md flex-shrink-0">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md flex-shrink-0">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/60">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-300 uppercase">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
@@ -113,7 +113,7 @@ export const TasksApprovalsPanel: React.FC<TasksApprovalsPanelProps> = ({
           <span className="text-[10px] text-slate-400">Deterministic</span>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2">
           {tasks.map((task) => (
             <div key={task.id} className="text-xs">
               <div className="flex justify-between items-center mb-1">
@@ -137,7 +137,7 @@ export const TasksApprovalsPanel: React.FC<TasksApprovalsPanelProps> = ({
 
       {/* 4. Recent Completed Activity */}
       {recent.length > 0 && (
-        <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 text-xs flex-shrink-0">
+        <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass text-xs flex-shrink-0">
           <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-800/60 text-xs font-bold tracking-wider text-slate-400 uppercase">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
             <span>Recent Activity</span>

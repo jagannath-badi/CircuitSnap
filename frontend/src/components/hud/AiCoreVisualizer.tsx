@@ -11,7 +11,7 @@ interface AiCoreVisualizerProps {
 export const AiCoreVisualizer: React.FC<AiCoreVisualizerProps> = ({
   voiceState,
   cognitiveStep,
-  activeBranch = 'ECE',
+  activeBranch = 'ALL-DISCIPLINE',
   isStreaming = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -148,7 +148,7 @@ export const AiCoreVisualizer: React.FC<AiCoreVisualizerProps> = ({
             <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-100 tracking-wider whitespace-nowrap">MARK 85 ARC REASONER</span>
               <span className="px-1.5 py-0.2 rounded text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800/40 whitespace-nowrap">
-                BRANCH: {activeBranch}
+                MODE: {activeBranch}
               </span>
             </div>
             <div className="flex items-center gap-2 mt-1">

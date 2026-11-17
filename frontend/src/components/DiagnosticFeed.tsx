@@ -173,6 +173,22 @@ function rehypeConfidenceBadges() {
   };
 }
 
+/**
+ * Normalizes prose whitespace and eliminates stray excessive newlines while preserving
+ * code blocks and markdown tables intact.
+ */
+function normalizeProseContent(raw: string): string {
+  if (!raw) return '';
+  const parts = raw.split(/(```[\s\S]*?```)/g);
+  for (let i = 0; i < parts.length; i += 2) {
+    let part = parts[i].replace(/\r\n/g, '\n');
+    part = part.replace(/\n{3,}/g, '\n\n');
+    part = part.replace(/[^\S\n]{3,}/g, ' ');
+    parts[i] = part;
+  }
+  return parts.join('');
+}
+
 const markdownComponents: Components = {
   p: ({ children }) => (
     <p className="my-2 text-slate-200 leading-relaxed text-sm">{children}</p>
@@ -360,14 +376,44 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
         }`}
       >
         {messages.length === 0 ? (
-          /* Empty Feed State - Glowing J.A.R.V.I.S. Core Emblem & 3 Clickable Starter Cards */
-          <div className="flex flex-col items-center justify-center text-center p-6 max-w-lg mx-auto">
-            {/* Glowing J.A.R.V.I.S. Core Emblem with Concentric Rings */}
-            <div className="relative w-16 h-16 flex items-center justify-center mb-4">
-              <div className="absolute inset-0 rounded-full border border-[#00A6E8]/30 animate-ping pointer-events-none" />
-              <div className="absolute inset-1 rounded-full border border-dashed border-[#FF2D95]/40 animate-spin [animation-duration:14s]" />
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#00A6E8]/20 to-[#FF2D95]/20 border border-[#00A6E8]/50 flex items-center justify-center text-[#00A6E8] shadow-[0_0_24px_rgba(0,166,232,0.45)] animate-jarvis-glow">
-                <Sparkles className="w-6 h-6 text-[#00A6E8]" />
+          /* Empty Feed State - Glowing J.A.R.V.I.S. Core Emblem & 4 Clickable Starter Cards */
+          <div className="flex flex-col items-center justify-center text-center p-6 max-w-2xl mx-auto">
+            {/* Glowing Concentric SVG Arc Core with Cerulean, Electric Violet & Neon Rose */}
+            <div className="relative w-16 h-16 flex items-center justify-center mb-4 gpu-composited select-none">
+              {/* Outer Pulse */}
+              <div className="absolute inset-0 rounded-full border border-[#00A6E8]/20 animate-ping pointer-events-none" />
+
+              {/* Concentric Rotating SVG Arc Rings */}
+              <svg className="absolute inset-0 w-16 h-16 pointer-events-none" viewBox="0 0 64 64">
+                {/* Outer Cerulean Ring (#00A6E8) - 14s clockwise */}
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="28"
+                  fill="none"
+                  stroke="#00A6E8"
+                  strokeWidth="1.5"
+                  strokeDasharray="8 6 14 6"
+                  strokeOpacity="0.75"
+                  className="animate-[spin_14s_linear_infinite] origin-center"
+                />
+                {/* Middle Electric Violet Ring (#9D4EDD) - 8s counter-clockwise */}
+                <circle
+                  cx="32"
+                  cy="32"
+                  r="22"
+                  fill="none"
+                  stroke="#9D4EDD"
+                  strokeWidth="1.5"
+                  strokeDasharray="12 8 6 8"
+                  strokeOpacity="0.8"
+                  className="animate-[spin_8s_linear_infinite_reverse] origin-center"
+                />
+              </svg>
+
+              {/* Inner Glowing Core (#FF2D95) */}
+              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#00A6E8]/25 via-[#9D4EDD]/30 to-[#FF2D95]/30 border border-[#FF2D95]/60 flex items-center justify-center text-[#00A6E8] shadow-[0_0_20px_rgba(0,166,232,0.4),0_0_12px_rgba(255,45,149,0.35)] animate-jarvis-glow">
+                <Sparkles className="w-5 h-5 text-cyan-300 animate-pulse" />
               </div>
             </div>
 
@@ -375,57 +421,57 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               J.A.R.V.I.S. Multi-Discipline Engineering Core
             </h3>
             <p className="text-xs text-slate-400 mt-1.5 mb-5 leading-relaxed">
-              Sub-20ms offline intelligence for Math, Mechanics, CS, and Electronics engineering.
+              First-principles intelligence for Mathematics, Mechanics, Electronics, Civil, Chemical, and Computing.
             </p>
 
             {/* 4 Clickable Multi-Discipline Starter Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 w-full mb-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full mb-2">
               <button
                 type="button"
                 onClick={() => onQuickAction?.('Solve Laplace transform of sin(2*t)')}
-                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-[#00A6E8]/10 border border-[#00A6E8]/30 hover:border-[#00A6E8]/60 text-left transition-all group tactile-spring shadow-sm"
+                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
                 <div className="w-7 h-7 rounded-lg bg-[#00A6E8]/20 flex items-center justify-center text-[#00A6E8] mb-2 group-hover:scale-110 transition-transform">
                   <Calculator className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300">Laplace & Calculus</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Derivatives, integrals & ODEs</div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300 whitespace-nowrap">Applied Mathematics</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Calculus, linear algebra, transforms &amp; ODEs</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => onQuickAction?.('Calculate normal stress and strain for F=50kN A=0.001m^2')}
-                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/60 text-left transition-all group tactile-spring shadow-sm"
+                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
                 <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
                   <Compass className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-amber-300">Stress & Thermo</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">Beam deflection & fluids</div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-amber-300 whitespace-nowrap">Mechanics &amp; Thermo</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Statics, dynamics, fluids &amp; heat transfer</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => onQuickAction?.('Subnet 192.168.1.0/24')}
-                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-purple-500/10 border border-purple-500/30 hover:border-purple-500/60 text-left transition-all group tactile-spring shadow-sm"
+                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
                 <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 mb-2 group-hover:scale-110 transition-transform">
                   <Binary className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-purple-300">CIDR & Big-O</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">IP subnets, hex & logic</div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-purple-300 whitespace-nowrap">Computing &amp; Logic</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Algorithms, systems, architecture &amp; digital logic</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => onQuickAction?.('NE555 pinout & specs')}
-                className="p-3 rounded-2xl bg-slate-900/60 hover:bg-[#FF2D95]/10 border border-[#FF2D95]/30 hover:border-[#FF2D95]/60 text-left transition-all group tactile-spring shadow-sm"
+                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
                 <div className="w-7 h-7 rounded-lg bg-[#FF2D95]/20 flex items-center justify-center text-[#FF2D95] mb-2 group-hover:scale-110 transition-transform">
                   <BookOpen className="w-4 h-4" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-rose-300">Circuits & Pinouts</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">IC pinouts & resistor codes</div>
+                <div className="text-xs font-semibold text-slate-200 group-hover:text-rose-300 whitespace-nowrap">Circuits &amp; Systems</div>
+                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Networks, signals, control &amp; hardware diagnostics</div>
               </button>
             </div>
           </div>
@@ -474,7 +520,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                           rehypePlugins={[rehypeKatex, rehypeConfidenceBadges]}
                           components={markdownComponents}
                         >
-                          {msg.content}
+                          {normalizeProseContent(msg.content)}
                         </ReactMarkdown>
                         {isLoading && msg === messages[messages.length - 1] && (
                           <span className="flow-streaming-cursor" />

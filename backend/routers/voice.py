@@ -30,6 +30,18 @@ def filter_hallucinations(text: str) -> str:
     """Filters out degenerate hallucination loops (e.g. repeated words or silence noise artefacts)."""
     if not text or len(text.strip()) < 2:
         return ""
+    clean_lower = text.lower().strip().rstrip(".!?,")
+    if clean_lower in {
+        "thank you",
+        "thanks for watching",
+        "subtitles by",
+        "[blank_audio]",
+        "subscribe",
+        "you",
+        "thanks",
+        "bye",
+    }:
+        return ""
     words = re.findall(r"\b\w+\b", text.lower())
     # Check for 3+ consecutive identical words (e.g., "highloud highloud highloud")
     for i in range(len(words) - 2):
@@ -113,14 +125,17 @@ def format_for_voice(text: str) -> str:
     t = re.sub(r"```[\s\S]*?```", " See the code block on screen. ", t)
     t = re.sub(r"`([^`]+)`", r"\1", t)
 
-    # 3. Strip Markdown tables completely
+    # 3. Strip Markdown tables completely including all pipe characters
     t = re.sub(r"^\s*\|.*\|\s*$", " ", t, flags=re.MULTILINE)
     t = re.sub(r"\|[^\n]+\|", " ", t)
+    t = re.sub(r"\|+", " ", t)
 
-    # 4. Strip headers and confidence badges
+    # 4. Strip headers, confidence badges, and list bullets
     t = re.sub(r"(?:^|\n)\s*#{1,6}\s*", " ", t)
     t = re.sub(r"\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:\-\u2013\u2014]?", "", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:CONFIRMED|CANNOT CONFIRM|LIKELY)\b\s*[:\-\u2013\u2014]?", "", t)
+    t = re.sub(r"(?:^|\n)\s*[-*+]\s+", " ", t)
+    t = re.sub(r"(?:^|\n)\s*\d+\.\s+", " ", t)
 
     # 5. LaTeX math conversion to natural spoken English
     while re.search(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", t):
@@ -165,12 +180,14 @@ def format_for_voice(text: str) -> str:
     t = re.sub(r"(\d+(?:\.\d+)?)\s*V(?![a-zA-Z])", r"\1 volts", t)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*W(?![a-zA-Z])", r"\1 watts", t)
 
-    # 7. Strip Markdown bullets & symbols
+    # 7. Strip Markdown bullets, HTML tags & symbols
+    t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"[*_~`>#]+", " ", t)
     t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
     t = t.replace("\\", " ")
 
-    # 8. Collapse extra whitespace
+    # 8. Normalize all line breaks into a single space and collapse extra whitespace
+    t = re.sub(r"[\r\n]+", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
 
     if len(t) < 5:

@@ -22,7 +22,7 @@ _OPERATIONS_STATE: Dict[str, Any] = {
     "tasks": [
         {
             "id": "task-01",
-            "title": "Symbolic Laplace Transform Derivation",
+            "title": "Symbolic Equation & Boundary Solver",
             "branch": "MATH",
             "progress": 85,
             "status": "running",
@@ -30,16 +30,16 @@ _OPERATIONS_STATE: Dict[str, Any] = {
         },
         {
             "id": "task-02",
-            "title": "Euler-Bernoulli Beam Deflection Verification",
-            "branch": "CIVIL",
+            "title": "Structural & Equilibrium Verification",
+            "branch": "MECHANICS",
             "progress": 62,
             "status": "running",
             "eta_seconds": 2.4,
         },
         {
             "id": "task-03",
-            "title": "Astable 555 Frequency Sweep",
-            "branch": "ECE",
+            "title": "Dimensional & SI Unit Consistency Audit",
+            "branch": "SYSTEMS",
             "progress": 38,
             "status": "running",
             "eta_seconds": 3.8,
@@ -49,23 +49,23 @@ _OPERATIONS_STATE: Dict[str, Any] = {
     "recent_activity": [
         {
             "id": "act-01",
-            "title": "RC Cutoff Frequency Calculated",
+            "title": "Multi-Variable System Model Derived",
             "timestamp": "3m ago",
             "status": "completed",
-            "result": "fc = 159.15 Hz",
+            "result": "State space & transfer function verified",
         },
         {
             "id": "act-02",
-            "title": "Carnot Cycle Efficiency Solved",
+            "title": "Boundary & Conservation Check Verified",
             "timestamp": "12m ago",
             "status": "completed",
-            "result": "eta = 61.42%",
+            "result": "Energy balance & continuity satisfied",
         },
     ],
     "right_now": {
-        "recommendation": "Review Bode plot phase margin for second-order RLC filter before lab benchmark.",
-        "branch": "ECE",
-        "topic": "Frequency Response & Stability",
+        "recommendation": "Verify governing equations, boundary conditions, and SI unit consistency before finalizing lab calculations.",
+        "branch": "CORE",
+        "topic": "First-Principles Verification",
         "urgency": "high",
     },
 }

@@ -41,51 +41,117 @@ def detect_response_style(query: str, explicit_style: Optional[str] = None) -> s
 
 
 def adapt_response_tone(raw_answer: str, style: str, query: str) -> str:
-    """Formats answers dynamically to match student study demand (Gemini/Claude style)."""
+    """Formats answers dynamically to match student study demand across all engineering disciplines."""
+    if not raw_answer:
+        return raw_answer
+
+    q_low = query.lower()
+    is_math = any(k in q_low for k in ["laplace", "fourier", "integral", "derivative", "calculus", "matrix", "eigen", "ode", "diff"])
+    is_mech = any(k in q_low for k in ["stress", "strain", "beam", "carnot", "reynolds", "bernoulli", "fluid", "thermo", "torque", "deflection"])
+    is_cs = any(k in q_low for k in ["subnet", "cidr", "ip", "binary", "hex", "big-o", "sort", "algorithm", "tree", "boolean", "gate", "logic"])
+
     if style == "simple":
+        if is_math:
+            analogy = (
+                "Think of this geometrically as tracking continuous rate-of-change and cumulative accumulation: "
+                "every infinitesimal slice aggregates to satisfy boundary invariants without loss."
+            )
+        elif is_mech:
+            analogy = (
+                "Think of this as an internal molecular force balance: applied physical load induces micro-strain "
+                "until balanced by material elasticity, sustaining mechanical equilibrium."
+            )
+        elif is_cs:
+            analogy = (
+                "Think of this like hierarchical address partitioning: dividing a discrete namespace into power-of-two "
+                "blocks bounds access times and eliminates redundant sequential searches."
+            )
+        else:
+            analogy = (
+                "Think of potential difference (voltage) as the driving potential and charge flow (current) "
+                "encountering resistance, strictly conserved at every junction by physical conservation laws."
+            )
+
         return (
             f"{raw_answer}\n\n"
             f"---\n"
-            f"#### 💡 Intuitive Analogy\n"
-            f"Think of this like water in a pressurized pipe: potential difference (voltage) acts as the pump pressure, "
-            f"flow rate (current) is the water movement, and pipe narrowness represents resistance. "
-            f"The underlying mathematics guarantees balance at every junction without energy loss."
+            f"#### 💡 First-Principles Intuition\n"
+            f"{analogy}"
         )
     elif style == "exam":
         return (
             f"{raw_answer}\n\n"
             f"---\n"
-            f"#### 📝 Semester Exam Scoring Guide\n"
-            f"1. **Assumptions Stated**: Ideal operating conditions, linear material behavior, negligible thermal drift.\n"
-            f"2. **Governing Law Written**: State standard equation before numerical substitution.\n"
-            f"3. **Units & Significant Figures**: Ensure all intermediate SI conversions are clearly displayed.\n"
-            f"4. **Final Result Boxed**: Double-underline or box the calculated numerical values for maximum credit."
+            f"#### 📝 Exam-Ready Derivation Protocol\n"
+            f"1. **Governing Law**: State the fundamental law in standard notation before numerical substitution.\n"
+            f"2. **Boundary & Initial Conditions**: State constraints ($t=0^+$, boundary values, or assumptions) clearly.\n"
+            f"3. **Algebraic Substitution**: Show all intermediate conversions with strict dimensional/SI unit consistency.\n"
+            f"4. **Final Boxed Result**: Conclude with the verified numerical value, exact SI units, and physical interpretation."
         )
     elif style == "gate":
         return (
             f"{raw_answer}\n\n"
             f"---\n"
-            f"#### ⚡ GATE Speedrun & Common Traps\n"
-            f"- **Speed Trick**: Check boundary values (e.g. at $t = 0^+$ and $t \\to \\infty$) before doing full integrals.\n"
-            f"- **Exam Trap**: Watch for radian vs. degree conversions in phase angles ($\\omega = 2\\pi f$) and line vs. phase quantities in 3-phase circuits.\n"
-            f"- **Elimination**: Dimensionally analyze multiple choice options to eliminate non-matching units in $< 10$ seconds."
+            f"#### ⚡ GATE & Competitive Speed Tactics\n"
+            f"- **Boundary Value Check**: Test asymptotic limits ($t \\to 0^+$, $t \\to \\infty$, or frequency extremes) to eliminate options.\n"
+            f"- **Dimensional Elimination**: Verify unit consistency across choices to rule out dimensionally invalid options in $< 5$s.\n"
+            f"- **Critical Trap**: Double-check angular vs. cyclic frequency ($\\omega = 2\\pi f$), sign conventions, and RMS vs. peak values."
         )
     elif style == "code":
-        # Extract keywords to show clean Python implementation
+        if is_math:
+            script = (
+                "```python\n"
+                "# Symbolic Engineering Mathematics Verification\n"
+                "import sympy as sp\n\n"
+                "t, s = sp.symbols('t s')\n"
+                "# Verify closed-form transform or differential solution\n"
+                "expr = sp.sin(2 * t)\n"
+                "result = sp.laplace_transform(expr, t, s, noconds=True)\n"
+                "print('Exact symbolic solution:', result)\n"
+                "```"
+            )
+        elif is_mech:
+            script = (
+                "```python\n"
+                "# Mechanical & Thermodynamic Numerical Verification\n"
+                "import numpy as np\n\n"
+                "def solve_mechanics(load_n=50000.0, area_m2=0.001):\n"
+                "    stress_pa = load_n / area_m2\n"
+                "    stress_mpa = stress_pa / 1e6\n"
+                "    print(f'Normal Stress: {stress_mpa:.2f} MPa')\n"
+                "    return stress_mpa\n\n"
+                "solve_mechanics()\n"
+                "```"
+            )
+        elif is_cs:
+            script = (
+                "```python\n"
+                "# Computer Systems & Network Verification\n"
+                "import ipaddress\n\n"
+                "def audit_subnet(cidr='192.168.1.0/24'):\n"
+                "    net = ipaddress.ip_network(cidr, strict=False)\n"
+                "    print(f'Network: {net.network_address}, Usable Hosts: {net.num_addresses - 2}')\n"
+                "    return net\n\n"
+                "audit_subnet()\n"
+                "```"
+            )
+        else:
+            script = (
+                "```python\n"
+                "# Circuit & Hardware Verification Script\n"
+                "import math\n\n"
+                "def calc_cutoff(r_ohms=1000.0, c_farads=1e-6):\n"
+                "    fc = 1.0 / (2.0 * math.pi * r_ohms * c_farads)\n"
+                "    print(f'Cutoff Frequency: {fc:.2f} Hz')\n"
+                "    return fc\n\n"
+                "calc_cutoff()\n"
+                "```"
+            )
         return (
             f"{raw_answer}\n\n"
             f"---\n"
-            f"#### 💻 Python Verification Script\n"
-            f"```python\n"
-            f"# J.A.R.V.I.S. Engineering Verification Script\n"
-            f"import math\n\n"
-            f"def compute_solution():\n"
-            f"    # Replace with specific input values\n"
-            f"    print('Calculating closed-form solution...')\n"
-            f"    return True\n\n"
-            f"if __name__ == '__main__':\n"
-            f"    compute_solution()\n"
-            f"```"
+            f"#### 💻 Verification Script\n"
+            f"{script}"
         )
     return raw_answer
 

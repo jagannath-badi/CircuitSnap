@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 from typing import Generator
 
@@ -64,12 +65,8 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
     )
 
 
-@router.post("/chat/stream")
-def chat_stream_endpoint(request: ChatRequest):
-    """
-    Server-Sent Events (SSE) streaming endpoint for J.A.R.V.I.S.
-    Emits real-time cognitive trace steps ('step' events) and smooth response tokens ('chunk' events).
-    """
+def generate_chat_stream(request: ChatRequest) -> Generator[str, None, None]:
+    """Generates SSE frames for real-time cognitive trace steps and token chunks."""
     history = [
         message.model_dump() for message in request.history
     ] if request.history else None
@@ -89,63 +86,71 @@ def chat_stream_endpoint(request: ChatRequest):
                 for m in history
             ]
 
-    def sse_generator() -> Generator[str, None, None]:
-        try:
-            # 1. Emit cognitive trace steps
-            steps = get_cognitive_trace_steps(stream_message, model_id, chosen_style)
-            for s in steps:
-                yield f"event: step\ndata: {json.dumps({'step': s})}\n\n"
-                time.sleep(0.01)
+    try:
+        # 1. Emit cognitive trace steps
+        steps = get_cognitive_trace_steps(stream_message, model_id, chosen_style)
+        for s in steps:
+            yield f"event: step\ndata: {json.dumps({'step': s})}\n\n"
+            time.sleep(0.005)
 
-            # 2. Run offline computation in memory
-            result = process_jarvis_query(
-                user_text=stream_message,
-                image_bytes=None,
-                conversation_history=history,
-                model_id=model_id,
-                response_style=chosen_style,
-            )
+        # 2. Run offline computation in memory
+        result = process_jarvis_query(
+            user_text=stream_message,
+            image_bytes=None,
+            conversation_history=history,
+            model_id=model_id,
+            response_style=chosen_style,
+        )
 
-            full_answer = result.get("answer", "")
+        full_answer = result.get("answer", "")
 
-            # 3. Stream chunks smoothly (words/tokens with micro delay)
-            # Split into small chunks of ~4-8 words for smooth Google Flow spatial feel
-            words = full_answer.split(" ")
-            chunk_size = 5
-            for i in range(0, len(words), chunk_size):
-                chunk_slice = " ".join(words[i:i + chunk_size]) + (" " if i + chunk_size < len(words) else "")
-                yield f"event: chunk\ndata: {json.dumps({'chunk': chunk_slice})}\n\n"
-                time.sleep(0.005)
+        # 3. Stream chunks smoothly (words/tokens with micro delay)
+        # Tokenize preserving exact original whitespace & line breaks without injecting synthetic spaces
+        tokens = re.findall(r"\S+\s*", full_answer)
+        if not tokens and full_answer:
+            tokens = [full_answer]
+        chunk_size = 5
+        for i in range(0, len(tokens), chunk_size):
+            chunk_slice = "".join(tokens[i : i + chunk_size])
+            yield f"event: chunk\ndata: {json.dumps({'chunk': chunk_slice})}\n\n"
+            time.sleep(0.003)
 
-            # 4. Final completion payload
-            final_meta = {
-                "answer": full_answer,
-                "provider": result.get("provider", "J.A.R.V.I.S. Core"),
-                "model_id": result.get("model_id", model_id),
-                "style": result.get("style", chosen_style),
-                "attempts": result.get("attempts", 1),
-                "fallback_used": result.get("fallback_used", False),
-            }
-            yield f"event: done\ndata: {json.dumps(final_meta)}\n\n"
-        except (GeneratorExit, ConnectionResetError, BrokenPipeError):
-            logger.info("SSE client disconnected mid-stream.")
-            return
-        except Exception as err:
-            logger.error("SSE stream encountered unexpected error: %s", err, exc_info=True)
-            fallback_payload = {
-                "answer": "An unexpected error occurred while processing the engineering response. Please try again or rephrase your query.",
-                "provider": "J.A.R.V.I.S. Core",
-                "model_id": model_id,
-                "style": chosen_style,
-                "attempts": 1,
-                "fallback_used": True,
-                "status": "error",
-                "error_type": type(err).__name__,
-            }
-            yield f"event: done\ndata: {json.dumps(fallback_payload)}\n\n"
+        # 4. Final completion payload
+        final_meta = {
+            "answer": full_answer,
+            "provider": result.get("provider", "J.A.R.V.I.S. Core"),
+            "model_id": result.get("model_id", model_id),
+            "style": result.get("style", chosen_style),
+            "attempts": result.get("attempts", 1),
+            "fallback_used": result.get("fallback_used", False),
+        }
+        yield f"event: done\ndata: {json.dumps(final_meta)}\n\n"
+    except (GeneratorExit, ConnectionResetError, BrokenPipeError):
+        logger.info("SSE client disconnected mid-stream.")
+        return
+    except Exception as err:
+        logger.error("SSE stream encountered unexpected error: %s", err, exc_info=True)
+        fallback_payload = {
+            "answer": "An unexpected error occurred while processing the engineering response. Please try again or rephrase your query.",
+            "provider": "J.A.R.V.I.S. Core",
+            "model_id": model_id,
+            "style": chosen_style,
+            "attempts": 1,
+            "fallback_used": True,
+            "status": "error",
+            "error_type": type(err).__name__,
+        }
+        yield f"event: done\ndata: {json.dumps(fallback_payload)}\n\n"
 
+
+@router.post("/chat/stream")
+def chat_stream_endpoint(request: ChatRequest):
+    """
+    Server-Sent Events (SSE) streaming endpoint for J.A.R.V.I.S.
+    Emits real-time cognitive trace steps ('step' events) and smooth response tokens ('chunk' events).
+    """
     return StreamingResponse(
-        sse_generator(),
+        generate_chat_stream(request),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -128,7 +128,7 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
           <button
             onClick={onAttachClick}
             className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
-            title="Attach schematic, circuit photo, or PDF syllabus notes"
+            title="Attach diagram, circuit photo, free-body sketch, or PDF notes"
           >
             <Paperclip className="w-4 h-4" />
           </button>
@@ -141,7 +141,7 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
             placeholder={
               isListening
                 ? 'Listening to speech... (or type here)'
-                : 'Ask J.A.R.V.I.S. (e.g. Derive Laplace ROC, solve RLC cutoff, troubleshoot BJT bias)'
+                : 'Ask anything — derivations, diagrams, mechanics, circuits, code, or lab diagnostics...'
             }
             rows={1}
             className="flex-1 w-full min-w-0 bg-transparent text-slate-100 text-xs sm:text-sm placeholder-slate-500 focus:outline-none resize-none min-h-[40px] max-h-[120px] py-2 font-sans"

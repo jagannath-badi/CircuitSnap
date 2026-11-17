@@ -77,9 +77,12 @@ export function cleanTextForSpeech(raw: string): string {
   text = text.replace(/`([^`]+)`/g, '$1');
   text = text.replace(/^\s*\|.*\|\s*$/gm, ' ');
   text = text.replace(/\|[^\n]+\|/g, ' ');
+  text = text.replace(/\|+/g, ' ');
   text = text.replace(/(?:^|\n)\s*#{1,6}\s*/g, ' ');
   text = text.replace(/\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:\-\u2013\u2014]?/gi, '');
-  text = text.replace(/\b(?:CONFIRMED|CANNOT CONFIRM)\b\s*[:\-\u2013\u2014]?/gi, '');
+  text = text.replace(/\b(?:CONFIRMED|CANNOT CONFIRM|LIKELY)\b\s*[:\-\u2013\u2014]?/gi, '');
+  text = text.replace(/(?:^|\n)\s*[-*+]\s+/g, ' ');
+  text = text.replace(/(?:^|\n)\s*\d+\.\s+/g, ' ');
 
   text = text.replace(/\$\$([\s\S]*?)\$\$/g, ' $1 ');
   text = text.replace(/\$([^$]+)\$/g, ' $1 ');
@@ -87,12 +90,16 @@ export function cleanTextForSpeech(raw: string): string {
   text = text.replace(/\\sqrt\{([^}]+)\}/g, 'square root of $1');
   text = text.replace(/\\cdot|\\times/g, ' times ');
   text = text.replace(/\\approx/g, ' approximately ');
+  text = text.replace(/\\implies|=>/g, ' implies ');
+  text = text.replace(/\\to|->/g, ' leads to ');
   text = text.replace(/\\pi/g, 'pi');
   text = text.replace(/\\mu/g, 'micro');
   text = text.replace(/\\Omega/g, 'ohms');
   text = text.replace(/\\mathbf\{([^}]+)\}/g, '$1');
   text = text.replace(/\\text\{([^}]+)\}/g, '$1');
+  text = text.replace(/\\[,;!]/g, ' ');
   text = text.replace(/\\[a-zA-Z]+/g, ' ');
+  text = text.replace(/\$/g, '');
 
   text = text.replace(/(\d+(?:\.\d+)?)\s*MΩ/g, '$1 mega-ohms');
   text = text.replace(/(\d+(?:\.\d+)?)\s*kΩ/g, '$1 kilo-ohms');
@@ -113,8 +120,11 @@ export function cleanTextForSpeech(raw: string): string {
   text = text.replace(/(\d+(?:\.\d+)?)\s*V(?![a-zA-Z])/g, '$1 volts');
   text = text.replace(/(\d+(?:\.\d+)?)\s*W(?![a-zA-Z])/g, '$1 watts');
 
-  text = text.replace(/[*_~`>]+/g, ' ');
+  text = text.replace(/<[^>]+>/g, ' ');
+  text = text.replace(/[*_~`>#]+/g, ' ');
   text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+  text = text.replace(/\\/g, ' ');
+  text = text.replace(/\r?\n+/g, ' ');
   text = text.replace(/\s+/g, ' ').trim();
 
   if (text.length < 12) {

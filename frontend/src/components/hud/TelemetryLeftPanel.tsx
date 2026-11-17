@@ -35,9 +35,9 @@ export const TelemetryLeftPanel: React.FC<TelemetryLeftPanelProps> = ({
   }
 
   return (
-    <aside className="w-full h-full flex flex-col gap-3 font-mono select-none overflow-y-auto pr-1">
+    <aside className="w-full h-full flex flex-col gap-2.5 font-mono select-none overflow-y-auto pr-1">
       {/* 1. Host System Overview */}
-      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-md">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md">
         <div className="flex items-center justify-between pb-2 mb-3 border-b border-slate-800/60">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-300 uppercase">
             <Activity className="w-3.5 h-3.5 text-cyan-400" />
@@ -118,7 +118,7 @@ export const TelemetryLeftPanel: React.FC<TelemetryLeftPanelProps> = ({
       </div>
 
       {/* 2. Connected AI & Local Services */}
-      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-md flex-1">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md flex-1">
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/60">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-300 uppercase">
             <Server className="w-3.5 h-3.5 text-cyan-400" />

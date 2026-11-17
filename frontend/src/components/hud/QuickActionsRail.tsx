@@ -23,9 +23,9 @@ export const QuickActionsRail: React.FC<QuickActionsRailProps> = ({
   modelId,
 }) => {
   return (
-    <aside className="w-full flex flex-col gap-3 font-mono select-none">
+    <aside className="w-full flex flex-col gap-2.5 font-mono select-none">
       {/* 1. Quick Actions */}
-      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-md">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md">
         <div className="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-2.5 pb-2 border-b border-slate-800/60">
           Quick Actions
         </div>
@@ -58,7 +58,7 @@ export const QuickActionsRail: React.FC<QuickActionsRailProps> = ({
       </div>
 
       {/* 2. Cognitive State / LLM Health */}
-      <div className="p-3.5 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-md text-xs">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md text-xs">
         <div className="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-2.5 pb-2 border-b border-slate-800/60 flex items-center justify-between">
           <span>Reasoner Status</span>
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
@@ -80,7 +80,7 @@ export const QuickActionsRail: React.FC<QuickActionsRailProps> = ({
       </div>
 
       {/* 3. High-Visibility Emergency Circuit Controls */}
-      <div className="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800/80 shadow-lg space-y-2">
+      <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-lg space-y-2">
         <button
           onClick={onEmergencyStop}
           className={`w-full py-2.5 px-3 min-h-[44px] rounded-xl flex items-center justify-center gap-2 text-xs font-bold font-mono tracking-wider transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform shadow-lg ${

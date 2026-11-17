@@ -127,7 +127,7 @@ export default function App() {
 
   const handleEmergencyStop = async () => {
     if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
-    cancelSpeech(); hardResetVoice(); setIsLoading(false); setEmergencyStop(true);
+    cancelSpeech(); hardResetVoice(); setIsLoading(false); setCognitiveStep(null); setSpeakingMsgId(null); setEmergencyStop(true);
     try { await triggerEmergencyStop(); } catch { /* ignore */ }
     setErrorMessage('EMERGENCY KILLSWITCH ENGAGED. All autonomous solvers halted.');
   };
