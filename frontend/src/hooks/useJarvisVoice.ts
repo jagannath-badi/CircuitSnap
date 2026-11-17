@@ -139,7 +139,7 @@ export function cleanTextForSpeech(raw: string): string {
 }
 
 export function useJarvisVoice({ onTranscript, onFinalTranscript }: UseJarvisVoiceOptions = {}) {
-  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
   const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [voiceSettings, setVoiceSettingsState] = useState<VoiceSettings>(loadVoiceSettings);
   const [liveTranscript, setLiveTranscript] = useState<string>('');

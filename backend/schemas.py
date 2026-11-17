@@ -80,6 +80,7 @@ class ModelsResponse(BaseModel):
 
     models: list[ModelOption]
     default_model: str
+    openjarvis_local: dict[str, Any] | None = None
 
 
 class ChatRequest(BaseModel):
@@ -97,6 +98,7 @@ class ChatRequest(BaseModel):
     model: str | None = None
     style: str | None = None
     response_style: str | None = None
+    privacy_mode: Literal["strict", "guarded", "relaxed"] = "guarded"
     previous_visual_context: dict[str, Any] | None = None
 
 

@@ -92,11 +92,17 @@ class RequestContext:
 
     temperature: float = 0.55
 
+    privacy_mode: str = "guarded"
+
     image_context: str = ""
 
     conversation_context: str = ""
 
     evidence_rules: list[str] = field(default_factory=list)
+
+    @property
+    def query(self) -> str:
+        return self.user_text
 
 
 # ============================================================
@@ -921,6 +927,7 @@ def build_context(
     has_image: bool = False,
     conversation_history: Optional[list[dict]] = None,
     previous_visual_context: Optional[dict] = None,
+    privacy_mode: str = "guarded",
 ) -> RequestContext:
     """
     Build the internal CircuitSnap request context.
@@ -994,6 +1001,7 @@ def build_context(
         workflow=workflow,
         detail_level=detail_level,
         temperature=temperature,
+        privacy_mode=privacy_mode,
         image_context=image_context,
         conversation_context=conversation_context,
         evidence_rules=evidence_rules,
@@ -1084,6 +1092,22 @@ def build_engine_prompt(
         f"- {rule}"
         for rule in context.evidence_rules
     )
+
+    # Dynamic Progressive Skill Disclosure
+    skill_blocks = []
+    try:
+        from backend.skill_loader import match_skills
+        q_text = getattr(context, "query", context.user_text) or context.user_text
+        matched_skills = match_skills(q_text, context.workflow, max_skills=2)
+        for s in matched_skills:
+            skill_blocks.append(f'<active_skill name="{s.name}">\n{s.content}\n</active_skill>')
+    except Exception:
+        pass
+
+    skills_section = ""
+    if skill_blocks:
+        joined_skills = "\n\n".join(skill_blocks)
+        skills_section = f"\n\nACTIVE ENGINEERING SKILLS\n-------------------------\n{joined_skills}\n"
 
     conversation = (
         context.conversation_context
@@ -1255,7 +1279,7 @@ For a practical/lab request:
 The goal is not to make every answer short.
 The goal is to give exactly the amount of information needed
 to answer the user's current request clearly.
-
+{skills_section}
 OUTPUT FORMATTING:
 {layout_directive}
 - Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
@@ -1276,6 +1300,7 @@ def prepare_request(
     has_image: bool = False,
     conversation_history: Optional[list[dict]] = None,
     previous_visual_context: Optional[dict] = None,
+    privacy_mode: str = "guarded",
 ) -> tuple[RequestContext, str]:
     """
     Prepare a CircuitSnap request for the selected provider.
@@ -1289,6 +1314,7 @@ def prepare_request(
         has_image=has_image,
         conversation_history=conversation_history,
         previous_visual_context=previous_visual_context,
+        privacy_mode=privacy_mode,
     )
 
     prompt = build_engine_prompt(context)
@@ -1306,6 +1332,7 @@ def run_engine(
     mime_type: Optional[str] = None,
     previous_visual_context: Optional[dict] = None,
     temperature: Optional[float] = None,
+    privacy_mode: str = "guarded",
 ):
     """
     Main CircuitSnap backend entry point.
@@ -1329,6 +1356,7 @@ def run_engine(
         has_image=has_image,
         conversation_history=conversation_history,
         previous_visual_context=previous_visual_context,
+        privacy_mode=privacy_mode,
     )
 
     effective_temperature = (
@@ -1344,6 +1372,7 @@ def run_engine(
         mime_type=mime_type,
         return_metadata=True,
         temperature=effective_temperature,
+        privacy_mode=privacy_mode,
     )
 
     return {

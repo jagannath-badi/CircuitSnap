@@ -66,6 +66,7 @@ export interface DiagnosticFeedProps {
   liveTranscript?: string;
   voiceError?: string | null;
   onClearVoiceError?: () => void;
+  hideInput?: boolean;
 }
 
 /**
@@ -299,6 +300,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   liveTranscript = '',
   voiceError = null,
   onClearVoiceError,
+  hideInput = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [savedMsgIds, setSavedMsgIds] = useState<Set<string>>(new Set());
@@ -698,80 +700,84 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
           )}
 
           {/* Input, Mic & Cerulean Trigger */}
-          <div className="flex items-end gap-2">
-            <button
-              type="button"
-              onClick={onAttachClick}
-              disabled={isLoading}
-              title="Upload Circuit Photo (JPEG, PNG, WEBP, GIF up to 10 MB)"
-              className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
-                attachedFile
-                  ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/50 shadow-[0_0_12px_rgba(0,166,232,0.3)]'
-                  : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
-              }`}
-            >
-              <ImageIcon className="w-4 h-4" />
-            </button>
+          {!hideInput && (
+            <>
+              <div className="flex items-end gap-2">
+                <button
+                  type="button"
+                  onClick={onAttachClick}
+                  disabled={isLoading}
+                  title="Upload Circuit Photo (JPEG, PNG, WEBP, GIF up to 10 MB)"
+                  className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
+                    attachedFile
+                      ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/50 shadow-[0_0_12px_rgba(0,166,232,0.3)]'
+                      : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4" />
+                </button>
 
-            {onToggleListening && (
-              <button
-                type="button"
-                onClick={onToggleListening}
-                title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
-                className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
-                  isListening
-                    ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/60 animate-pulse-ring-rose shadow-[0_0_14px_rgba(255,45,149,0.4)]'
-                    : isSpeaking
-                    ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/60 animate-pulse-ring-cerulean shadow-[0_0_14px_rgba(0,166,232,0.4)]'
-                    : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
-                }`}
-              >
-                <Mic className="w-4 h-4" />
-              </button>
-            )}
+                {onToggleListening && (
+                  <button
+                    type="button"
+                    onClick={onToggleListening}
+                    title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
+                    className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
+                      isListening
+                        ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/60 animate-pulse-ring-rose shadow-[0_0_14px_rgba(255,45,149,0.4)]'
+                        : isSpeaking
+                        ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/60 animate-pulse-ring-cerulean shadow-[0_0_14px_rgba(0,166,232,0.4)]'
+                        : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                )}
 
-            <textarea
-              ref={textareaRef}
-              value={inputPrompt}
-              onChange={(e) => onInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                attachedFile
-                  ? 'Ask a question about this photo or leave blank to identify...'
-                  : isListening
-                  ? liveTranscript ? `Hearing: "${liveTranscript}"` : 'Listening to speech... Speak clearly'
-                  : 'Ask an engineering question or speak to J.A.R.V.I.S...'
-              }
-              rows={1}
-              disabled={isLoading}
-              className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-100 placeholder:text-slate-500 max-h-32 py-1.5 px-2 font-sans leading-relaxed"
-            />
+                <textarea
+                  ref={textareaRef}
+                  value={inputPrompt}
+                  onChange={(e) => onInputChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    attachedFile
+                      ? 'Ask a question about this photo or leave blank to identify...'
+                      : isListening
+                      ? liveTranscript ? `Hearing: "${liveTranscript}"` : 'Listening to speech... Speak clearly'
+                      : 'Ask an engineering question or speak to J.A.R.V.I.S...'
+                  }
+                  rows={1}
+                  disabled={isLoading}
+                  className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-100 placeholder:text-slate-500 max-h-32 py-1.5 px-2 font-sans leading-relaxed"
+                />
 
-            {/* Flagship #00A6E8 Cerulean Send Trigger */}
-            <button
-              type="button"
-              onClick={onSendMessage}
-              disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
-              className={`p-2 min-h-[40px] min-w-[40px] rounded-xl font-bold flex-shrink-0 flex items-center justify-center transition-all tactile-spring ${
-                !isLoading && (inputPrompt.trim() || attachedFile)
-                  ? 'bg-gradient-to-r from-[#00A6E8] to-[#0284c7] hover:from-[#00A6E8] hover:to-[#38bdf8] text-slate-950 font-bold shadow-[0_0_18px_rgba(0,166,232,0.45)]'
-                  : 'bg-[#00A6E8]/10 border border-white/10 text-slate-500 shadow-none cursor-not-allowed'
-              }`}
-              title="Send message (Enter)"
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin text-[#00A6E8]" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+                {/* Flagship #00A6E8 Cerulean Send Trigger */}
+                <button
+                  type="button"
+                  onClick={onSendMessage}
+                  disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
+                  className={`p-2 min-h-[40px] min-w-[40px] rounded-xl font-bold flex-shrink-0 flex items-center justify-center transition-all tactile-spring ${
+                    !isLoading && (inputPrompt.trim() || attachedFile)
+                      ? 'bg-gradient-to-r from-[#00A6E8] to-[#0284c7] hover:from-[#00A6E8] hover:to-[#38bdf8] text-slate-950 font-bold shadow-[0_0_18px_rgba(0,166,232,0.45)]'
+                      : 'bg-[#00A6E8]/10 border border-white/10 text-slate-500 shadow-none cursor-not-allowed'
+                  }`}
+                  title="Send message (Enter)"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#00A6E8]" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
 
-          {/* Micro Telemetry Bar */}
-          <div className="mt-2 pt-1.5 border-t border-white/[0.05] flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
-            <span>Enter: Send • Shift+Enter: Newline • Ctrl+V: Paste</span>
-            <span className="text-slate-500">CircuitSnap</span>
-          </div>
+              {/* Micro Telemetry Bar */}
+              <div className="mt-2 pt-1.5 border-t border-white/[0.05] flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
+                <span>Enter: Send • Shift+Enter: Newline • Ctrl+V: Paste</span>
+                <span className="text-slate-500">CircuitSnap</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>

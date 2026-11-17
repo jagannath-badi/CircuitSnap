@@ -10,8 +10,9 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from backend.database import init_db
-from backend.routers import analyze, auth, chat, learn, vault, voice
+from backend.routers import analyze, auth, chat, learn, operations, telemetry, vault, voice
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
+from providers import OPENJARVIS_BASE_URL, OPENJARVIS_MODEL, is_openjarvis_available
 
 
 @asynccontextmanager
@@ -45,6 +46,8 @@ app.include_router(auth.router)
 app.include_router(vault.router)
 app.include_router(voice.router)
 app.include_router(learn.router)
+app.include_router(telemetry.router)
+app.include_router(operations.router)
 
 
 DEFAULT_MODEL_ROSTER: list[ModelOption] = [
@@ -80,20 +83,51 @@ DEFAULT_MODEL_ROSTER: list[ModelOption] = [
 
 
 @app.get("/api/health", response_model=HealthResponse)
-async def health_check():
+def health_check():
+    oj_status = {
+        "available": is_openjarvis_available(),
+        "base_url": OPENJARVIS_BASE_URL,
+        "model": OPENJARVIS_MODEL,
+    }
     return HealthResponse(
         status="healthy",
         models={
             "default": "jarvis-auto",
             "model_id": "jarvis-auto",
             "provider": "J.A.R.V.I.S. Core",
+            "openjarvis_local": oj_status,
         },
     )
 
 
 @app.get("/api/models", response_model=ModelsResponse)
-async def get_models() -> ModelsResponse:
+def get_models() -> ModelsResponse:
+    oj_status = {
+        "available": is_openjarvis_available(),
+        "base_url": OPENJARVIS_BASE_URL,
+        "model": OPENJARVIS_MODEL,
+    }
+    models = list(DEFAULT_MODEL_ROSTER)
+    if is_openjarvis_available():
+        models.insert(
+            1,
+            ModelOption(
+                id=f"openjarvis-{OPENJARVIS_MODEL}",
+                label=f"OpenJarvis Local ({OPENJARVIS_MODEL})",
+                provider="OpenJarvis",
+                specialty="Local private neural inference with zero cloud telemetry",
+                supports_vision=False,
+            ),
+        )
     return ModelsResponse(
-        models=DEFAULT_MODEL_ROSTER,
+        models=models,
         default_model="jarvis-auto",
+        openjarvis_local=oj_status,
     )
+
+
+@app.get("/api/skills")
+def get_skills():
+    from backend.skill_loader import list_loaded_skills
+    skills = list_loaded_skills()
+    return {"skills": skills, "count": len(skills)}

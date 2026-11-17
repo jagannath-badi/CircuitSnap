@@ -9,8 +9,14 @@ allowing the user to switch providers without losing context.
 """
 
 import base64
+import http.client
+import json
+import logging
 import os
 import re
+import time
+import urllib.parse
+from pathlib import Path
 
 from google import genai
 from google.genai import types
@@ -18,6 +24,184 @@ from groq import Groq
 
 from models import get_model
 from prompts import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
+
+
+def load_dotenv(dotenv_path: str | Path | None = None) -> None:
+    """
+    Zero-dependency .env loader that safely reads environment variables
+    from .env without external dependencies or exposing values.
+    """
+    try:
+        from dotenv import load_dotenv as _lib_load_dotenv
+        _lib_load_dotenv(dotenv_path)
+        return
+    except ImportError:
+        pass
+
+    candidates = []
+    if dotenv_path:
+        candidates.append(Path(dotenv_path))
+    candidates.extend([
+        Path(__file__).resolve().parent / ".env",
+        Path(__file__).resolve().parent.parent / ".env",
+        Path.cwd() / ".env",
+    ])
+
+    for target_path in candidates:
+        if target_path.is_file():
+            try:
+                with open(target_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith("#") or "=" not in line:
+                            continue
+                        key, val = line.split("=", 1)
+                        key = key.strip()
+                        val = val.strip()
+                        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                            val = val[1:-1]
+                        else:
+                            val = val.split(" #", 1)[0].split("\t#", 1)[0].strip()
+                        if key and key not in os.environ:
+                            os.environ[key] = val
+                break
+            except Exception:
+                pass
+
+
+# Auto-load .env immediately at startup
+load_dotenv()
+
+# ============================================================
+# OPENJARVIS HYBRID LOCAL / CLOUD CONFIGURATION
+# ============================================================
+
+OPENJARVIS_BASE_URL = os.getenv("OPENJARVIS_BASE_URL", "http://localhost:8000/v1").rstrip("/")
+OPENJARVIS_MODEL = os.getenv("OPENJARVIS_MODEL", "qwen3:8b")
+PROVIDER_MODE = os.getenv("PROVIDER_MODE", "auto").lower().strip()
+
+_OPENJARVIS_CACHE = {"status": None, "timestamp": 0.0}
+
+
+def is_openjarvis_available(force_refresh: bool = False) -> bool:
+    """
+    Fast 0.35s HTTP GET probe to {OPENJARVIS_BASE_URL}/models.
+    Cached for 15 seconds so per-request routing latency is 0ms.
+    Uses direct http.client to bypass Windows proxy lookup latency.
+    """
+    now = time.time()
+    if not force_refresh and _OPENJARVIS_CACHE["status"] is not None:
+        if (now - _OPENJARVIS_CACHE["timestamp"]) < 15.0:
+            return bool(_OPENJARVIS_CACHE["status"])
+
+    base_url = os.getenv("OPENJARVIS_BASE_URL", OPENJARVIS_BASE_URL).rstrip("/")
+    parsed = urllib.parse.urlparse(base_url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    path = (parsed.path or "").rstrip("/") + "/models"
+
+    available = False
+    conn = None
+    try:
+        if parsed.scheme == "https":
+            conn = http.client.HTTPSConnection(host, port, timeout=0.35)
+        else:
+            conn = http.client.HTTPConnection(host, port, timeout=0.35)
+        conn.request("GET", path, headers={"User-Agent": "CircuitSnap-Probe"})
+        resp = conn.getresponse()
+        available = (200 <= resp.status < 300)
+    except Exception:
+        available = False
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    _OPENJARVIS_CACHE["status"] = available
+    _OPENJARVIS_CACHE["timestamp"] = now
+    return available
+
+
+def ask_openjarvis(
+    prompt: str,
+    system_prompt: str | None = None,
+    temperature: float = 0.55,
+    model: str | None = None,
+    history: list[dict] | None = None,
+    timeout: float = 30.0,
+) -> tuple[str, str]:
+    """
+    Calls {OPENJARVIS_BASE_URL}/chat/completions using OpenAI-compatible JSON payload.
+    Returns (response_text, f"OpenJarvis ({model})").
+    """
+    base_url = os.getenv("OPENJARVIS_BASE_URL", OPENJARVIS_BASE_URL).rstrip("/")
+    target_model = model or os.getenv("OPENJARVIS_MODEL", OPENJARVIS_MODEL)
+
+    messages = []
+    sys_content = system_prompt or SYSTEM_PROMPT
+    if sys_content:
+        messages.append({"role": "system", "content": sys_content})
+
+    if history:
+        for message in history:
+            role = message.get("role", "user")
+            content = message.get("content", "")
+            if content and role in {"user", "assistant"}:
+                messages.append({"role": role, "content": content})
+
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": target_model,
+        "messages": messages,
+        "temperature": temperature,
+    }
+
+    req_data = json.dumps(payload).encode("utf-8")
+    parsed = urllib.parse.urlparse(base_url)
+    host = parsed.hostname or "localhost"
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    path = (parsed.path or "").rstrip("/") + "/chat/completions"
+
+    conn = None
+    try:
+        if parsed.scheme == "https":
+            conn = http.client.HTTPSConnection(host, port, timeout=timeout)
+        else:
+            conn = http.client.HTTPConnection(host, port, timeout=timeout)
+        conn.request(
+            "POST",
+            path,
+            body=req_data,
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "CircuitSnap-OpenJarvis-Client",
+            },
+        )
+        resp = conn.getresponse()
+        resp_data = resp.read().decode("utf-8")
+        if not (200 <= resp.status < 300):
+            raise RuntimeError(f"OpenJarvis HTTP error ({resp.status}): {resp.reason}")
+        body = json.loads(resp_data)
+        choices = body.get("choices", [])
+        if choices and "message" in choices[0]:
+            content = choices[0]["message"].get("content", "")
+            return content, f"OpenJarvis ({target_model})"
+        return "", f"OpenJarvis ({target_model})"
+    except Exception as err:
+        if "HTTP error" in str(err):
+            raise
+        raise ConnectionError(f"OpenJarvis connection failed: {err}") from err
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 
 # ============================================================
@@ -595,6 +779,23 @@ def _attempt_provider(call):
         return False, None, error, error_type
 
 
+def redact_secrets(text: str) -> str:
+    """
+    Sanitizes sensitive credentials, private API keys, bearer tokens,
+    passwords, and personal emails before cloud transmission.
+    """
+    if not text:
+        return ""
+    t = text
+    t = re.sub(r"\bAIza[0-9A-Za-z-_]{30,40}\b", "[REDACTED_API_KEY]", t)
+    t = re.sub(r"\bgsk_[0-9A-Za-z]{30,}\b", "[REDACTED_API_KEY]", t)
+    t = re.sub(r"\bsk-[0-9A-Za-z-_]{20,}\b", "[REDACTED_API_KEY]", t)
+    t = re.sub(r"\bBearer\s+[A-Za-z0-9_\-\.]{20,}\b", "Bearer [REDACTED_TOKEN]", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b(password|secret|passwd|pass|token|apikey)\s*[:=]\s*([^\s,;]+)", r"\1: [REDACTED]", t, flags=re.IGNORECASE)
+    t = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", "[REDACTED_EMAIL]", t)
+    return t
+
+
 def ask_provider(
     provider,
     model_id,
@@ -604,12 +805,14 @@ def ask_provider(
     mime_type=None,
     return_metadata=False,
     temperature: float = 0.55,
+    privacy_mode: str = "guarded",
 ):
     """
-    Send a request to the selected provider.
+    Send a request to the selected provider with privacy guard enforcement.
 
-    By default this returns the answer string for compatibility. Set
-    return_metadata=True to also receive the provider/model that responded.
+    - "strict": Answer exclusively from offline J.A.R.V.I.S. Core without external cloud APIs.
+    - "guarded": Pre-flight credential & PII redaction before external API calls.
+    - "relaxed": Standard external cloud routing.
     """
 
     def deliver(result):
@@ -641,6 +844,106 @@ def ask_provider(
             )
         )
 
+    active_mode = os.getenv("PROVIDER_MODE", PROVIDER_MODE).lower().strip()
+    oj_model = os.getenv("OPENJARVIS_MODEL", OPENJARVIS_MODEL)
+    local_fallback_triggered = False
+
+    # --------------------------------------------------------
+    # STRICT PRIVACY / LOCAL MODE ROUTING (Zero Cloud APIs)
+    # --------------------------------------------------------
+    if privacy_mode == "strict" or active_mode == "local" or provider in {"OpenJarvis", "openjarvis"}:
+        target_oj_model = model_id if provider in {"OpenJarvis", "openjarvis"} and model_id else oj_model
+        if is_openjarvis_available():
+            success_flag, answer_tuple, error, error_type = _attempt_provider(
+                lambda: ask_openjarvis(
+                    prompt=prompt,
+                    system_prompt=SYSTEM_PROMPT,
+                    temperature=temperature,
+                    model=target_oj_model,
+                    history=history,
+                )
+            )
+            if success_flag and answer_tuple:
+                text, provider_label = answer_tuple
+                return deliver(
+                    _provider_result(
+                        text,
+                        provider_label,
+                        target_oj_model,
+                        status="success",
+                        fallback_used=False,
+                        attempts=1,
+                    )
+                )
+
+        # If strict privacy or local mode, fall back to offline J.A.R.V.I.S. Core (never call cloud APIs)
+        if privacy_mode == "strict" or active_mode == "local":
+            try:
+                from backend.jarvis_engine.orchestrator import process_jarvis_query
+                local_res = process_jarvis_query(
+                    user_text=prompt,
+                    image_bytes=image_bytes,
+                    conversation_history=history,
+                    model_id="jarvis-auto",
+                )
+                return deliver(
+                    _provider_result(
+                        local_res.get("answer", "Processed locally with zero external API transmission."),
+                        "J.A.R.V.I.S. Core (Strict Local)",
+                        "jarvis-offline",
+                        status="success",
+                        fallback_used=True,
+                        attempts=2,
+                    )
+                )
+            except Exception as err:
+                return failure(
+                    "J.A.R.V.I.S. Core",
+                    "jarvis-offline",
+                    err,
+                    "offline_error",
+                    fallback_used=True,
+                    attempts=2,
+                )
+
+        local_fallback_triggered = True
+
+    # --------------------------------------------------------
+    # AUTO HYBRID MODE: If local OpenJarvis is available, route to it first
+    # --------------------------------------------------------
+    if active_mode == "auto" and not image_bytes:
+        if is_openjarvis_available():
+            success_flag, answer_tuple, error, error_type = _attempt_provider(
+                lambda: ask_openjarvis(
+                    prompt=prompt,
+                    system_prompt=SYSTEM_PROMPT,
+                    temperature=temperature,
+                    model=oj_model,
+                    history=history,
+                )
+            )
+            if success_flag and answer_tuple:
+                text, provider_label = answer_tuple
+                return deliver(
+                    _provider_result(
+                        text,
+                        provider_label,
+                        oj_model,
+                        status="success",
+                        fallback_used=False,
+                        attempts=1,
+                    )
+                )
+            local_fallback_triggered = True
+
+    if privacy_mode == "guarded":
+        prompt = redact_secrets(prompt)
+        if history:
+            history = [
+                {"role": m.get("role", "user"), "content": redact_secrets(str(m.get("content", "")))}
+                for m in history
+            ]
+
     def success(
         answer,
         successful_provider,
@@ -654,8 +957,8 @@ def ask_provider(
                 answer,
                 successful_provider,
                 successful_model,
-                fallback_used=fallback_used,
-                attempts=attempts,
+                fallback_used=fallback_used or local_fallback_triggered,
+                attempts=attempts + (1 if local_fallback_triggered else 0),
             )
         )
 
@@ -952,6 +1255,36 @@ def ask_provider(
                 fallback_used=fallback_used,
                 attempts=attempts,
             )
+        )
+
+    # ========================================================
+    # OPENJARVIS (Fallback when local unavailable)
+    # ========================================================
+    if provider in {"OpenJarvis", "openjarvis"}:
+        oj_config = get_model("OpenJarvis")
+        fallback_provider = oj_config.get("fallback_provider", "Gemini")
+        fallback_config = get_model(fallback_provider)
+        fallback_model = fallback_config["model_id"]
+        fallback_call = ask_gemini if fallback_provider == "Gemini" else ask_groq
+
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: fallback_call(
+                model_id=fallback_model,
+                prompt=prompt,
+                history=history,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+                temperature=temperature,
+            )
+        )
+        if success_flag:
+            return success(
+                answer, fallback_provider, fallback_model,
+                fallback_used=True, attempts=2,
+            )
+        return failure(
+            fallback_provider, fallback_model, error, error_type,
+            fallback_used=True, attempts=2,
         )
 
     return deliver(

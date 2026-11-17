@@ -228,12 +228,22 @@ body {
 }
 
 /* Utility to hide scrollbars while maintaining scroll functionality */
-.scrollbar-none::-webkit-scrollbar {
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
-.scrollbar-none {
+.scrollbar-none,
+.no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* 120Hz GPU-Composited Transitions (8.33ms Frame Budget) */
+.gpu-composited {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
 }
 
 /* Radar scanner sweep animation for active optical DUT analysis */

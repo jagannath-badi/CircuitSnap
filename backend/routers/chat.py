@@ -11,6 +11,7 @@ from backend.jarvis_engine.orchestrator import (
     detect_response_style,
 )
 from backend.schemas import ChatRequest, ChatResponse
+from providers import redact_secrets
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,18 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
 
     chosen_style = request.response_style or request.style
 
+    user_message = request.message
+    if request.privacy_mode == "guarded":
+        user_message = redact_secrets(user_message)
+        if history:
+            history = [
+                {"role": m.get("role", "user"), "content": redact_secrets(str(m.get("content", "")))}
+                for m in history
+            ]
+
     # Execute completely offline in memory
     result = process_jarvis_query(
-        user_text=request.message,
+        user_text=user_message,
         image_bytes=None,
         conversation_history=history,
         model_id=model_id,
@@ -70,17 +80,26 @@ def chat_stream_endpoint(request: ChatRequest):
 
     chosen_style = request.response_style or request.style or detect_response_style(request.message)
 
+    stream_message = request.message
+    if request.privacy_mode == "guarded":
+        stream_message = redact_secrets(stream_message)
+        if history:
+            history = [
+                {"role": m.get("role", "user"), "content": redact_secrets(str(m.get("content", "")))}
+                for m in history
+            ]
+
     def sse_generator() -> Generator[str, None, None]:
         try:
             # 1. Emit cognitive trace steps
-            steps = get_cognitive_trace_steps(request.message, model_id, chosen_style)
+            steps = get_cognitive_trace_steps(stream_message, model_id, chosen_style)
             for s in steps:
                 yield f"event: step\ndata: {json.dumps({'step': s})}\n\n"
                 time.sleep(0.01)
 
             # 2. Run offline computation in memory
             result = process_jarvis_query(
-                user_text=request.message,
+                user_text=stream_message,
                 image_bytes=None,
                 conversation_history=history,
                 model_id=model_id,

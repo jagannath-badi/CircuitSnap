@@ -187,7 +187,8 @@ export async function sendChatMessage(
   history: ChatMessage[] = [],
   model?: string,
   provider?: string,
-  modelId?: string
+  modelId?: string,
+  privacyMode?: 'strict' | 'guarded' | 'relaxed'
 ): Promise<ChatResponse> {
   const response = await fetch('/api/chat', {
     method: 'POST',
@@ -200,6 +201,7 @@ export async function sendChatMessage(
       model: model || undefined,
       provider: provider || undefined,
       model_id: modelId || undefined,
+      privacy_mode: privacyMode || undefined,
     }),
   });
 
@@ -495,6 +497,7 @@ export interface StreamChatOptions {
   provider?: string;
   modelId?: string;
   responseStyle?: string;
+  privacyMode?: 'strict' | 'guarded' | 'relaxed';
   signal?: AbortSignal;
   onStep?: (step: string) => void;
   onChunk?: (chunk: string) => void;
@@ -510,7 +513,7 @@ export async function streamChatMessage(
   history: ChatMessage[] = [],
   options: StreamChatOptions = {}
 ): Promise<void> {
-  const { model, provider, modelId, responseStyle, signal, onStep, onChunk, onDone, onError } = options;
+  const { model, provider, modelId, responseStyle, privacyMode, signal, onStep, onChunk, onDone, onError } = options;
 
   try {
     const response = await fetch('/api/chat/stream', {
@@ -526,6 +529,7 @@ export async function streamChatMessage(
         provider: provider || undefined,
         model_id: modelId || undefined,
         response_style: responseStyle || undefined,
+        privacy_mode: privacyMode || undefined,
       }),
     });
 
@@ -599,5 +603,95 @@ export async function streamChatMessage(
     }
   }
 }
+
+export interface ServiceStatus {
+  name: string;
+  provider: string;
+  status: 'online' | 'offline' | 'standby';
+  type: string;
+  active: boolean;
+  items_indexed?: number;
+  model?: string;
+  voice?: string;
+}
+
+export interface SystemTelemetry {
+  cpu_percent: number | null;
+  ram_percent: number | null;
+  ram_used_gb: number | null;
+  ram_total_gb: number | null;
+  disk_percent: number | null;
+  disk_used_gb: number | null;
+  disk_total_gb: number | null;
+  network_status: string;
+  uptime_seconds: number;
+  services: Record<string, ServiceStatus>;
+  all_operational: boolean;
+}
+
+export interface ActiveTask {
+  id: string;
+  title: string;
+  branch: string;
+  progress: number;
+  status: string;
+  eta_seconds?: number;
+}
+
+export interface ApprovalItem {
+  id: string;
+  title: string;
+  description: string;
+  risk_level: 'low' | 'medium' | 'high';
+  action: string;
+  status: string;
+  created_at: number;
+}
+
+export interface OperationsState {
+  emergency_stop: boolean;
+  auto_approve: boolean;
+  tasks: ActiveTask[];
+  approvals: ApprovalItem[];
+  recent_activity: Array<{ id: string; title: string; timestamp: string; status: string; result?: string }>;
+  right_now: {
+    recommendation: string;
+    branch: string;
+    topic: string;
+    urgency: string;
+  };
+}
+
+export async function fetchSystemTelemetry(): Promise<SystemTelemetry> {
+  const res = await fetch('/api/system/telemetry');
+  if (!res.ok) throw new Error('Failed to fetch system telemetry');
+  return res.json();
+}
+
+export async function fetchOperations(): Promise<OperationsState> {
+  const res = await fetch('/api/operations');
+  if (!res.ok) throw new Error('Failed to fetch operations');
+  return res.json();
+}
+
+export async function submitDecision(opId: string, decision: 'approve' | 'decline'): Promise<void> {
+  const res = await fetch(`/api/operations/${opId}/decision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision }),
+  });
+  if (!res.ok) throw new Error('Failed to record decision');
+}
+
+export async function triggerEmergencyStop(): Promise<void> {
+  const res = await fetch('/api/operations/emergency-stop', { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to trigger emergency stop');
+}
+
+export async function resetOperations(): Promise<void> {
+  const res = await fetch('/api/operations/reset', { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to reset operations');
+}
+
 
 

@@ -34,6 +34,15 @@ MODELS = {
         "reasoning": True,
         "status": "Fast",
     },
+
+    "OpenJarvis": {
+        "provider": "OpenJarvis",
+        "model_id": "qwen3:8b",
+        "fallback_provider": "Gemini",
+        "vision": False,
+        "reasoning": True,
+        "status": "Local",
+    },
 }
 
 
