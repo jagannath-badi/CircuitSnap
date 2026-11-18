@@ -18,10 +18,10 @@ CircuitSnap is an AI-powered engineering assistant for engineering students (spe
 ```text
 CircuitSnap/
 ├── engine.py                   # Shared intelligence orchestration & engineering workflow engine
-├── models.py                   # Model registry (Gemini default, Groq)
+├── models.py                   # Model registry (Gemini default, OpenJarvis Local)
 ├── prompts.py                  # System prompt, adaptive calibration & prompt templates
-├── providers.py                # AI client layer (Google GenAI SDK, Groq SDK)
-├── requirements.txt            # Python dependencies (FastAPI, google-genai, groq, pillow, etc.)
+├── providers.py                # AI client layer (Google GenAI SDK, OpenJarvis HTTP client)
+├── requirements.txt            # Python dependencies (FastAPI, google-genai, pillow, etc.)
 ├── backend/                    # FastAPI Backend Application
 │   ├── main.py                 # FastAPI app entry point, CORS middleware, /api/health
 │   ├── schemas.py              # Pydantic v2 request & response models
@@ -89,7 +89,7 @@ The Vite server (port `5173`) proxies all `/api` traffic directly to `http://127
 
 ### FastAPI Endpoints (`backend/`)
 1. **`GET /api/health`**
-   - Returns: `HealthResponse` (`{ status: "healthy", models: { default: "Gemini", model_id: "gemini-3.8-flash", provider: "Gemini" } }`)
+   - Returns: `HealthResponse` (`{ status: "healthy", models: { default: "Gemini", model_id: "gemini-2.5-flash", provider: "Gemini" } }`)
 2. **`POST /api/chat`**
    - Accepts JSON `ChatRequest`:
      - `message`: `str` (1 to 20,000 characters, required)
@@ -124,7 +124,7 @@ The Vite server (port `5173`) proxies all `/api` traffic directly to `http://127
    - `providers._get_api_key(name)` checks `os.environ.get(name)`.
    - Keys are read securely from the execution environment.
 3. **Provider Failover**:
-   - `providers.py` and `engine.py` manage automatic provider and model fallback (e.g., Gemini primary failing over to Groq/Qwen, or model degradation). Agents must not circumvent or strip the fallback logic.
+   - `providers.py` and `engine.py` manage automatic provider and model fallback (e.g., Gemini primary failing over to OpenJarvis Local, or model degradation). Agents must not circumvent or strip the fallback logic.
 
 ---
 

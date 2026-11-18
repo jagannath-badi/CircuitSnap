@@ -265,37 +265,41 @@ def evaluate_mech_thermo(query: str) -> Optional[str]:
     q = query.strip()
     lower = q.lower()
 
-    # 1. Stress & Strain
+    # 1. Stress & Strain Calculation
     if any(k in lower for k in ["stress", "strain", "young's modulus", "youngs modulus", "elastic modulus"]):
-        f_val = 50_000.0
-        a_val = 0.001
-        dl_val = 0.0005
-        l0_val = 1.0
-
         mf = re.search(r"f(?:orce)?\s*=\s*(\d+(?:\.\d+)?)\s*(kn|n)?", q, re.IGNORECASE)
-        if mf:
-            f_val = float(mf.group(1)) * (1e3 if (mf.group(2) or "").lower() == "kn" else 1.0)
         ma = re.search(r"a(?:rea)?\s*=\s*(\d+(?:\.\d+)?)\s*(m2|mm2|m\^2|mm\^2)?", q, re.IGNORECASE)
-        if ma:
-            unit = (ma.group(2) or "").lower()
-            a_val = float(ma.group(1)) * (1e-6 if "mm" in unit else 1.0)
-        return solve_stress_strain(force=f_val, area=a_val, delta_l=dl_val, original_l=l0_val)
+        has_calc_intent = any(k in lower for k in ["solve", "calc", "calculate", "find"]) and bool(re.search(r"\d+", q))
+        if mf or ma or has_calc_intent:
+            f_val = 50_000.0
+            a_val = 0.001
+            dl_val = 0.0005
+            l0_val = 1.0
 
-    # 2. Beam Deflection
-    if any(k in lower for k in ["beam deflection", "beam bending", "cantilever", "simply supported beam"]):
-        b_type = "cantilever" if "cantilever" in lower else "simply supported"
-        p_load = 5_000.0
-        l_span = 2.0
-        e_mod = 200.0
-        i_inertia = 8.33e-6
+            if mf:
+                f_val = float(mf.group(1)) * (1e3 if (mf.group(2) or "").lower() == "kn" else 1.0)
+            if ma:
+                unit = (ma.group(2) or "").lower()
+                a_val = float(ma.group(1)) * (1e-6 if "mm" in unit else 1.0)
+            return solve_stress_strain(force=f_val, area=a_val, delta_l=dl_val, original_l=l0_val)
 
+    # 2. Beam Deflection Calculation
+    if any(k in lower for k in ["beam deflection", "beam bending", "cantilever deflection", "simply supported beam deflection"]):
         mp = re.search(r"p\s*=\s*(\d+(?:\.\d+)?)\s*(kn|n)?", q, re.IGNORECASE)
-        if mp:
-            p_load = float(mp.group(1)) * (1e3 if (mp.group(2) or "").lower() == "kn" else 1.0)
         ml = re.search(r"l(?:ength)?\s*=\s*(\d+(?:\.\d+)?)\s*m?", q, re.IGNORECASE)
-        if ml:
-            l_span = float(ml.group(1))
-        return solve_beam_deflection(beam_type=b_type, load_n=p_load, length_m=l_span, e_gpa=e_mod, i_m4=i_inertia)
+        has_calc_intent = any(k in lower for k in ["solve", "calc", "calculate", "find"]) and bool(re.search(r"\d+", q))
+        if mp or ml or has_calc_intent or lower.strip() in {"beam deflection", "cantilever deflection"}:
+            b_type = "cantilever" if "cantilever" in lower else "simply supported"
+            p_load = 5_000.0
+            l_span = 2.0
+            e_mod = 200.0
+            i_inertia = 8.33e-6
+
+            if mp:
+                p_load = float(mp.group(1)) * (1e3 if (mp.group(2) or "").lower() == "kn" else 1.0)
+            if ml:
+                l_span = float(ml.group(1))
+            return solve_beam_deflection(beam_type=b_type, load_n=p_load, length_m=l_span, e_gpa=e_mod, i_m4=i_inertia)
 
     # 3. Torque & Power
     if any(k in lower for k in ["torque", "shaft power", "rotational power", "rpm"]) and not any(k in lower for k in ["convert"]):

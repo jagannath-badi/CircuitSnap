@@ -31,7 +31,7 @@ from providers import (
 logger = logging.getLogger(__name__)
 
 # Ensure .env is loaded at router registration
-load_dotenv()
+load_dotenv(override=True)
 
 router = APIRouter(prefix="/api/system", tags=["Telemetry"])
 
@@ -104,17 +104,13 @@ def get_system_telemetry() -> SystemTelemetry:
     network_state = _check_network()
     uptime = round(time.time() - APP_START_TIME, 1)
 
-    load_dotenv()
+    load_dotenv(override=True)
 
     # 1. Gemini Readiness
-    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    gemini_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
     gemini_status = "online" if bool(gemini_key) else "offline"
 
-    # 2. Groq Readiness
-    groq_key = os.getenv("GROQ_API_KEY", "").strip()
-    groq_status = "online" if bool(groq_key) else "offline"
-
-    # 3. Knowledge Vault Readiness
+    # 2. Knowledge Vault Readiness
     vault_status = "offline"
     vault_item_count = 0
     try:
@@ -124,13 +120,13 @@ def get_system_telemetry() -> SystemTelemetry:
     except Exception as err:
         logger.warning("Vault telemetry probe error: %s", err)
 
-    # 4. Whisper STT Readiness
+    # 3. Whisper STT Readiness
     whisper_status = "online"
 
-    # 5. Sonia Neural TTS Readiness
+    # 4. Sonia Neural TTS Readiness
     tts_status = "online" if DEFAULT_VOICE in SUPPORTED_VOICES else "offline"
 
-    # 6. OpenJarvis Hybrid Readiness
+    # 5. OpenJarvis Hybrid Readiness
     oj_available = is_openjarvis_available()
     if oj_available:
         oj_status = "online"
@@ -141,18 +137,11 @@ def get_system_telemetry() -> SystemTelemetry:
 
     services = {
         "gemini": {
-            "name": "Google Gemini 3.8 Flash",
+            "name": "Google Gemini 2.5 Flash",
             "provider": "Google GenAI",
             "status": gemini_status,
             "type": "cloud",
             "active": gemini_status == "online",
-        },
-        "groq": {
-            "name": "Groq Qwen 3.8 27B",
-            "provider": "Groq Cloud",
-            "status": groq_status,
-            "type": "cloud",
-            "active": groq_status == "online",
         },
         "knowledge_vault": {
             "name": "J.A.R.V.I.S. Knowledge Vault",

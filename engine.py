@@ -98,6 +98,8 @@ class RequestContext:
 
     conversation_context: str = ""
 
+    rag_context: str = ""
+
     evidence_rules: list[str] = field(default_factory=list)
 
     @property
@@ -928,6 +930,7 @@ def build_context(
     conversation_history: Optional[list[dict]] = None,
     previous_visual_context: Optional[dict] = None,
     privacy_mode: str = "guarded",
+    rag_context: str = "",
 ) -> RequestContext:
     """
     Build the internal CircuitSnap request context.
@@ -1004,6 +1007,7 @@ def build_context(
         privacy_mode=privacy_mode,
         image_context=image_context,
         conversation_context=conversation_context,
+        rag_context=rag_context,
         evidence_rules=evidence_rules,
     )
 
@@ -1103,6 +1107,10 @@ def build_engine_prompt(
             skill_blocks.append(f'<active_skill name="{s.name}">\n{s.content}\n</active_skill>')
     except Exception:
         pass
+
+    rag_section = ""
+    if getattr(context, "rag_context", None):
+        rag_section = f"\n\nVERIFIED KNOWLEDGE VAULT REFERENCE CONTEXT\n------------------------------------------\n{context.rag_context}\n\nUse the above verified reference material to ground your explanation, technical parameters, and formulas where relevant.\n"
 
     skills_section = ""
     if skill_blocks:
@@ -1279,7 +1287,7 @@ For a practical/lab request:
 The goal is not to make every answer short.
 The goal is to give exactly the amount of information needed
 to answer the user's current request clearly.
-{skills_section}
+{rag_section}{skills_section}
 OUTPUT FORMATTING:
 {layout_directive}
 - Format the response using concise, bulleted key points with bold headers. Avoid wall-of-text paragraphs.
@@ -1301,6 +1309,7 @@ def prepare_request(
     conversation_history: Optional[list[dict]] = None,
     previous_visual_context: Optional[dict] = None,
     privacy_mode: str = "guarded",
+    rag_context: str = "",
 ) -> tuple[RequestContext, str]:
     """
     Prepare a CircuitSnap request for the selected provider.
@@ -1315,6 +1324,7 @@ def prepare_request(
         conversation_history=conversation_history,
         previous_visual_context=previous_visual_context,
         privacy_mode=privacy_mode,
+        rag_context=rag_context,
     )
 
     prompt = build_engine_prompt(context)
@@ -1333,6 +1343,7 @@ def run_engine(
     previous_visual_context: Optional[dict] = None,
     temperature: Optional[float] = None,
     privacy_mode: str = "guarded",
+    rag_context: str = "",
 ):
     """
     Main CircuitSnap backend entry point.
@@ -1357,6 +1368,7 @@ def run_engine(
         conversation_history=conversation_history,
         previous_visual_context=previous_visual_context,
         privacy_mode=privacy_mode,
+        rag_context=rag_context,
     )
 
     effective_temperature = (

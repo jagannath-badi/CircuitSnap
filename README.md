@@ -143,10 +143,10 @@ For important engineering decisions, measurements and component documentation sh
 
 CircuitSnap currently supports:
 
-| Model  | Provider | Vision |
-| ------ | -------- | ------ |
-| Gemini | Google   | ✅     |
-| Groq   | Groq     | ✅     |
+| Model       | Provider         | Vision |
+| ----------- | ---------------- | ------ |
+| Gemini      | Google           | ✅     |
+| OpenJarvis  | Local (qwen3:8b) | ❌     |
 
 The model can be changed from the CircuitSnap composer without intentionally discarding the conversation history.
 
@@ -177,7 +177,7 @@ CircuitSnap uses a provider layer so the application can work with supported AI 
                         providers.py
                          ┌────┴────┐
                          ▼         ▼
-                      Gemini     Groq
+                      Gemini   OpenJarvis
                          │         │
                          └────┬────┘
                               ▼

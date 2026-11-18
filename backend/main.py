@@ -9,10 +9,19 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from providers import (
+    OPENJARVIS_BASE_URL,
+    OPENJARVIS_MODEL,
+    is_openjarvis_available,
+    load_dotenv,
+)
+
+# Ensure .env is loaded before router initialization
+load_dotenv(override=True)
+
 from backend.database import init_db
 from backend.routers import analyze, auth, chat, learn, operations, telemetry, vault, voice
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
-from providers import OPENJARVIS_BASE_URL, OPENJARVIS_MODEL, is_openjarvis_available
 
 
 @asynccontextmanager
@@ -56,6 +65,20 @@ DEFAULT_MODEL_ROSTER: list[ModelOption] = [
         label="Auto (J.A.R.V.I.S. Smart Router)",
         provider="J.A.R.V.I.S. Core",
         specialty="Smart router across all engineering branches",
+        supports_vision=True,
+    ),
+    ModelOption(
+        id="gemini-2.5-flash",
+        label="Google Gemini 2.5 Flash",
+        provider="Google Gemini",
+        specialty="Fast multimodal cloud reasoning & KaTeX synthesis",
+        supports_vision=True,
+    ),
+    ModelOption(
+        id="gemini-2.5-pro",
+        label="Google Gemini 2.5 Pro",
+        provider="Google Gemini",
+        specialty="Deep analytical derivations, complex circuits & proofs",
         supports_vision=True,
     ),
     ModelOption(

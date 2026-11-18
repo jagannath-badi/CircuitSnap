@@ -17,10 +17,10 @@ import re
 import time
 import urllib.parse
 from pathlib import Path
+from typing import Optional
 
 from google import genai
 from google.genai import types
-from groq import Groq
 
 from models import get_model
 from prompts import SYSTEM_PROMPT
@@ -28,51 +28,74 @@ from prompts import SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 
-def load_dotenv(dotenv_path: str | Path | None = None) -> None:
+def load_dotenv(dotenv_path: str | Path | None = None, override: bool = True) -> None:
     """
-    Zero-dependency .env loader that safely reads environment variables
-    from .env without external dependencies or exposing values.
+    Safely reads environment variables from .env without exposing values.
+    Supports python-dotenv with fallback parser, searches repo root and parent directories,
+    and synchronizes GOOGLE_API_KEY <-> GEMINI_API_KEY.
     """
-    try:
-        from dotenv import load_dotenv as _lib_load_dotenv
-        _lib_load_dotenv(dotenv_path)
-        return
-    except ImportError:
-        pass
-
     candidates = []
     if dotenv_path:
         candidates.append(Path(dotenv_path))
     candidates.extend([
+        Path.cwd() / ".env",
         Path(__file__).resolve().parent / ".env",
         Path(__file__).resolve().parent.parent / ".env",
-        Path.cwd() / ".env",
+        Path(__file__).resolve().parent.parent.parent / ".env",
     ])
 
-    for target_path in candidates:
-        if target_path.is_file():
-            try:
-                with open(target_path, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line or line.startswith("#") or "=" not in line:
-                            continue
-                        key, val = line.split("=", 1)
-                        key = key.strip()
-                        val = val.strip()
-                        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-                            val = val[1:-1]
-                        else:
-                            val = val.split(" #", 1)[0].split("\t#", 1)[0].strip()
-                        if key and key not in os.environ:
-                            os.environ[key] = val
+    loaded = False
+    try:
+        from dotenv import load_dotenv as _lib_load_dotenv
+        for cand in candidates:
+            if cand.is_file():
+                _lib_load_dotenv(str(cand), override=override)
+                loaded = True
                 break
-            except Exception:
-                pass
+    except ImportError:
+        pass
+
+    if not loaded:
+        for target_path in candidates:
+            if target_path.is_file():
+                try:
+                    with open(target_path, "r", encoding="utf-8-sig") as f:
+                        for line in f:
+                            line = line.strip()
+                            if not line or line.startswith("#") or "=" not in line:
+                                continue
+                            key, val = line.split("=", 1)
+                            key = key.strip().lstrip("\ufeff")
+                            val = val.strip()
+                            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                                val = val[1:-1]
+                            else:
+                                val = val.split(" #", 1)[0].split("\t#", 1)[0].strip()
+                            if key:
+                                if override or key not in os.environ or not os.environ[key]:
+                                    os.environ[key] = val
+                    break
+                except Exception:
+                    pass
+
+    # Normalize environment keys stripping any UTF-8 BOM
+    for env_k in list(os.environ.keys()):
+        if env_k.startswith("\ufeff"):
+            clean_k = env_k.lstrip("\ufeff")
+            if clean_k and (override or clean_k not in os.environ):
+                os.environ[clean_k] = os.environ[env_k]
+
+    # Synchronize GEMINI_API_KEY and GOOGLE_API_KEY
+    gemini = os.environ.get("GEMINI_API_KEY", "").strip()
+    google = os.environ.get("GOOGLE_API_KEY", "").strip()
+    if gemini and not google:
+        os.environ["GOOGLE_API_KEY"] = gemini
+    elif google and not gemini:
+        os.environ["GEMINI_API_KEY"] = google
 
 
 # Auto-load .env immediately at startup
-load_dotenv()
+load_dotenv(override=True)
 
 # ============================================================
 # OPENJARVIS HYBRID LOCAL / CLOUD CONFIGURATION
@@ -211,9 +234,12 @@ def ask_openjarvis(
 _CLIENT_CACHE = {}
 
 
-def _get_api_key(name: str):
-    """Retrieve API key from os.environ."""
-    return os.environ.get(name)
+def _get_api_key(name: str) -> Optional[str]:
+    """Retrieve API key from os.environ with aliasing and whitespace trimming."""
+    val = os.environ.get(name)
+    if not val and name in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
+        val = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    return val.strip() if val else None
 
 
 def get_gemini_client():
@@ -229,19 +255,6 @@ def get_gemini_client():
     return _CLIENT_CACHE["gemini"]
 
 
-def get_groq_client():
-    """Create and cache the Groq client."""
-    api_key = _get_api_key("GROQ_API_KEY")
-    if not api_key:
-        raise KeyError("GROQ_API_KEY")
-
-    if "groq" not in _CLIENT_CACHE or _CLIENT_CACHE.get("groq_key") != api_key:
-        _CLIENT_CACHE["groq"] = Groq(api_key=api_key)
-        _CLIENT_CACHE["groq_key"] = api_key
-
-    return _CLIENT_CACHE["groq"]
-
-
 # ============================================================
 # IMAGE HELPERS
 # ============================================================
@@ -249,8 +262,6 @@ def get_groq_client():
 def image_to_data_url(image_bytes, mime_type):
     """
     Convert image bytes to a base64 data URL.
-
-    Groq accepts images through data URLs.
     """
 
     encoded = base64.b64encode(image_bytes).decode("utf-8")
@@ -354,104 +365,6 @@ def ask_gemini(
 
 
 # ============================================================
-# GROQ
-# ============================================================
-
-def ask_groq(
-    model_id,
-    prompt,
-    history=None,
-    image_bytes=None,
-    mime_type=None,
-    temperature: float = 0.55,
-):
-    """
-    Send a request to Groq.
-
-    Previous CircuitSnap conversation history is supplied as
-    normal chat messages.
-    """
-
-    client = get_groq_client()
-
-    messages = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT,
-        }
-    ]
-
-    # --------------------------------------------------------
-    # Previous conversation
-    # --------------------------------------------------------
-
-    if history:
-        for message in history:
-            role = message.get("role", "user")
-            content = message.get("content", "")
-
-            if not content:
-                continue
-
-            if role not in {"user", "assistant"}:
-                continue
-
-            messages.append(
-                {
-                    "role": role,
-                    "content": content,
-                }
-            )
-
-    # --------------------------------------------------------
-    # Current user message
-    # --------------------------------------------------------
-
-    current_content = [
-        {
-            "type": "text",
-            "text": prompt,
-        }
-    ]
-
-    if image_bytes is not None:
-        current_content.append(
-            {
-                "type": "image_url",
-                "image_url": {
-                    "url": image_to_data_url(
-                        image_bytes,
-                        mime_type,
-                    )
-                },
-            }
-        )
-
-    messages.append(
-        {
-            "role": "user",
-            "content": current_content,
-        }
-    )
-
-    # --------------------------------------------------------
-    # Request
-    # --------------------------------------------------------
-
-    response = client.chat.completions.create(
-        model=model_id,
-        messages=messages,
-        temperature=temperature,
-        max_completion_tokens=4096,
-    )
-
-    if response.choices and response.choices[0].message:
-        return response.choices[0].message.content or ""
-
-    return ""
-
-
-# ============================================================
 # PROVIDER DISPATCHER
 # ============================================================
 
@@ -515,7 +428,7 @@ def _classify_provider_error(error):
         error_module = type(current_error).__module__.lower()
         provider_exception = (
             error_module.startswith(
-                ("google.genai", "groq", "openai", "httpx", "httpcore", "requests", "urllib3")
+                ("google.genai", "openai", "httpx", "httpcore", "requests", "urllib3")
             )
             or any(
                 term in error_name
@@ -538,7 +451,7 @@ def _classify_provider_error(error):
         missing_secret = (
             isinstance(current_error, KeyError)
             and str(current_error).strip("'\" ").upper()
-            in {"GEMINI_API_KEY", "GROQ_API_KEY"}
+            in {"GEMINI_API_KEY", "GOOGLE_API_KEY"}
         )
         secret_lookup_failure = (
             "secret" in error_name
@@ -1069,148 +982,14 @@ def ask_provider(
         fallback_used = True
         attempts += 1
 
-        fallback_call = {
-            "Groq": ask_groq,
-            "Gemini": ask_gemini,
-        }.get(fallback_provider)
-
-        if fallback_call is None:
-            raise ValueError(
-                f"Unsupported fallback provider configured: {fallback_provider}"
-            )
-
-        success_flag, answer, error, error_type = _attempt_provider(
-            lambda: fallback_call(
-                model_id=fallback_model,
-                prompt=prompt,
-                history=history,
-                image_bytes=image_bytes,
-                mime_type=mime_type,
-                temperature=temperature,
-            )
-        )
-
-        if success_flag:
-            return success(
-                answer, fallback_provider, fallback_model,
-                fallback_used=fallback_used, attempts=attempts,
-            )
-
-        if not _is_fallback_eligible(error_type):
-            return failure(
-                fallback_provider, fallback_model, error, error_type,
-                fallback_used=fallback_used, attempts=attempts,
-            )
-
-        return deliver(
-            _provider_result(
-                _format_provider_error(
-                    fallback_provider,
-                    error,
-                    error_type="fallback_exhausted",
-                    model_id=fallback_model,
-                ),
-                fallback_provider,
-                fallback_model,
-                status="error",
-                error_type="fallback_exhausted",
-                fallback_used=fallback_used,
-                attempts=attempts,
-            )
-        )
-
-    # ========================================================
-    # GROQ
-    # ========================================================
-
-    if provider == "Groq":
-        groq_config = get_model("Groq")
-        attempts = 1
-        fallback_used = False
-
-        success_flag, answer, error, error_type = _attempt_provider(
-            lambda: ask_groq(
-                model_id=model_id,
-                prompt=prompt,
-                history=history,
-                image_bytes=image_bytes,
-                mime_type=mime_type,
-                temperature=temperature,
-            )
-        )
-
-        if success_flag:
-            return success(
-                answer, "Groq", model_id,
-                fallback_used=fallback_used, attempts=attempts,
-            )
-
-        if not _is_fallback_eligible(error_type):
-            if image_bytes is not None and error_type == "invalid_request":
-                # Fall through to Gemini vision fallback
-                pass
-            else:
-                return failure(
-                    "Groq", model_id, error, error_type,
-                    fallback_used=fallback_used, attempts=attempts,
-                )
-
-        # Retry once if temporary unavailability
-        if error_type == "temporary_unavailability":
-            attempts += 1
-            success_flag, answer, error, error_type = _attempt_provider(
-                lambda: ask_groq(
-                    model_id=model_id,
-                    prompt=prompt,
-                    history=history,
-                    image_bytes=image_bytes,
-                    mime_type=mime_type,
-                    temperature=temperature,
-                )
-            )
-
-            if success_flag:
-                return success(
-                    answer, "Groq", model_id,
-                    fallback_used=fallback_used, attempts=attempts,
-                )
-
-            if not _is_fallback_eligible(error_type):
-                if image_bytes is not None and error_type == "invalid_request":
-                    pass
-                else:
-                    return failure(
-                        "Groq", model_id, error, error_type,
-                        fallback_used=fallback_used, attempts=attempts,
-                    )
-
-        # Symmetric fallback to Gemini if configured
-        fallback_provider = groq_config.get("fallback_provider")
-
-        if not fallback_provider:
-            return deliver(
-                _provider_result(
-                    _format_provider_error(
-                        "Groq", error_type="fallback_exhausted"
-                    ),
-                    "Groq",
-                    model_id,
-                    status="error",
-                    error_type="fallback_exhausted",
-                    fallback_used=fallback_used,
-                    attempts=attempts,
-                )
-            )
-
-        fallback_config = get_model(fallback_provider)
-        fallback_model = fallback_config["model_id"]
-        fallback_used = True
-        attempts += 1
-
-        fallback_call = {
-            "Gemini": ask_gemini,
-            "Groq": ask_groq,
-        }.get(fallback_provider)
+        if fallback_provider == "OpenJarvis":
+            fallback_call = lambda model_id, prompt, history, image_bytes, mime_type, temperature: ask_openjarvis(
+                prompt, history=history, temperature=temperature, model=fallback_model
+            )[0]
+        elif fallback_provider == "Gemini":
+            fallback_call = ask_gemini
+        else:
+            fallback_call = None
 
         if fallback_call is None:
             raise ValueError(
@@ -1265,7 +1044,7 @@ def ask_provider(
         fallback_provider = oj_config.get("fallback_provider", "Gemini")
         fallback_config = get_model(fallback_provider)
         fallback_model = fallback_config["model_id"]
-        fallback_call = ask_gemini if fallback_provider == "Gemini" else ask_groq
+        fallback_call = ask_gemini
 
         success_flag, answer, error, error_type = _attempt_provider(
             lambda: fallback_call(

@@ -313,8 +313,15 @@ def evaluate_cs_digital(query: str) -> Optional[str]:
         if m_ip:
             return solve_cidr_subnet(m_ip.group(0))
 
-    # 4. Big-O Complexity
-    if any(k in lower for k in ["big-o", "big o", "time complexity", "space complexity", "data structure complexity"]):
+    # 4. Big-O Complexity Cheatsheet (Only for general matrix/table requests, not specific algorithmic queries)
+    has_specific_algo = any(k in lower for k in [
+        "dijkstra", "bellman", "floyd", "prim", "kruskal", "astar", "a*",
+        "quicksort", "mergesort", "heapsort", "binary search", "bfs", "dfs", "knapsack", "lcs", "lis"
+    ])
+    is_general_table_req = any(k in lower for k in ["table", "matrix", "cheatsheet", "summary", "chart", "comparison", "all"])
+    if not has_specific_algo and (is_general_table_req or lower.strip() in {"big-o", "big o", "time complexity", "big-o matrix", "big o table"}):
+        return get_big_o_matrix()
+    if any(k in lower for k in ["big-o matrix", "big-o table", "big o table", "big-o cheatsheet", "complexity table", "complexity matrix"]):
         return get_big_o_matrix()
 
     # 5. Truth Table & Boolean Logic

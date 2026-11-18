@@ -300,6 +300,17 @@ def decode_color_bands(query: str) -> Optional[str]:
 
 def decode_smd_code(query: str) -> Optional[str]:
     """Decodes standard 3-digit and 4-digit SMD resistor markings like '103', '472', '1002'."""
+    lower = query.lower()
+    # Guard against IP addresses, subnets, and non-component numbers
+    if re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", query) or any(k in lower for k in ["subnet", "cidr", "ip", "ping", "mask"]):
+        return None
+
+    # For bare digits without 'R', require SMD/resistor context or query being just the code
+    has_r = bool(re.search(r"\b(?:[0-9]{2}[R][0-9]?|[0-9][R][0-9]{1,2})\b", query, re.IGNORECASE))
+    is_explicit_smd = any(k in lower for k in ["smd", "resistor", "code", "marking", "package", "chip"]) or query.strip().isdigit() or has_r
+    if not is_explicit_smd:
+        return None
+
     match = re.search(r"\b([0-9]{3,4}|[0-9]{2}[R][0-9]?|[0-9][R][0-9]{1,2})\b", query, re.IGNORECASE)
     if not match:
         return None

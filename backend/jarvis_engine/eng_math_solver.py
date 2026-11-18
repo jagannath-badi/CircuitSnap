@@ -23,17 +23,250 @@ except ImportError:
 
 
 # -----------------------------------------------------------------------------
+# STRICT CONVERSATIONAL GATE & CONCEPTUAL FALLBACKS
+# -----------------------------------------------------------------------------
+
+CONVERSATIONAL_WORDS = {
+    "explain", "about", "what", "is", "are", "define", "definition",
+    "how", "tell", "me", "solve", "find", "the", "of", "for", "please",
+    "give", "show", "calculate", "compute", "evaluate", "value", "derive",
+    "derivation", "meaning", "concept", "intuition", "analogy", "help",
+    "with", "transform", "transforms", "inverse", "forward", "can", "you",
+    "do", "an", "a", "to", "in", "wrt", "respect", "using", "work", "works",
+    "working", "theorem", "property", "properties", "rule", "rules", "formula",
+    "formulas", "equation", "equations", "laplace", "diff", "derivative",
+    "derivatives", "differentiate", "differentiation", "differential", "integral",
+    "integrals", "integration", "integrate", "antiderivative", "ode", "matrix",
+    "matrices", "determinant", "eigenvalue", "eigenvalues", "limits", "limit",
+    "taylor", "maclaurin", "calculus", "linear", "algebra", "kirchhoff",
+    "kvl", "kcl", "thevenin", "norton", "state", "law", "laws"
+}
+
+
+def is_pure_conversational(text: str) -> bool:
+    """Returns True if the text contains only conversational words and no mathematical syntax."""
+    stripped = text.strip()
+    if not stripped:
+        return True
+    if re.search(r"[-+*/^=]|(?:\b\d+\b)", stripped):
+        words = re.findall(r"[a-zA-Z]+", stripped.lower())
+        non_filler = [w for w in words if w not in CONVERSATIONAL_WORDS]
+        if not non_filler:
+            return True
+        return False
+    words = re.findall(r"[a-zA-Z]+", stripped.lower())
+    if not words:
+        return True
+    non_filler = [w for w in words if w not in CONVERSATIONAL_WORDS]
+    return len(non_filler) == 0
+
+
+def clean_symbolic_expression(raw: str) -> str:
+    """Cleans conversational prefix/suffix words and normalizes exponential and multiplication syntax."""
+    s = raw.strip()
+    s = re.sub(
+        r"^(?:please\s+)?(?:can\s+you\s+)?(?:solve|find|calculate|compute|give|evaluate|derive|get)?\s*(?:the\s+)?(?:forward\s+|inverse\s+|inv\s+)?(?:laplace\s+transform\s+of|laplace\s+of|laplace|l\^-1|derivative\s+of|diff\s+of|diff|integral\s+of|integrate)?\s*",
+        "", s, flags=re.IGNORECASE
+    ).strip()
+    s = re.sub(r"(?:with respect to|wrt)\s*[a-zA-Z]", "", s, flags=re.IGNORECASE).strip()
+    s = re.sub(r"\be\^\(([^)]+)\)", r"exp(\1)", s)
+    s = re.sub(r"\be\^(-?[0-9a-zA-Z*.]+)", r"exp(\1)", s)
+    s = re.sub(r"(\d+)\s*(t|s|x|y|z|pi|exp|sin|cos|tan)\b", r"\1*\2", s, flags=re.IGNORECASE)
+    s = s.replace("·", "*").replace("×", "*")
+    return s.strip()
+
+
+def get_laplace_conceptual_explanation() -> str:
+    """Returns authoritative conceptual and mathematical explanation for the Laplace transform."""
+    return (
+        "### [CONFIRMED] Laplace Transform: Conceptual & Mathematical Foundations\n\n"
+        "The **Laplace Transform** is an integral transform that converts a continuous time-domain signal $f(t)$ "
+        "into a complex frequency-domain representation $F(s)$, where $s = \\sigma + j\\omega \\in \\mathbb{C}$. "
+        "It is the central mathematical framework for continuous-time Linear Time-Invariant (LTI) systems, "
+        "analog filter design, transient circuit analysis, and control theory.\n\n"
+        "#### 1. Governing Integral Definitions\n\n"
+        "- **Unilateral (One-Sided) Transform ($t \\ge 0^-$)**:\n"
+        "  $$\\mathcal{L}\\{f(t)\\} = F(s) = \\int_{0^-}^{\\infty} f(t) e^{-st} \\, dt$$\n"
+        "- **Bilateral (Two-Sided) Transform**:\n"
+        "  $$\\mathcal{L}_{II}\\{f(t)\\} = F(s) = \\int_{-\\infty}^{\\infty} f(t) e^{-st} \\, dt$$\n"
+        "- **Inverse Laplace Transform (Bromwich Contour Integral)**:\n"
+        "  $$\\mathcal{L}^{-1}\\{F(s)\\} = f(t) = \\frac{1}{2\\pi j} \\int_{\\gamma - j\\infty}^{\\gamma + j\\infty} F(s) e^{st} \\, ds$$\n\n"
+        "#### 2. Physical & Engineering Significance\n\n"
+        "1. **Algebraizing Differential Equations**: Converts time differentiation $\\frac{d}{dt} \\longleftrightarrow s$ "
+        "and time integration $\\int dt \\longleftrightarrow \\frac{1}{s}$ into algebraic arithmetic, transforming coupled ODEs into rational polynomials.\n"
+        "2. **Transient and Steady-State Unification**: Captures both natural transient response (eigenvalues/damping) and forced steady-state sinusoidal response in one unified closed-form function.\n"
+        "3. **Complex Frequency Plane**: The real part $\\sigma$ governs signal exponential growth/decay, while the imaginary part $\\omega$ represents oscillatory frequency. "
+        "Setting $\\sigma = 0$ reduces the unilateral Laplace transform to the classical continuous-time **Fourier Transform**.\n\n"
+        "#### 3. Standard Transform Pairs Table\n\n"
+        "| Time Signal $f(t) \\ (t \\ge 0)$ | $s$-Domain Transform $F(s)$ | Region of Convergence (ROC) |\n"
+        "| :--- | :--- | :--- |\n"
+        "| **Dirac Delta** $\\delta(t)$ | $1$ | Entire $s$-plane |\n"
+        "| **Unit Step** $u(t)$ | $\\frac{1}{s}$ | $\\text{Re}(s) > 0$ |\n"
+        "| **Ramp** $t \\cdot u(t)$ | $\\frac{1}{s^2}$ | $\\text{Re}(s) > 0$ |\n"
+        "| **Power** $t^n \\cdot u(t)$ | $\\frac{n!}{s^{n+1}}$ | $\\text{Re}(s) > 0$ |\n"
+        "| **Exponential** $e^{-at} u(t)$ | $\\frac{1}{s + a}$ | $\\text{Re}(s) > -a$ |\n"
+        "| **Sine Wave** $\\sin(\\omega t) u(t)$ | $\\frac{\\omega}{s^2 + \\omega^2}$ | $\\text{Re}(s) > 0$ |\n"
+        "| **Cosine Wave** $\\cos(\\omega t) u(t)$ | $\\frac{s}{s^2 + \\omega^2}$ | $\\text{Re}(s) > 0$ |\n"
+        "| **Damped Cosine** $e^{-at} \\cos(\\omega t)$ | $\\frac{s+a}{(s+a)^2 + \\omega^2}$ | $\\text{Re}(s) > -a$ |\n"
+        "| **Damped Sine** $e^{-at} \\sin(\\omega t)$ | $\\frac{\\omega}{(s+a)^2 + \\omega^2}$ | $\\text{Re}(s) > -a$ |\n\n"
+        "#### 4. Critical Operational Properties\n\n"
+        "- **Linearity**: $\\mathcal{L}\\{a f_1(t) + b f_2(t)\\} = a F_1(s) + b F_2(s)$\n"
+        "- **Time Differentiation**: $\\mathcal{L}\\left\\{\\frac{df}{dt}\\right\\} = s F(s) - f(0^-)$\n"
+        "- **Second Derivative**: $\\mathcal{L}\\left\\{\\frac{d^2f}{dt^2}\\right\\} = s^2 F(s) - s f(0^-) - f'(0^-)$\n"
+        "- **Frequency Shift**: $\\mathcal{L}\\{e^{-at} f(t)\\} = F(s + a)$\n"
+        "- **Time Shift**: $\\mathcal{L}\\{f(t - t_0) u(t - t_0)\\} = e^{-s t_0} F(s)$\n"
+        "- **Convolution in Time**: $\\mathcal{L}\\{f_1(t) * f_2(t)\\} = F_1(s) \\cdot F_2(s)$\n"
+        "- **Initial Value Theorem**: $\\lim_{t \\to 0^+} f(t) = \\lim_{s \\to \\infty} s F(s)$\n"
+        "- **Final Value Theorem**: $\\lim_{t \\to \\infty} f(t) = \\lim_{s \\to 0} s F(s)$ (valid if all poles of $s F(s)$ reside strictly in open LHP)"
+    )
+
+
+def get_differentiation_conceptual_explanation() -> str:
+    """Returns conceptual and mathematical explanation for derivatives and differential calculus."""
+    return (
+        "### [CONFIRMED] Differential Calculus: First Principles & Engineering Meaning\n\n"
+        "The **derivative** measures the instantaneous rate of change of a function $f(x)$ with respect to its independent variable $x$. "
+        "Geometrically, it represents the exact slope of the tangent line to the curve at any point.\n\n"
+        "#### 1. Limit Definition (First Principles)\n\n"
+        "$$f'(x) = \\frac{df}{dx} = \\lim_{h \\to 0} \\frac{f(x + h) - f(x)}{h}$$\n\n"
+        "#### 2. Fundamental Engineering Interpretations\n\n"
+        "- **Kinematics**: Position $x(t) \\implies$ Velocity $v(t) = \\frac{dx}{dt} \\implies$ Acceleration $a(t) = \\frac{d^2x}{dt^2}$.\n"
+        "- **Electrical Circuits**: Capacitor current $i_C(t) = C \\frac{dv_C}{dt}$; Inductor voltage $v_L(t) = L \\frac{di_L}{dt}$.\n"
+        "- **Optimization**: Local extrema (maxima/minima) occur at critical points where $\\frac{df}{dx} = 0$.\n"
+        "- **Concavity & Curvature**: The second derivative $\\frac{d^2f}{dx^2} > 0$ indicates concave up (local minimum), while $\\frac{d^2f}{dx^2} < 0$ indicates concave down (local maximum).\n\n"
+        "#### 3. Core Differentiation Rules\n\n"
+        "| Rule Name | Mathematical Statement |\n"
+        "| :--- | :--- |\n"
+        "| **Power Rule** | $\\frac{d}{dx}[x^n] = n x^{n-1}$ |\n"
+        "| **Product Rule** | $\\frac{d}{dx}[u \\cdot v] = u' v + u v'$ |\n"
+        "| **Quotient Rule** | $\\frac{d}{dx}\\left[\\frac{u}{v}\\right] = \\frac{u' v - u v'}{v^2}$ |\n"
+        "| **Chain Rule** | $\\frac{d}{dx}[f(g(x))] = f'(g(x)) \\cdot g'(x)$ |\n"
+        "| **Exponential** | $\\frac{d}{dx}[e^{kx}] = k e^{kx}$ |\n"
+        "| **Natural Log** | $\\frac{d}{dx}[\\ln(x)] = \\frac{1}{x} \\quad (x > 0)$ |\n"
+        "| **Sine / Cosine** | $\\frac{d}{dx}[\\sin(x)] = \\cos(x), \\quad \\frac{d}{dx}[\\cos(x)] = -\\sin(x)$ |"
+    )
+
+
+def get_integration_conceptual_explanation() -> str:
+    """Returns conceptual and mathematical explanation for integrals and integral calculus."""
+    return (
+        "### [CONFIRMED] Integral Calculus: Foundations & Physical Accumulation\n\n"
+        "**Integration** is the inverse operation to differentiation (antiderivative) and geometrically calculates the cumulative net signed area "
+        "bounded between a curve $f(x)$ and the independent coordinate axis.\n\n"
+        "#### 1. Riemann Integral & Fundamental Theorem of Calculus (FTC)\n\n"
+        "- **Riemann Sum Definition**:\n"
+        "  $$\\int_{a}^{b} f(x) \\, dx = \\lim_{n \\to \\infty} \\sum_{i=1}^{n} f(x_i^*) \\Delta x, \\quad \\Delta x = \\frac{b - a}{n}$$\n"
+        "- **Fundamental Theorem of Calculus (Part 1 & 2)**:\n"
+        "  $$\\frac{d}{dx} \\left[ \\int_{a}^{x} f(t) \\, dt \\right] = f(x)$$\n"
+        "  $$\\int_{a}^{b} f(x) \\, dx = F(b) - F(a), \\quad \\text{where } F'(x) = f(x)$$\n\n"
+        "#### 2. Physical & Engineering Meaning\n\n"
+        "- **Electrical Charge**: Total charge $Q(t) = \\int_{0}^{t} i(\\tau) \\, d\\tau + Q(0)$.\n"
+        "- **Energy from Power**: Cumulative electrical/mechanical energy $W = \\int P(t) \\, dt$.\n"
+        "- **Fluid Flow & Mass**: Cumulative volumetric discharge $V = \\int Q(t) \\, dt$.\n"
+        "- **Centroids & Moments of Inertia**: Second moment of area $I_{xx} = \\iint y^2 \\, dA$.\n\n"
+        "#### 3. Standard Integration Techniques\n\n"
+        "- **Integration by Parts**: $\\int u \\, dv = u v - \\int v \\, du$ (choose $u$ using the **ILATE** priority: Inverse, Log, Algebraic, Trig, Exponential).\n"
+        "- **$u$-Substitution (Chain Rule Inversion)**: $\\int f(g(x)) g'(x) \\, dx = \\int f(u) \\, du$.\n"
+        "- **Partial Fraction Expansion**: Decomposes rational fractions $\\frac{P(x)}{Q(x)}$ into simpler summable terms for direct integration."
+    )
+
+
+def get_ode_conceptual_explanation() -> str:
+    """Returns conceptual and mathematical explanation for ordinary differential equations."""
+    return (
+        "### [CONFIRMED] Ordinary Differential Equations (ODEs): Engineering Framework\n\n"
+        "An **Ordinary Differential Equation (ODE)** expresses the governing relationship between an unknown function $y(t)$, "
+        "its independent variable $t$, and one or more of its derivatives $\\frac{dy}{dt}, \\frac{d^2y}{dt^2}, \\dots$.\n\n"
+        "#### 1. Classification Dimensions\n\n"
+        "1. **Order**: Highest derivative present (e.g. 1st order in RC circuits, 2nd order in RLC / mass-spring-damper).\n"
+        "2. **Linearity**: The dependent variable $y$ and all its derivatives appear to the first power with coefficients depending only on $t$.\n"
+        "3. **Homogeneity**: If the forcing term $f(t) = 0$, the equation is homogeneous; otherwise it is non-homogeneous.\n\n"
+        "#### 2. First-Order Linear ODE Solution (Integrating Factor)\n\n"
+        "Standard form: $$\\frac{dy}{dt} + P(t) y = Q(t)$$\n"
+        "Integrating Factor $I(t) = e^{\\int P(t) \\, dt}$:\n"
+        "$$y(t) = \\frac{1}{I(t)} \\left[ \\int I(t) Q(t) \\, dt + C \\right]$$\n\n"
+        "#### 3. Second-Order Linear ODE (Characteristic Equation)\n\n"
+        "Standard LTI form: $$a \\frac{d^2y}{dt^2} + b \\frac{dy}{dt} + c y = 0$$\n"
+        "Characteristic polynomial: $a r^2 + b r + c = 0 \\implies r_{1,2} = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$:\n"
+        "- **Overdamped ($b^2 - 4ac > 0$)**: Two distinct real roots $\\implies y(t) = C_1 e^{r_1 t} + C_2 e^{r_2 t}$.\n"
+        "- **Critically Damped ($b^2 - 4ac = 0$)**: Repeated real root $\\implies y(t) = (C_1 + C_2 t) e^{r t}$.\n"
+        "- **Underdamped ($b^2 - 4ac < 0$)**: Complex conjugate roots $\\alpha \\pm j\\omega \\implies y(t) = e^{\\alpha t} (C_1 \\cos(\\omega t) + C_2 \\sin(\\omega t))$."
+    )
+
+
+def get_matrix_conceptual_explanation() -> str:
+    """Returns conceptual and mathematical explanation for linear algebra and matrices."""
+    return (
+        "### [CONFIRMED] Linear Algebra & Matrices: Engineering Foundations\n\n"
+        "A **matrix** $A \\in \\mathbb{R}^{m \\times n}$ represents a linear transformation between vector spaces. "
+        "In engineering, matrix algebra solves simultaneous nodal/mesh circuit equations, multi-degree-of-freedom structural dynamics, "
+        "and modern state-space control systems.\n\n"
+        "#### 1. Core Matrix Operators & Properties\n\n"
+        "- **Determinant $\\det(A)$**: Geometric scaling factor of volume under transformation. $\\det(A) \\neq 0$ guarantees non-singularity and unique invertibility.\n"
+        "- **Matrix Inverse $A^{-1}$**: Defined for square non-singular matrices such that $A A^{-1} = A^{-1} A = I$.\n"
+        "  $$A^{-1} = \\frac{1}{\\det(A)} \\text{adj}(A)$$\n"
+        "- **Trace $\\text{tr}(A)$**: Sum of main diagonal elements, equal to the sum of all eigenvalues: $\\text{tr}(A) = \\sum_{i=1}^n \\lambda_i$.\n\n"
+        "#### 2. Eigenvalues & Eigenvectors\n\n"
+        "Vectors $\\mathbf{v} \\neq \\mathbf{0}$ whose spatial orientation is preserved under linear operator $A$:\n"
+        "$$A \\mathbf{v} = \\lambda \\mathbf{v} \\iff (A - \\lambda I)\\mathbf{v} = \\mathbf{0}$$\n"
+        "Non-trivial solutions exist if and only if the **Characteristic Equation** is satisfied:\n"
+        "$$\\det(A - \\lambda I) = 0$$\n\n"
+        "#### 3. Primary Engineering Applications\n\n"
+        "1. **State-Space Control**: $\\dot{\\mathbf{x}}(t) = A \\mathbf{x}(t) + B \\mathbf{u}(t)$ where eigenvalues of $A$ determine system stability (Hurwitz criteria: $\\text{Re}(\\lambda_i) < 0$).\n"
+        "2. **Modal Structural Analysis**: Eigenvalues represent natural resonant frequencies $\\omega_n = \\sqrt{\\lambda}$ of mechanical structures.\n"
+        "3. **Power System Admittance ($Y_{\\text{bus}}$)**: Nodal formulation $\\mathbf{I} = Y_{\\text{bus}} \\mathbf{V}$ for multi-bus load flow analysis."
+    )
+
+
+def get_limits_conceptual_explanation() -> str:
+    """Returns conceptual explanation for mathematical limits and asymptotic behavior."""
+    return (
+        "### [CONFIRMED] Mathematical Limits & Asymptotic Behavior\n\n"
+        "A **limit** formalizes the value that a function $f(x)$ approaches as the input $x$ approaches a target value $c$:\n"
+        "$$\\lim_{x \\to c} f(x) = L$$\n\n"
+        "#### 1. Rigorous Definition (Cauchy $\\varepsilon$-$\\delta$)\n\n"
+        "For every $\\varepsilon > 0$, there exists $\\delta > 0$ such that $0 < |x - c| < \\delta \\implies |f(x) - L| < \\varepsilon$.\n\n"
+        "#### 2. Indeterminate Forms & L'Hôpital's Rule\n\n"
+        "When evaluating limits that yield $\\left[\\frac{0}{0}\\right]$ or $\\left[\\frac{\\infty}{\\infty}\\right]$:\n"
+        "$$\\lim_{x \\to c} \\frac{f(x)}{g(x)} = \\lim_{x \\to c} \\frac{f'(x)}{g'(x)}$$\n"
+        "Provided the limit of the derivative quotient exists."
+    )
+
+
+def get_taylor_conceptual_explanation() -> str:
+    """Returns conceptual explanation for Taylor and Maclaurin series expansions."""
+    return (
+        "### [CONFIRMED] Taylor & Maclaurin Series: Polynomial Approximation\n\n"
+        "The **Taylor Series** represents any infinitely differentiable function $f(x)$ as an infinite polynomial expansion "
+        "centered at a reference point $x = a$:\n"
+        "$$f(x) = \\sum_{n=0}^{\\infty} \\frac{f^{(n)}(a)}{n!} (x - a)^n = f(a) + f'(a)(x - a) + \\frac{f''(a)}{2!}(x - a)^2 + \\dots$$\n\n"
+        "When centered at $a = 0$, it is specifically termed the **Maclaurin Series**:\n"
+        "$$f(x) = \\sum_{n=0}^{\\infty} \\frac{f^{(n)}(0)}{n!} x^n$$\n\n"
+        "- **Engineering Relevance**: Linearization of non-linear systems around operating points (e.g. small-signal BJT/MOSFET models)."
+    )
+
+
+# -----------------------------------------------------------------------------
 # 1. SYMBOLIC CALCULUS & TRANSFORMS
 # -----------------------------------------------------------------------------
 
 def solve_differentiation(expr_str: str, var_str: str = "x") -> str:
     """Computes symbolic first and second derivatives with step-by-step KaTeX presentation."""
+    raw = expr_str.strip()
+    if not raw or is_pure_conversational(raw):
+        return get_differentiation_conceptual_explanation()
+
+    clean = clean_symbolic_expression(raw)
+    if not clean or is_pure_conversational(clean):
+        return get_differentiation_conceptual_explanation()
+
     if sp is None:
         return "SymPy is not installed for symbolic differentiation."
     
     x = sp.Symbol(var_str)
+    local_dict = {var_str: x, 'exp': sp.exp, 'sin': sp.sin, 'cos': sp.cos, 'tan': sp.tan, 'e': sp.E, 'pi': sp.pi}
     try:
-        expr = parse_expr(expr_str, transformations=_SYMPY_TRANSFORMS)
+        expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
         d1 = sp.diff(expr, x)
         d2 = sp.diff(d1, x)
         
@@ -57,17 +290,26 @@ def solve_differentiation(expr_str: str, var_str: str = "x") -> str:
 
 def solve_integration(expr_str: str, var_str: str = "x", lower: Optional[str] = None, upper: Optional[str] = None) -> str:
     """Computes indefinite or definite integrals with KaTeX presentation."""
+    raw = expr_str.strip()
+    if not raw or is_pure_conversational(raw):
+        return get_integration_conceptual_explanation()
+
+    clean = clean_symbolic_expression(raw)
+    if not clean or is_pure_conversational(clean):
+        return get_integration_conceptual_explanation()
+
     if sp is None:
         return "SymPy is not installed for symbolic integration."
 
     x = sp.Symbol(var_str)
+    local_dict = {var_str: x, 'exp': sp.exp, 'sin': sp.sin, 'cos': sp.cos, 'tan': sp.tan, 'e': sp.E, 'pi': sp.pi}
     try:
-        expr = parse_expr(expr_str, transformations=_SYMPY_TRANSFORMS)
+        expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
         latex_orig = sp.latex(expr)
 
         if lower is not None and upper is not None:
-            a = parse_expr(lower, transformations=_SYMPY_TRANSFORMS)
-            b = parse_expr(upper, transformations=_SYMPY_TRANSFORMS)
+            a = parse_expr(lower, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            b = parse_expr(upper, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
             res = sp.integrate(expr, (x, a, b))
             latex_res = sp.latex(res)
             latex_a = sp.latex(a)
@@ -146,13 +388,20 @@ def solve_taylor_series(expr_str: str, var_str: str = "x", point_str: str = "0",
 
 def solve_laplace(expr_str: str, inverse: bool = False) -> str:
     """Computes forward or inverse Laplace transform with instant closed-form evaluation."""
-    clean = expr_str.strip()
+    raw = expr_str.strip()
+    if not raw or is_pure_conversational(raw):
+        return get_laplace_conceptual_explanation()
+
+    clean = clean_symbolic_expression(raw)
+    if not clean or is_pure_conversational(clean):
+        return get_laplace_conceptual_explanation()
+
     norm = clean.lower().replace(" ", "")
 
     # Fast-path for forward Laplace transforms
     if not inverse:
         # sin(omega * t)
-        m_sin = re.match(r"sin\((\d+(?:\.\d+)?)\*?t\)", norm)
+        m_sin = re.match(r"^sin\((\d+(?:\.\d+)?)\*?t\)$", norm)
         if m_sin:
             w_val = float(m_sin.group(1))
             w_sq = w_val**2
@@ -164,7 +413,7 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"> **Region of Convergence**: $\\text{{Re}}(s) > 0$. Poles at $s = \\pm j{w_val:g}$."
             )
         # cos(omega * t)
-        m_cos = re.match(r"cos\((\d+(?:\.\d+)?)\*?t\)", norm)
+        m_cos = re.match(r"^cos\((\d+(?:\.\d+)?)\*?t\)$", norm)
         if m_cos:
             w_val = float(m_cos.group(1))
             w_sq = w_val**2
@@ -176,7 +425,7 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"> **Region of Convergence**: $\\text{{Re}}(s) > 0$. Poles at $s = \\pm j{w_val:g}$."
             )
         # exp(a * t) or e^(a * t)
-        m_exp = re.match(r"(?:exp|e\^)\(?(-?\d+(?:\.\d+)?)\*?t\)?", norm)
+        m_exp = re.match(r"^(?:exp|e\^)\(?(-?\d+(?:\.\d+)?)\*?t\)?$", norm)
         if m_exp:
             a_val = float(m_exp.group(1))
             denom = f"s - {a_val:g}" if a_val > 0 else f"s + {-a_val:g}"
@@ -188,7 +437,7 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"> **Region of Convergence**: $\\text{{Re}}(s) > {a_val:g}$. Pole at $s = {a_val:g}$."
             )
         # t^n
-        m_tn = re.match(r"t\^(\d+)", norm)
+        m_tn = re.match(r"^t\^(\d+)$", norm)
         if m_tn:
             n_pow = int(m_tn.group(1))
             fact = math.factorial(n_pow)
@@ -210,7 +459,7 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
     # Fast-path for inverse Laplace transforms
     if inverse:
         # 1/(s + a)
-        m_inv_exp = re.match(r"1/\(s([+-]\d+(?:\.\d+)?)\)", norm)
+        m_inv_exp = re.match(r"^1/\(s([+-]\d+(?:\.\d+)?)\)$", norm)
         if m_inv_exp:
             offset = float(m_inv_exp.group(1))
             pole = -offset
@@ -230,13 +479,18 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
     if sp is None:
         return "SymPy is not installed for Laplace transforms."
 
-    t = sp.Symbol('t', positive=True)
+    t = sp.Symbol('t', real=True, positive=True)
     s = sp.Symbol('s')
+    local_dict = {
+        't': t, 's': s, 'exp': sp.exp, 'sin': sp.sin, 'cos': sp.cos,
+        'tan': sp.tan, 'e': sp.E, 'pi': sp.pi, 'u': sp.Heaviside,
+        'heaviside': sp.Heaviside
+    }
 
     try:
         if inverse:
-            expr = parse_expr(clean, transformations=_SYMPY_TRANSFORMS)
-            res = sp.inverse_laplace_transform(expr, s, t)
+            expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            res = sp.simplify(sp.inverse_laplace_transform(expr, s, t))
             latex_in = sp.latex(expr)
             latex_out = sp.latex(res)
             return (
@@ -248,8 +502,10 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"> **System Dynamics**: Applies for $t \\ge 0$ (Heaviside step excitation)."
             )
         else:
-            expr = parse_expr(clean, transformations=_SYMPY_TRANSFORMS)
-            res, _, _ = sp.laplace_transform(expr, t, s)
+            expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            res = sp.simplify(sp.laplace_transform(expr, t, s, noconds=True))
+            if hasattr(res, "__class__") and res.__class__.__name__ == "LaplaceTransform":
+                return _analytical_laplace_table(clean, inverse=inverse)
             latex_in = sp.latex(expr)
             latex_out = sp.latex(res)
             return (
@@ -257,7 +513,7 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"Continuous-time signal:\n"
                 f"$$f(t) = {latex_in}$$\n\n"
                 f"#### Complex Frequency S-Domain Representation\n\n"
-                f"$$F(s) = \\int_{{0}}^{{\\infty}} {latex_in} \\cdot e^{{-st}} dt = \\mathbf{{{latex_out}}}$$\n\n"
+                f"$$F(s) = \\int_{{0}}^{{\\infty}} \\left({latex_in}\\right) \\cdot e^{{-st}} dt = \\mathbf{{{latex_out}}}$$\n\n"
                 f"> **Convergence**: Region of Convergence (ROC) mapped into complex right-half plane."
             )
     except Exception:
@@ -285,11 +541,23 @@ def _analytical_laplace_table(expr_str: str, inverse: bool = False) -> str:
             return "### [CONFIRMED] Inverse Laplace: $\\mathcal{L}^{-1}\\left\\{\\frac{1}{s^2}\\right\\} = \\mathbf{t} \\quad (t \\ge 0)$"
         elif "1/(s+" in norm or "1/(s-" in norm:
             return "### [CONFIRMED] Inverse Laplace: $\\mathcal{L}^{-1}\\left\\{\\frac{1}{s - a}\\right\\} = \\mathbf{e^{at}} \\quad (t \\ge 0)$"
-    return f"Laplace transform computation for '{expr_str}' ready. Try standard forms like `sin(w*t)`, `cos(w*t)`, `exp(-a*t)`, or `1/(s+2)`."
+    return (
+        f"### [CONFIRMED] Laplace Transform Calculation Guide\n\n"
+        f"Could not compute closed-form transform for `{expr_str}`.\n\n"
+        f"Standard forms supported:\n"
+        f"- Sinusoids: `sin(3*t)`, `cos(2*t)`\n"
+        f"- Exponentials: `exp(-2*t)` or `e^(-2t)`\n"
+        f"- Combined: `exp(-3*t) * cos(2*t)`\n"
+        f"- Inverse poles: `1/(s+2)`, `(s+3)/((s+3)^2 + 4)`"
+    )
 
 
 def solve_ode(ode_str: str) -> str:
     """Solves first or second order linear Ordinary Differential Equations."""
+    raw = ode_str.strip()
+    if not raw or is_pure_conversational(raw) or not any(k in raw.lower() for k in ["y'", "y''", "dy", "y", "="]):
+        return get_ode_conceptual_explanation()
+
     if sp is None:
         return "SymPy is not installed for ODE solving."
 
@@ -529,71 +797,75 @@ def evaluate_eng_math(query: str) -> Optional[str]:
     q = query.strip()
     lower = q.lower()
 
-    # 1. Differentiation
-    diff_match = re.search(r"(?:diff|derivative|differentiate|d/dx)\s*(?:of)?\s*([a-zA-Z0-9_+\-*/^().\s]+)", q, re.IGNORECASE)
-    if diff_match and not any(k in lower for k in ["integral", "laplace", "matrix"]):
-        expr_to_diff = diff_match.group(1).strip()
-        # Clean trailing 'with respect to x'
-        expr_to_diff = re.sub(r"(?:with respect to|wrt)\s*[a-z]", "", expr_to_diff, flags=re.IGNORECASE).strip()
-        return solve_differentiation(expr_to_diff)
+    # 1. Laplace Transform & Inverse
+    if "laplace" in lower or "l^-1" in lower:
+        is_inv = "inverse" in lower or "inv laplace" in lower or "l^-1" in lower
+        clean_expr = clean_symbolic_expression(q)
+        if not clean_expr or is_pure_conversational(clean_expr) or is_pure_conversational(q):
+            return get_laplace_conceptual_explanation()
+        return solve_laplace(clean_expr, inverse=is_inv)
 
-    # 2. Integration
-    int_match = re.search(r"(?:integrate|integral|antiderivative)\s*(?:of)?\s*([a-zA-Z0-9_+\-*/^().\s]+)", q, re.IGNORECASE)
-    if int_match:
-        expr_to_int = int_match.group(1).strip()
-        # Check for definite integral bounds: from a to b
-        bounds_m = re.search(r"from\s+([0-9a-zA-Z_.\-]+)\s+to\s+([0-9a-zA-Z_.\-]+)", expr_to_int, re.IGNORECASE)
+    # 2. Differentiation
+    if any(k in lower for k in ["derivative", "differentiation", "diff", "d/dx"]) and not any(k in lower for k in ["integral", "laplace", "matrix"]):
+        clean_expr = clean_symbolic_expression(q)
+        if not clean_expr or is_pure_conversational(clean_expr) or is_pure_conversational(q):
+            return get_differentiation_conceptual_explanation()
+        return solve_differentiation(clean_expr)
+
+    # 3. Integration
+    if any(k in lower for k in ["integrate", "integral", "antiderivative"]) and not any(k in lower for k in ["laplace", "matrix"]):
+        clean_expr = clean_symbolic_expression(q)
+        if not clean_expr or is_pure_conversational(clean_expr) or is_pure_conversational(q):
+            return get_integration_conceptual_explanation()
+        bounds_m = re.search(r"from\s+([0-9a-zA-Z_.\-]+)\s+to\s+([0-9a-zA-Z_.\-]+)", clean_expr, re.IGNORECASE)
         if bounds_m:
             lower_bound = bounds_m.group(1)
             upper_bound = bounds_m.group(2)
-            expr_to_int = expr_to_int[:bounds_m.start()].strip()
-            return solve_integration(expr_to_int, lower=lower_bound, upper=upper_bound)
-        return solve_integration(expr_to_int)
+            clean_expr = clean_expr[:bounds_m.start()].strip()
+            return solve_integration(clean_expr, lower=lower_bound, upper=upper_bound)
+        return solve_integration(clean_expr)
 
-    # 3. Limits
-    lim_match = re.search(r"limit\s*(?:of)?\s*(.+?)\s*(?:as|when)\s*([a-z])\s*(?:->|approaches|to)\s*([0-9a-zA-Z_.\-]+)", q, re.IGNORECASE)
-    if lim_match:
-        expr_str = lim_match.group(1).strip()
-        var_str = lim_match.group(2).strip()
-        point_str = lim_match.group(3).strip()
-        return solve_limit(expr_str, var_str=var_str, point_str=point_str)
+    # 4. Limits
+    if "limit" in lower:
+        if is_pure_conversational(q):
+            return get_limits_conceptual_explanation()
+        lim_match = re.search(r"limit\s*(?:of)?\s*(.+?)\s*(?:as|when)\s*([a-z])\s*(?:->|approaches|to)\s*([0-9a-zA-Z_.\-]+)", q, re.IGNORECASE)
+        if lim_match:
+            expr_str = lim_match.group(1).strip()
+            var_str = lim_match.group(2).strip()
+            point_str = lim_match.group(3).strip()
+            return solve_limit(expr_str, var_str=var_str, point_str=point_str)
+        return get_limits_conceptual_explanation()
 
-    # 4. Taylor / Maclaurin Series
-    taylor_match = re.search(r"(?:taylor|maclaurin)\s*(?:series)?\s*(?:of)?\s*([a-zA-Z0-9_+\-*/^().\s]+)", q, re.IGNORECASE)
-    if taylor_match:
-        expr_str = taylor_match.group(1).strip()
+    # 5. Taylor / Maclaurin Series
+    if any(k in lower for k in ["taylor", "maclaurin"]):
+        clean_expr = clean_symbolic_expression(q)
+        if not clean_expr or is_pure_conversational(clean_expr) or is_pure_conversational(q):
+            return get_taylor_conceptual_explanation()
         pt = "0"
-        pt_m = re.search(r"(?:around|about|at)\s*([0-9a-zA-Z_.\-]+)", expr_str, re.IGNORECASE)
+        pt_m = re.search(r"(?:around|about|at)\s*([0-9a-zA-Z_.\-]+)", clean_expr, re.IGNORECASE)
         if pt_m:
             pt = pt_m.group(1)
-            expr_str = expr_str[:pt_m.start()].strip()
-        return solve_taylor_series(expr_str, point_str=pt)
-
-    # 5. Laplace Transform & Inverse
-    if "laplace" in lower:
-        is_inv = "inverse" in lower or "inv laplace" in lower or "l^-1" in lower
-        clean_expr = re.sub(r"(?:inverse\s+)?laplace(?:\s+transform)?(?:\s+of)?", "", q, flags=re.IGNORECASE).strip()
-        if not clean_expr:
-            clean_expr = "1/(s+2)" if is_inv else "sin(2*t)"
-        return solve_laplace(clean_expr, inverse=is_inv)
+            clean_expr = clean_expr[:pt_m.start()].strip()
+        return solve_taylor_series(clean_expr, point_str=pt)
 
     # 6. Ordinary Differential Equations (ODE)
     if any(k in lower for k in ["ode", "differential equation", "y''", "y'", "dy/dt"]):
+        if is_pure_conversational(q) or not any(k in lower for k in ["y'", "y''", "dy", "y", "="]):
+            return get_ode_conceptual_explanation()
         return solve_ode(q)
 
     # 7. Matrix Operations (Determinant, Inverse, Eigenvalues)
     if any(k in lower for k in ["matrix", "determinant", "eigenvalue", "eigenvalues", "matrix inverse"]):
-        # Try finding matrix pattern: [[a, b], [c, d]] or [a, b; c, d]
+        if is_pure_conversational(q) or not re.search(r"\[|\d", q):
+            return get_matrix_conceptual_explanation()
         mat_match = re.search(r"\[\s*\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]\s*,\s*\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]\s*\]", q)
         if mat_match:
             a, b, c, d = map(float, mat_match.groups())
             return solve_matrix_ops([[a, b], [c, d]])
-        else:
-            # Default demonstrative 2x2 matrix
-            return solve_matrix_ops([[2.0, 1.0], [1.0, 2.0]])
+        return get_matrix_conceptual_explanation()
 
     # 8. Unit Conversion
-    # Pattern: convert 100 psi to kpa, 50 nm to ft-lb, etc.
     conv_match = re.search(r"(?:convert)?\s*(\d+(?:\.\d+)?)\s*([a-zA-Z0-9_\-/*^]+)\s*(?:to|in|into)\s*([a-zA-Z0-9_\-/*^]+)", q, re.IGNORECASE)
     if conv_match:
         val = float(conv_match.group(1))

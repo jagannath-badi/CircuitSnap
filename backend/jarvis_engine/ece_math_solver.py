@@ -179,8 +179,10 @@ def evaluate_ece_math(query: str) -> Optional[str]:
             return solve_opamp(inverting=is_inv, rf=nums[0] if nums[0] > nums[1] else nums[1], rin=min(nums[0], nums[1]))
         return solve_opamp(inverting=is_inv)
 
-    # BJT / MOSFET Biasing queries
-    if any(k in q_low for k in ["bjt", "mosfet", "biasing", "q-point", "q point", "transistor bias"]):
+    # BJT / MOSFET Biasing calculation queries
+    if any(k in q_low for k in ["biasing", "q-point", "q point", "transistor bias"]) or (
+        ("bjt" in q_low or "mosfet" in q_low) and any(k in q_low for k in ["bias", "solve", "calc", "calculate", "operating point"])
+    ):
         return solve_bjt_bias()
 
     # RLC resonance
@@ -201,6 +203,49 @@ def evaluate_ece_math(query: str) -> Optional[str]:
             "$$R = \\frac{V}{I}$$\n"
             "$$P = V \\cdot I = I^2 R = \\frac{V^2}{R}$$\n\n"
             "**Key Lab Tip**: For resistors, always check $P = I^2 R$ to ensure wattage rating (1/4W = 250mW, 1/2W = 500mW) is not exceeded."
+        )
+
+    # Kirchhoff's Laws (KVL / KCL)
+    if any(k in q_low for k in ["kirchhoff", "kvl", "kcl", "kirchoff"]):
+        return (
+            "### [CONFIRMED] Kirchhoff's Circuit Laws: Governing Conservation Principles\n\n"
+            "Kirchhoff's Laws are the fundamental circuit analysis equations derived directly from Maxwell's Equations "
+            "under lumped-matter circuit assumptions (negligible electromagnetic propagation delay across components).\n\n"
+            "#### 1. Kirchhoff's Current Law (KCL) — Conservation of Charge\n\n"
+            "The algebraic sum of all currents entering any electrical node (junction) is identically zero:\n"
+            "$$\\sum_{k=1}^{n} I_k = 0 \\iff \\sum I_{\\text{in}} = \\sum I_{\\text{out}}$$\n\n"
+            "- **Physical Basis**: Law of Conservation of Electric Charge (no net charge accumulation at a microscopic node).\n"
+            "- **Application**: **Nodal Analysis** ($V_1, V_2, \\dots, V_n$), formulating node admittance equations $G \\mathbf{V} = \\mathbf{I}$.\n\n"
+            "#### 2. Kirchhoff's Voltage Law (KVL) — Conservation of Energy\n\n"
+            "The algebraic sum of all electrical potential differences (voltages) around any closed loop is identically zero:\n"
+            "$$\\oint \\mathbf{E} \\cdot d\\mathbf{l} = 0 \\implies \\sum_{k=1}^{m} V_k = 0 \\iff \\sum V_{\\text{sources}} = \\sum V_{\\text{drops}}$$\n\n"
+            "- **Physical Basis**: Law of Conservation of Energy in conservative electrostatic fields.\n"
+            "- **Application**: **Mesh / Loop Analysis** ($I_1, I_2, \\dots, I_m$), formulating mesh impedance equations $Z \\mathbf{I} = \\mathbf{V}$.\n\n"
+            "> **Sign Convention Protocol**: When traversing a loop in a chosen direction (clockwise):\n"
+            "- Moving from $-$ to $+$ across a voltage source: $+V$ (potential rise).\n"
+            "- Moving in the direction of current across a resistor: $-I \\cdot R$ (potential drop)."
+        )
+
+    # Thevenin & Norton Theorems
+    if any(k in q_low for k in ["thevenin", "norton", "source transformation"]):
+        return (
+            "### [CONFIRMED] Network Theorems: Thevenin & Norton Equivalents\n\n"
+            "Any linear, bilateral two-terminal resistive or impedance network can be replaced at its external load terminals "
+            "$(A, B)$ by an equivalent single-source model.\n\n"
+            "#### 1. Thevenin's Theorem (Voltage Source Equivalent)\n\n"
+            "- **Equivalent Model**: An open-circuit ideal voltage source $V_{\\text{th}}$ in series with an equivalent resistance $R_{\\text{th}}$.\n"
+            "  $$V_{\\text{th}} = V_{oc} \\quad (\\text{Open-circuit voltage across terminals } A-B)$$\n"
+            "  $$R_{\\text{th}} = \\frac{V_{oc}}{I_{sc}} \\quad (\\text{Deactivate independent sources: voltage } \\to \\text{short}, \\text{current } \\to \\text{open})$$\n"
+            "- **Load Current $I_L$** connected across $(A, B)$:\n"
+            "  $$I_L = \\frac{V_{\\text{th}}}{R_{\\text{th}} + R_L}$$\n\n"
+            "#### 2. Norton's Theorem (Current Source Equivalent)\n\n"
+            "- **Equivalent Model**: A short-circuit ideal current source $I_N$ in parallel with equivalent resistance $R_N = R_{\\text{th}}$.\n"
+            "  $$I_N = I_{sc} \\quad (\\text{Short-circuit current from } A \\to B)$$\n"
+            "  $$I_L = I_N \\cdot \\left(\\frac{R_N}{R_N + R_L}\\right)$$\n\n"
+            "#### 3. Dual Source Transformation & Maximum Power Transfer\n\n"
+            "- **Duality Relationship**: $V_{\\text{th}} = I_N \\cdot R_{\\text{th}}$ and $R_N = R_{\\text{th}}$.\n"
+            "- **Maximum Power Transfer Theorem**: Maximum power is delivered to the load when $R_L = R_{\\text{th}}$ (or $Z_L = Z_{\\text{th}}^*$ for AC):\n"
+            "  $$P_{\\text{max}} = \\frac{V_{\\text{th}}^2}{4 R_{\\text{th}}}$$"
         )
 
     return None

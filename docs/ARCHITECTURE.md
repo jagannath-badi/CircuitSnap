@@ -36,7 +36,7 @@ flowchart TD
 
     subgraph AI External Services
         GeminiAPI["Google GenAI API (Gemini 3.8 Flash)"]
-        GroqAPI["Groq Cloud API (Qwen 3.8 27B)"]
+        OpenJarvisAPI["OpenJarvis Local (Qwen 3 8B)"]
     end
 
     Browser -->|HTTP:5173| ReactApp
@@ -50,7 +50,7 @@ flowchart TD
     Engine --> Prompts
     Engine --> Providers
     Providers --> GeminiAPI
-    Providers --> GroqAPI
+    Providers --> OpenJarvisAPI
 ```
 
 ---
@@ -61,15 +61,15 @@ The core reasoning logic is completely decoupled from presentation frameworks, p
 
 1. **`models.py` (Model Registry)**:
    - Configures model identifiers, fallback cascades, vision flags, and human-readable metadata.
-   - **Primary Model**: `Gemini` (`gemini-3.8-flash`) with fallback to `gemini-3.6-flash` and `gemini-2.5-flash`.
-   - **Secondary Provider**: `Groq` (`qwen/qwen3.8-27b`) acting as a high-speed alternative and cross-provider fallback.
+   - **Primary Model**: `Gemini` (`gemini-2.5-flash`) with fallback to `gemini-2.5-pro` and `gemini-2.0-flash`.
+   - **Local Alternative**: `OpenJarvis` (`qwen3:8b`) acting as a high-speed local alternative and cross-provider fallback.
 2. **`prompts.py` (Prompt Engineering & Output Calibration)**:
    - Establishes the CircuitSnap system prompt and adaptive output calibration.
    - For basic conceptual questions, enforces succinct definitions (80–120 words) with bold lead-ins.
    - For complex circuit analysis and debugging, enforces structured point-wise explanations and verified component breakdowns.
 3. **`providers.py` (AI Communication & Failover)**:
-   - Encapsulates SDK client initialization (`google.genai.Client` and `groq.Groq`).
-   - Retrieves API keys securely (`os.environ` $\rightarrow$ `st.secrets`).
+   - Encapsulates SDK client initialization (`google.genai.Client` and `OpenJarvis` HTTP client).
+   - Retrieves API keys securely (`os.environ`).
    - Implements multi-cycle retry and cross-model/cross-provider fallback upon rate limit or service interruption.
 4. **`engine.py` (Intelligence Orchestration)**:
    - Categorizes input types (`component`, `circuit_diagram`, `physical_circuit`, `electronics_document`).

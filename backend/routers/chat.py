@@ -45,13 +45,14 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
                 for m in history
             ]
 
-    # Execute completely offline in memory
+    # Execute with LLM-first RAG architecture
     result = process_jarvis_query(
         user_text=user_message,
         image_bytes=None,
         conversation_history=history,
         model_id=model_id,
         response_style=chosen_style,
+        privacy_mode=request.privacy_mode,
     )
 
     return ChatResponse(
@@ -93,13 +94,14 @@ def generate_chat_stream(request: ChatRequest) -> Generator[str, None, None]:
             yield f"event: step\ndata: {json.dumps({'step': s})}\n\n"
             time.sleep(0.005)
 
-        # 2. Run offline computation in memory
+        # 2. Run LLM-first RAG computation
         result = process_jarvis_query(
             user_text=stream_message,
             image_bytes=None,
             conversation_history=history,
             model_id=model_id,
             response_style=chosen_style,
+            privacy_mode=request.privacy_mode,
         )
 
         full_answer = result.get("answer", "")

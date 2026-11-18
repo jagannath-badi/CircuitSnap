@@ -13,7 +13,5 @@ services:
         value: .
       - key: GEMINI_API_KEY
         sync: false
-      - key: GROQ_API_KEY
-        sync: false
       - key: JWT_SECRET
         generateValue: true

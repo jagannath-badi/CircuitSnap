@@ -30,7 +30,7 @@ export const TelemetryLeftPanel: React.FC<TelemetryLeftPanelProps> = ({
   const alerts: string[] = [];
   if (cpu > 85) alerts.push(`High CPU Load (${cpu.toFixed(1)}%) — offline symbolic execution prioritized.`);
   if (ram > 85) alerts.push(`Memory Pressure (${ram.toFixed(1)}%) — streaming garbage collection active.`);
-  if (telemetry && !telemetry.services?.gemini?.active && !telemetry.services?.groq?.active) {
+  if (telemetry && !telemetry.services?.gemini?.active) {
     alerts.push('Cloud AI offline — running in autonomous J.A.R.V.I.S. offline mode.');
   }
 

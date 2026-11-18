@@ -6,21 +6,149 @@ civil structural/hydraulics, and knowledge vault semantic memory with adaptive r
 """
 
 import json
+import logging
 import re
 import urllib.request
 from typing import Optional, Dict, Any, List
 
 from .datasheet_kb import lookup_component, decode_color_bands, decode_smd_code
 from .ece_math_solver import evaluate_ece_math
-from .eng_math_solver import evaluate_eng_math
+from .eng_math_solver import (
+    evaluate_eng_math,
+    get_laplace_conceptual_explanation,
+    get_differentiation_conceptual_explanation,
+    get_integration_conceptual_explanation,
+    get_limits_conceptual_explanation,
+    get_taylor_conceptual_explanation,
+    get_ode_conceptual_explanation,
+    get_matrix_conceptual_explanation,
+)
 from .mech_thermo_solver import evaluate_mech_thermo
 from .cs_digital_solver import evaluate_cs_digital
 from .universal_eng_solver import evaluate_universal_engineering
 from .knowledge_vault import search_vault
 from .vision_inspector import inspect_circuit_image
 
+logger = logging.getLogger(__name__)
+
 
 OLLAMA_ENDPOINT = "http://localhost:11434/api/generate"
+
+STOP_WORDS = {
+    "what", "is", "are", "the", "a", "an", "of", "for", "in", "to", "and", "or",
+    "explain", "about", "tell", "me", "how", "does", "do", "can", "you", "give",
+    "show", "derive", "calculate", "find", "solve", "please", "with", "meaning",
+    "concept", "define", "properties", "property", "details", "brief", "note", "notes",
+    "work", "working", "workings", "value", "values", "write", "state", "rule", "rules"
+}
+
+
+def extract_core_subject_nouns(query: str) -> List[str]:
+    """Extracts non-filler subject nouns (>=3 letters) from user query."""
+    tokens = re.findall(r"\b[a-zA-Z0-9_\-]{3,}\b", query.lower())
+    cleaned = [t.strip("-_") for t in tokens]
+    return [t for t in cleaned if len(t) >= 3 and t not in STOP_WORDS]
+
+
+def retrieve_rag_context(query: str) -> Optional[Dict[str, Any]]:
+    """
+    Retrieves optional RAG context from the Knowledge Vault strictly when:
+    1. BM25 score >= 6.0
+    2. All core subject nouns in query appear in top hit's title or tags.
+    Returns None otherwise. Never blindly short-circuits.
+    """
+    core_nouns = extract_core_subject_nouns(query)
+    if not core_nouns:
+        return None
+
+    try:
+        hits = search_vault(query, top_k=2)
+    except Exception as err:
+        logger.debug("Vault search error during RAG retrieval: %s", err)
+        return None
+
+    if not hits:
+        return None
+
+    top_hit = hits[0]
+    score = top_hit.get("score", 0.0)
+    if score < 6.0:
+        return None
+
+    hit_text = (top_hit.get("title", "") + " " + top_hit.get("tags", "")).lower()
+    for noun in core_nouns:
+        if noun not in hit_text:
+            return None
+
+    return top_hit
+
+
+def get_offline_exact_subject_entry(query: str) -> Optional[str]:
+    """
+    Returns exact verified offline explanation ONLY when query explicitly targets
+    a verified offline conceptual subject. Never guesses or cross-matches unrelated branches.
+    """
+    lower = query.lower().strip()
+
+    # 1. Laplace Transform
+    if "laplace" in lower or "l^-1" in lower:
+        return get_laplace_conceptual_explanation()
+
+    # 2. Differential Calculus
+    if any(k in lower for k in ["derivative", "differentiation", "diff", "d/dx"]) and not any(k in lower for k in ["integral", "laplace", "matrix", "buckling"]):
+        return get_differentiation_conceptual_explanation()
+
+    # 3. Integral Calculus
+    if any(k in lower for k in ["integrate", "integral", "antiderivative"]) and not any(k in lower for k in ["laplace", "matrix"]):
+        return get_integration_conceptual_explanation()
+
+    # 4. Limits
+    if "limit" in lower and not any(k in lower for k in ["switch", "tolerance"]):
+        return get_limits_conceptual_explanation()
+
+    # 5. Taylor / Maclaurin Series
+    if any(k in lower for k in ["taylor", "maclaurin"]):
+        return get_taylor_conceptual_explanation()
+
+    # 6. Ordinary Differential Equations (ODE)
+    if any(k in lower for k in ["ode", "differential equation"]):
+        return get_ode_conceptual_explanation()
+
+    # 7. Linear Algebra / Matrices
+    if any(k in lower for k in ["matrix", "determinant", "eigenvalue"]):
+        return get_matrix_conceptual_explanation()
+
+    # 8. Kirchhoff's Laws (KVL / KCL)
+    if any(k in lower for k in ["kvl", "kcl", "kirchhoff", "kirchoff"]):
+        return (
+            "### [CONFIRMED] Kirchhoff's Circuit Laws: Governing Conservation Principles\n\n"
+            "Kirchhoff's Laws are the fundamental circuit analysis equations derived directly from Maxwell's Equations "
+            "under lumped-matter circuit assumptions (negligible electromagnetic propagation delay across components).\n\n"
+            "#### 1. Kirchhoff's Current Law (KCL) — Conservation of Charge\n\n"
+            "The algebraic sum of all currents entering any electrical node (junction) is identically zero:\n"
+            "$$\\sum_{k=1}^{n} I_k = 0 \\iff \\sum I_{\\text{in}} = \\sum I_{\\text{out}}$$\n\n"
+            "- **Physical Basis**: Law of Conservation of Electric Charge (no net charge accumulation at a microscopic node).\n"
+            "- **Nodal Analysis**: At node $j$, $\\sum_{k} \\frac{V_j - V_k}{R_{jk}} = 0$.\n\n"
+            "#### 2. Kirchhoff's Voltage Law (KVL) — Conservation of Energy\n\n"
+            "The directed sum of electrical potential differences (voltages) around any closed loop is identically zero:\n"
+            "$$\\sum_{k=1}^{m} V_k = 0$$\n\n"
+            "- **Physical Basis**: Law of Conservation of Energy (electrostatic fields are conservative: $\\oint \\mathbf{E} \\cdot d\\mathbf{l} = 0$).\n"
+            "- **Mesh Analysis**: $\\sum V_{\\text{sources}} = \\sum I R_{\\text{drops}}$ around each mesh loop."
+        )
+
+    # 9. Ohm's Law
+    if "ohm" in lower and any(k in lower for k in ["law", "formula", "relation"]):
+        return (
+            "### [CONFIRMED] Ohm's Law & Power Relationships\n\n"
+            "Fundamental DC Relations:\n"
+            "$$V = I \\cdot R$$\n"
+            "$$I = \\frac{V}{R}$$\n"
+            "$$R = \\frac{V}{I}$$\n"
+            "$$P = V \\cdot I = I^2 R = \\frac{V^2}{R}$$\n\n"
+            "**Key Lab Tip**: For resistors, always check $P = I^2 R$ to ensure wattage rating (1/4W = 250mW, 1/2W = 500mW) is not exceeded."
+        )
+
+    return None
 
 
 def detect_response_style(query: str, explicit_style: Optional[str] = None) -> str:
@@ -209,6 +337,7 @@ def process_jarvis_query(
     conversation_history: Optional[List[Dict[str, Any]]] = None,
     model_id: Optional[str] = None,
     response_style: Optional[str] = None,
+    privacy_mode: str = "guarded",
 ) -> Dict[str, Any]:
     """
     Main offline entry point for all CircuitSnap engineering queries.
@@ -424,27 +553,68 @@ def process_jarvis_query(
             "style": detected_style,
         }
 
-    # 10. Check Knowledge Vault for matching concepts/lecture notes
-    vault_hits = search_vault(eval_text, top_k=2)
-    if vault_hits and vault_hits[0]["score"] > 1.2:
-        top_hit = vault_hits[0]
-        answer = (
-            f"### [CONFIRMED] Knowledge Vault Retrieval: *{top_hit['title']}*\n\n"
-            f"**Domain**: `{top_hit['branch']}` | **Match Score**: `{top_hit['score']}`\n\n"
-            f"{top_hit['content']}"
+    # 10. LLM-First RAG Pipeline (Google Gemini cloud primary -> OpenJarvis Local)
+    # Never return raw SQLite BM25 rows directly; inject verified knowledge strictly as prompt RAG context
+    rag_hit = retrieve_rag_context(eval_text)
+    rag_context_str = ""
+    if rag_hit:
+        rag_context_str = f"Title: {rag_hit['title']}\nDomain: {rag_hit['branch']}\nContent:\n{rag_hit['content']}"
+
+    # Determine target LLM provider based on model request
+    if active_model in {"OpenJarvis", "openjarvis"} or "qwen" in active_model.lower():
+        target_provider = "OpenJarvis"
+        target_model = active_model
+    elif active_model in {"Gemini", "gemini"} or "gemini" in active_model.lower():
+        target_provider = "Gemini"
+        target_model = active_model
+    else:
+        target_provider = "Gemini"
+        target_model = "gemini-2.5-flash"
+
+    try:
+        from engine import run_engine
+        llm_res = run_engine(
+            provider=target_provider,
+            model_id=target_model,
+            user_text=eval_text,
+            conversation_history=conversation_history,
+            privacy_mode=privacy_mode,
+            rag_context=rag_context_str,
         )
+        if llm_res.get("status") == "success" and llm_res.get("answer"):
+            ans = llm_res["answer"]
+            prov = llm_res.get("provider", "Google Gemini")
+            mid = llm_res.get("model_id", target_model)
+            fb = llm_res.get("fallback_used", False)
+            attempts = llm_res.get("attempts", 1)
+            return {
+                "answer": adapt_response_tone(ans, detected_style, eval_text),
+                "provider": prov,
+                "model_id": mid,
+                "status": "success",
+                "error_type": None,
+                "fallback_used": fb,
+                "attempts": attempts,
+                "style": detected_style,
+            }
+    except Exception as err:
+        logger.debug("Live LLM engine routing error: %s", err)
+
+    # 11. Exact-Subject Offline Conceptual Fallback (Zero Cross-Topic Guessing)
+    offline_entry = get_offline_exact_subject_entry(eval_text)
+    if offline_entry:
         return {
-            "answer": adapt_response_tone(answer, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Vault",
-            "model_id": "jarvis-datasheets",
+            "answer": adapt_response_tone(offline_entry, detected_style, eval_text),
+            "provider": "J.A.R.V.I.S. Core",
+            "model_id": "jarvis-math",
             "status": "success",
             "error_type": None,
-            "fallback_used": False,
+            "fallback_used": True,
             "attempts": 1,
             "style": detected_style,
         }
 
-    # 11. Probe local Ollama if active
+    # 12. Probe local Ollama if active
     ollama_res = query_local_ollama(eval_text)
     if ollama_res:
         return {
@@ -458,26 +628,25 @@ def process_jarvis_query(
             "style": detected_style,
         }
 
-    # 12. Natural J.A.R.V.I.S. multi-discipline conversational response
-    answer = (
-        f"### [CONFIRMED] J.A.R.V.I.S. Standby\n\n"
-        f"I heard *\"{eval_text}\"*, though I didn't catch a specific engineering parameter, formula, or component.\n\n"
-        f"Try asking across our multi-branch curriculum:\n"
-        f"- **Civil & Structural**: *\"Shear force simply supported beam UDL\"*, *\"Darcy soil mechanics\"*\n"
-        f"- **Mechanical & Aero**: *\"Stress F=50kN A=0.001m2\"*, *\"Reynolds v=2 D=0.05\"*, *\"Lift drag ratio\"*\n"
-        f"- **Electrical & ECE**: *\"NE555 pinout\"*, *\"3-phase balanced power\"*, *\"Control system damping\"*\n"
-        f"- **CSE & Digital Logic**: *\"Binary 42\"*, *\"Subnet 192.168.1.0/24\"*, *\"Truth table A & B \\| C\"*, *\"Big-O matrix\"*\n"
-        f"- **Engineering Math**: *\"Diff x^3 + sin(x)\"*, *\"Laplace sin(2t)\"*, *\"Matrix det [[1,2],[3,4]]\"*\n"
-        f"- **Knowledge Vault**: Upload course PDFs or teach formulas with *\"Learn: ...\"*"
+    # 13. Honest Offline Fallback (Zero Cross-Topic Guessing)
+    honest_answer = (
+        "### [CANNOT CONFIRM] Live AI Engines Offline\n\n"
+        f"Live reasoning engines (**Google Gemini** and **OpenJarvis Local**) are currently unreachable or unconfigured, "
+        f"and no verified offline entry exists for *\"{eval_text}\"*.\n\n"
+        "**To activate live reasoning:**\n"
+        "1. Set a valid `GEMINI_API_KEY` in `.env` to enable Google Gemini cloud intelligence, OR\n"
+        "2. Start an OpenJarvis / OpenAI-compatible endpoint at `http://localhost:8000/v1` (`qwen3:8b`).\n\n"
+        "Deterministic solvers for registered ICs (e.g. *NE555*, *LM741*), resistor color bands, CIDR subnets, "
+        "and symbolic math expressions (e.g. `diff x^3 + 2x`, `laplace sin(2t)`) remain fully operational offline."
     )
 
     return {
-        "answer": adapt_response_tone(answer, detected_style, eval_text),
-        "provider": "J.A.R.V.I.S. Core",
-        "model_id": active_model,
+        "answer": adapt_response_tone(honest_answer, detected_style, eval_text),
+        "provider": "J.A.R.V.I.S. Offline Gate",
+        "model_id": "jarvis-offline",
         "status": "success",
         "error_type": None,
-        "fallback_used": False,
+        "fallback_used": True,
         "attempts": 1,
         "style": detected_style,
     }
