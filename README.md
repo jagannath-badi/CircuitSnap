@@ -1,192 +1,80 @@
 
-# CircuitSnap 🔧
+# CircuitSnap — Mark 85 Multi-Discipline Engineering OS 🔧
 
-> AI-powered electronics assistant for ECE students.
+> AI-powered multi-discipline engineering command center and diagnostic assistant.
 
-CircuitSnap is an AI-powered electronics assistant built specifically for Electronics and Telecommunication Engineering students.
+CircuitSnap (powered by the **Mark 85 Cognitive OS**) is a full-stack engineering assistant designed for Mathematics, Mechanics & Thermodynamics, Electronics & Communication (ECE), Civil, Chemical, and Computing workflows.
 
-It helps students understand electronic components, circuits, schematics, physical lab setups, and ECE concepts through a single conversational interface with image analysis support.
+It combines **LLM-first RAG intelligence**, **deterministic symbolic/numerical solvers**, **voice interaction**, and **optical schematic/hardware inspection** in a single unified HUD:
 
-The core experience is:
-
-**See → Understand → Explore → Learn**
+**See → Derive → Verify → Master**
 
 ---
 
-## ✨ What CircuitSnap Can Do
+## ✨ Core Capabilities
 
-### 🔍 Identify Components
+### 🧠 Multi-Discipline Engineering Intelligence
 
-Upload an image of an electronic component and ask CircuitSnap what can be reliably determined from the image.
+Ask conceptual, analytical, or design questions across core engineering domains with automatic response adaptation:
 
-It can help with:
+- **Applied Mathematics**: Calculus, differential equations, linear algebra, Laplace & Z-transforms, and boundary-value derivations.
+- **Mechanics & Thermodynamics**: Statics, dynamics, fluid mechanics, heat transfer, and structural equilibrium.
+- **Computing & Digital Logic**: Algorithms, complexity analysis, computer architecture, subnetting, and digital systems.
+- **Circuits & Systems**: Analog/digital electronics, network theorems, signals & systems, control loops, and hardware diagnostics.
+- **Adaptive Output Modes**: `Auto`, `Simple`, `Exam Steps`, `GATE Trick`, and `Code`.
 
-- Component type
-- Function
-- Visible markings
-- Visible terminals or pins
-- Typical role in a circuit
-- Important precautions
+### 🔬 Optical Scope & Hardware Diagnostics
 
-CircuitSnap is designed to avoid inventing exact part numbers or specifications when the available evidence is insufficient.
+Upload schematics, circuit photos, breadboard layouts, free-body diagrams, or lab notes for evidence-graded visual analysis:
 
----
+- Distinguishes strictly between **`CONFIRMED`** (directly visible/verified), **`LIKELY`** (reasonable engineering inference), and **`CANNOT CONFIRM`** (insufficient visual or measurement evidence).
+- Never fabricates part numbers, pinouts, electrical continuity, or unverified datasheet ratings.
 
-### 🔌 Explain Circuits
+### ⚡ Deterministic Symbolic & Numerical Solvers
 
-Upload a circuit diagram, schematic, breadboard, or electronics setup.
+- **SymPy & NumPy Gate**: Explicit mathematical expressions and numerical physics inputs route directly to deterministic offline solvers for exact closed-form derivations and SI-unit verification.
+- **Strict Expression Gate**: Conversational prose is blocked from entering symbolic math parsers, preventing variable-scrambling errors.
 
-CircuitSnap can help explain:
+### 🎙️ Mark 85 Voice & Telemetry HUD
 
-- Visible components
-- Visible connections
-- Circuit purpose
-- Basic working
-- Relationships between components
-- Relevant electronics concepts
-
-It distinguishes between what is clearly visible and what cannot be confirmed from the image.
+- **Voice Pipeline**: Faster-Whisper speech-to-text, `"Hey Jarvis"` wake-word detection, and Sonia Neural TTS with automatic Markdown/LaTeX speech sanitization.
+- **Privacy Guard**: Switchable `Strict` (100% offline), `Guarded` (client-side PII/secret redaction), and `Relaxed` routing modes.
 
 ---
 
-### 🧪 Troubleshoot Electronics
+## 🤖 Available AI Models & Routing
 
-Use CircuitSnap to investigate possible problems in an electronics setup.
+CircuitSnap routes queries through an **LLM-First RAG Pipeline** backed by deterministic solvers and a gated SQLite BM25 Knowledge Vault:
 
-It can help identify:
-
-- Visible wiring concerns
-- Polarity concerns
-- Component placement issues
-- Possible connection problems
-- Areas that require measurement or further inspection
-
-A physical arrangement that looks correct is not automatically treated as proof of electrical continuity or circuit correctness.
+| Engine / Model                                    | Provider / Runtime               | Vision | Role                                                      |
+| :------------------------------------------------ | :------------------------------- | :----: | :-------------------------------------------------------- |
+| **Gemini (`gemini-2.5-flash` / `pro`)** | Google GenAI (Cloud)             |   ✅   | Primary multi-discipline reasoning & optical scope vision |
+| **OpenJarvis (`qwen3:8b`)**               | Local OpenAI-Compatible Endpoint |   ❌   | Offline/local LLM fallback                                |
+| **J.A.R.V.I.S. Deterministic Core**         | Local Python (SymPy / NumPy)     |   ❌   | Exact symbolic math, numerical physics & datasheet lookup |
 
 ---
 
-### 🧰 Test Components
-
-CircuitSnap can provide practical guidance for checking common electronic components with tools such as a multimeter.
-
-The response can include:
-
-- Test procedure
-- Expected behavior
-- Measurements to take
-- Interpretation of results
-- Safety and handling precautions
-
-Actual measurements should always be verified with appropriate laboratory equipment.
-
----
-
-### 🧠 Learn ECE Concepts
-
-Ask electronics questions naturally.
-
-CircuitSnap adapts the explanation to the request, for example:
-
-- Simple explanation
-- Technical explanation
-- Step-by-step derivation
-- Numerical calculation
-- Comparison
-- Practical explanation
-- Exam-style answer
-- Viva preparation
-
-Follow-up questions can continue from the existing conversation instead of starting from zero.
-
----
-
-## 🎯 Accuracy First
-
-CircuitSnap is designed around a simple principle:
-
-> **Accuracy is more important than confidence.**
-
-When analyzing an image, the assistant can distinguish between:
-
-**CONFIRMED**
-
-Information directly supported by visible evidence.
-
-**LIKELY**
-
-A reasonable interpretation that is not completely certain.
-
-**CANNOT CONFIRM**
-
-The available image or information is insufficient to determine the claim reliably.
-
-CircuitSnap is designed not to invent:
-
-- Exact component part numbers
-- Unsupported component values
-- Pin numbers or pinouts
-- Electrical connections
-- Ratings
-- Measurements
-- PCB traces
-- Circuit topology
-- Datasheet specifications
-- Unsupported standards or references
-
-Visible physical arrangement is not automatically treated as proof of electrical connectivity.
-
-For important engineering decisions, measurements and component documentation should still be used for verification.
-
----
-
-## 🤖 Available AI Models
-
-CircuitSnap currently supports:
-
-| Model       | Provider         | Vision |
-| ----------- | ---------------- | ------ |
-| Gemini      | Google           | ✅     |
-| OpenJarvis  | Local (qwen3:8b) | ❌     |
-
-The model can be changed from the CircuitSnap composer without intentionally discarding the conversation history.
-
-CircuitSnap uses a provider layer so the application can work with supported AI providers through the same interface.
-
----
-
-## 🧩 How CircuitSnap Works
+## 🧩 System Architecture
 
 ```text
-                         CircuitSnap
-                              │
-                            app.py
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        │                     │                     │
-        ▼                     ▼                     ▼
-      ui.py                engine.py            models.py
-        │                     │                     │
-        │                     ▼                     │
-        │              Request understanding       │
-        │              Intent / workflow           │
-        │              Context handling             │
-        │              Evidence rules               │
-        │                     │                     │
-        └─────────────────────┼─────────────────────┘
-                              ▼
-                        providers.py
-                         ┌────┴────┐
-                         ▼         ▼
-                      Gemini   OpenJarvis
-                         │         │
-                         └────┬────┘
-                              ▼
-                           Response
-                              │
-                              ▼
-                           Student
-```
-
-```
-
+                       React + Vite HUD (frontend/)
+      TopCommandBar │ AiCoreVisualizer │ DiagnosticFeed │ OpticalScope
+                                   │
+                            REST / SSE Stream
+                                   │
+                                   ▼
+                      FastAPI Backend (backend/main.py)
+            ┌──────────────────────┼──────────────────────┐
+            ▼                      ▼                      ▼
+     routers/chat.py       routers/analyze.py     routers/voice.py
+            │                      │                      │
+            └──────────────────────┼──────────────────────┘
+                                   ▼
+                jarvis_engine/orchestrator.py + engine.py
+            ┌──────────────────────┼──────────────────────┐
+            ▼                      ▼                      ▼
+   Deterministic Solvers   Gated Knowledge Vault      providers.py
+  (SymPy / NumPy / KB)    (BM25 RAG Context >= 6.0)   ┌────┴────┐
+                                                      ▼         ▼
+                                                   Gemini   OpenJarvis
 ```
