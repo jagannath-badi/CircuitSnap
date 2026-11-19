@@ -20,7 +20,7 @@ import { DiagnosticFeed, type DisplayMessage } from './components/DiagnosticFeed
 import { AuthModal } from './components/AuthModal';
 import { VaultDrawer } from './components/VaultDrawer';
 import { useJarvisVoice } from './hooks/useJarvisVoice';
-import { MobilePanelNav, type MobileHudView } from './components/hud/MobilePanelNav';
+import { MobileDrawer } from './components/hud/MobileDrawer';
 
 export default function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
@@ -49,7 +49,7 @@ export default function App() {
   const [emergencyStop, setEmergencyStop] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
-  const [mobileView, setMobileView] = useState<MobileHudView>('core');
+    const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -195,8 +195,20 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-[100dvh] lg:h-[100dvh] lg:overflow-hidden flex flex-col bg-[#050811] text-slate-100 font-mono select-none w-full max-w-[100vw] overflow-x-hidden">
-      <TopCommandBar currentTab={currentTab} onSelectTab={setCurrentTab} telemetry={systemTelemetry} privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode} onResetBench={handleClearChat} emergencyStop={emergencyStop} onOpenQuickSearch={() => setIsVaultOpen(true)} />
+    <div className="h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col bg-[#050811] text-slate-100 font-mono select-none w-full max-w-[100vw]">
+      <TopCommandBar
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        telemetry={systemTelemetry}
+        privacyMode={privacyMode}
+        onPrivacyModeChange={setPrivacyMode}
+        onResetBench={handleClearChat}
+        emergencyStop={emergencyStop}
+        onOpenQuickSearch={() => setIsVaultOpen(true)}
+        onToggleMobileDrawer={() => setIsMobileDrawerOpen(true)}
+        availableModels={availableModels}
+        selectedModel={selectedModel}
+      />
       {errorMessage && (
         <div className="px-4 py-1.5 bg-rose-950/80 border-b border-rose-800 text-rose-200 flex items-center justify-between text-xs font-mono z-30">
           <div className="flex items-center gap-2"><AlertCircle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" /><span>[COMMAND CENTER NOTICE]: {errorMessage}</span></div>
@@ -204,12 +216,13 @@ export default function App() {
         </div>
       )}
       <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])} accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,text/markdown,.pdf,.txt,.md" className="hidden" />
-      <MobilePanelNav currentView={mobileView} onSelectView={setMobileView} pendingApprovalsCount={operations?.approvals?.length ?? 0} />
-      <main className="flex-1 min-h-0 w-full overflow-y-auto lg:overflow-hidden p-2 sm:p-3 grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <div className={`${mobileView === 'telemetry' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 min-h-0 flex-col overflow-hidden`}>
+
+      {/* Desktop: Full 3-panel grid */}
+      <main className="hidden lg:flex-1 lg:min-h-0 lg:w-full lg:overflow-y-auto lg:overflow-hidden lg:p-2 lg:p-3 lg:grid lg:grid-cols-12 lg:gap-3">
+        <div className="lg:flex lg:col-span-3 min-h-0 flex-col overflow-hidden">
           <TelemetryLeftPanel telemetry={systemTelemetry} isLoading={isTelemetryLoading} onRefresh={() => void pollSystem()} />
         </div>
-        <div className={`${mobileView === 'core' ? 'flex' : 'hidden'} lg:flex col-span-12 lg:col-span-6 flex flex-col gap-2 min-h-0 overflow-hidden`}>
+        <div className="lg:flex lg:col-span-6 flex flex-col gap-2 min-h-0 overflow-hidden">
           <AiCoreVisualizer voiceState={voiceState} cognitiveStep={cognitiveStep} isStreaming={isLoading} />
           <div className="flex items-center justify-between px-2.5 py-1 bg-slate-900/70 border border-slate-800 rounded-lg text-xs">
             <div className="flex items-center gap-1">
@@ -226,20 +239,54 @@ export default function App() {
             )}
           </div>
         </div>
-        <div className={`${mobileView === 'tasks' || mobileView === 'quick' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 min-h-0 flex-col gap-3 overflow-y-auto`}>
-          <div className={mobileView === 'quick' ? 'hidden lg:block' : 'block'}>
-            <TasksApprovalsPanel operations={operations} onDecision={handleDecision} />
-          </div>
-          <div className={mobileView === 'tasks' ? 'hidden lg:block' : 'block'}>
-            <QuickActionsRail onVoiceCommand={() => (isListening ? stopListening() : void startListening())} onSystemScan={() => void pollSystem()} onClearContext={handleClearChat} onEmergencyStop={handleEmergencyStop} onTakeControl={handleTakeControl} emergencyStop={emergencyStop} provider={selectedModel} modelId={selectedModel} />
-          </div>
+        <div className="lg:flex lg:col-span-3 min-h-0 flex-col gap-3 overflow-y-auto">
+          <TasksApprovalsPanel operations={operations} onDecision={handleDecision} />
+          <QuickActionsRail onVoiceCommand={() => (isListening ? stopListening() : void startListening())} onSystemScan={() => void pollSystem()} onClearContext={handleClearChat} onEmergencyStop={handleEmergencyStop} onTakeControl={handleTakeControl} emergencyStop={emergencyStop} provider={selectedModel} modelId={selectedModel} />
         </div>
       </main>
+
+      {/* Mobile: Clean 3-zone layout (Top Bar + Full-Bleed Chat + Bottom Prompt) */}
+      <div className="lg:hidden flex-1 min-h-0 flex flex-col">
+        <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput mobileFullBleed />
+      </div>
+
       <BottomCommandDock inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} isLoading={isLoading} isListening={isListening} isSpeaking={isSpeaking} isVoiceEnabled={isVoiceEnabled} onToggleVoiceMode={toggleVoiceMode} onToggleListening={() => (isListening ? stopListening() : void startListening())} autoApprove={autoApprove} onToggleAutoApprove={() => setAutoApprove((a) => !a)} onAttachClick={() => fileInputRef.current?.click()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} liveTranscript={liveTranscript} voiceState={voiceState} />
       <AiCoreSettingsModal isOpen={currentTab === 'core' || currentTab === 'settings'} onClose={() => setCurrentTab('command')} availableModels={availableModels} selectedModel={selectedModel} onSelectModel={setSelectedModel} privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode} />
       <AiVoiceSettingsModal isOpen={currentTab === 'voice'} onClose={() => setCurrentTab('command')} voiceSettings={voiceSettings} onUpdateVoiceSettings={updateVoiceSettings} onTestVoice={testVoicePersona} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={setCurrentUser} />
       <VaultDrawer isOpen={isVaultOpen} onClose={() => setIsVaultOpen(false)} currentUser={currentUser} currentMessages={messages} currentDutImage={activeDutImage} onRestoreSession={(r) => { setMessages(r.messages); if (r.dutImage) { setActiveDutImage(r.dutImage); setActiveDutName('Archived Component'); } }} onOpenAuthModal={() => setIsAuthModalOpen(true)} onSessionsChange={setVaultCount} />
+      <MobileDrawer
+        isOpen={isMobileDrawerOpen}
+        onClose={() => setIsMobileDrawerOpen(false)}
+        currentUser={currentUser}
+        onLogout={() => { setCurrentUser(null); setIsMobileDrawerOpen(false); }}
+        onOpenVault={() => setIsVaultOpen(true)}
+        onOpenAuth={() => { setIsAuthModalOpen(true); setIsMobileDrawerOpen(false); }}
+        onOpenSettings={() => { setCurrentTab('settings'); setIsMobileDrawerOpen(false); }}
+        centerView={centerView}
+        onToggleCenterView={setCenterView}
+        activeDutImage={activeDutImage}
+        operations={operations}
+        onDecision={handleDecision}
+        systemTelemetry={systemTelemetry}
+        isListening={isListening}
+        isSpeaking={isSpeaking}
+        isVoiceEnabled={isVoiceEnabled}
+        onToggleVoice={toggleVoiceMode}
+        onToggleListening={() => (isListening ? stopListening() : void startListening())}
+        responseStyle={responseStyle}
+        onResponseStyleChange={setResponseStyle}
+        availableModels={availableModels}
+        selectedModel={selectedModel}
+        onSelectModel={setSelectedModel}
+        onSystemScan={() => void pollSystem()}
+        onClearContext={handleClearChat}
+        onEmergencyStop={handleEmergencyStop}
+        onTakeControl={handleTakeControl}
+        emergencyStop={emergencyStop}
+        autoApprove={autoApprove}
+        onToggleAutoApprove={() => setAutoApprove((a) => !a)}
+      />
     </div>
   );
 }

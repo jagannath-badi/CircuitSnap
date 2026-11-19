@@ -108,7 +108,7 @@ def get_system_telemetry() -> SystemTelemetry:
 
     # 1. Gemini Readiness
     gemini_key = (os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "").strip()
-    gemini_status = "online" if bool(gemini_key) else "offline"
+    gemini_status = "online" if bool(gemini_key and gemini_key.strip()) else "offline"
 
     # 2. Knowledge Vault Readiness
     vault_status = "offline"
@@ -119,9 +119,15 @@ def get_system_telemetry() -> SystemTelemetry:
         vault_item_count = stats.get("total_chunks", 0)
     except Exception as err:
         logger.warning("Vault telemetry probe error: %s", err)
+        vault_status = "unavailable"
 
     # 3. Whisper STT Readiness
     whisper_status = "online"
+    try:
+        from backend.routers.voice import get_whisper_model  # Trigger import check
+        _ = get_whisper_model()  # Force instantiation
+    except (ImportError, Exception):
+        whisper_status = "offline"
 
     # 4. Sonia Neural TTS Readiness
     tts_status = "online" if DEFAULT_VOICE in SUPPORTED_VOICES else "offline"
@@ -156,7 +162,7 @@ def get_system_telemetry() -> SystemTelemetry:
             "provider": "OpenAI / Local CPU",
             "status": whisper_status,
             "type": "local",
-            "active": True,
+            "active": whisper_status == "online",
             "model": "base.en",
         },
         "sonia_tts": {

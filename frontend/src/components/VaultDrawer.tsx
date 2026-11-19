@@ -239,7 +239,7 @@ export const VaultDrawer: React.FC<VaultDrawerProps> = ({
           <button
             onClick={onClose}
             type="button"
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
             title="Close"
           >
             <X className="w-4 h-4" />

@@ -20,9 +20,12 @@ def get_whisper_model():
     """Lazy singleton initializer for faster-whisper on CPU with int8 quantization."""
     global _whisper_model
     if _whisper_model is None:
-        from faster_whisper import WhisperModel
-        # Use base.en for high-accuracy local ECE transcription
-        _whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
+        try:
+            from faster_whisper import WhisperModel
+            _whisper_model = WhisperModel("base.en", device="cpu", compute_type="int8")
+        except Exception as e:
+            logger.error("Failed to initialize Whisper model: %s", e)
+            raise
     return _whisper_model
 
 
@@ -43,11 +46,9 @@ def filter_hallucinations(text: str) -> str:
     }:
         return ""
     words = re.findall(r"\b\w+\b", text.lower())
-    # Check for 3+ consecutive identical words (e.g., "highloud highloud highloud")
     for i in range(len(words) - 2):
         if words[i] == words[i + 1] == words[i + 2]:
             return ""
-    # Check for degenerate loops where text is mostly 1 or 2 repeated words across 4+ tokens
     if len(words) >= 4 and len(set(words)) <= 2:
         return ""
     return text.strip()
@@ -62,7 +63,6 @@ def normalize_ece_speech(text: str) -> str:
         return ""
     t = text.strip()
 
-    # Wake-word normalization (e.g. "hey divers", "hey service", "a jarvis", "hi divers")
     t = re.sub(
         r"\b(?:(?:hey|hi|hello|ok|okay|a)\s+(?:service|job\s*is|travis|divers)|(?:(?:hey|hi|hello|ok|okay|a)\s+)?jarvis)\b",
         "hey jarvis",
@@ -70,7 +70,6 @@ def normalize_ece_speech(text: str) -> str:
         flags=re.IGNORECASE,
     )
 
-    # IC Part Numbers
     t = re.sub(r"\b(?:any|ne|n e|any\s*time)\s*555\b", "NE555", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:lm|l m)\s*741\b", "LM741", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:lm|l m)\s*358\b", "LM358", t, flags=re.IGNORECASE)
@@ -82,7 +81,6 @@ def normalize_ece_speech(text: str) -> str:
     t = re.sub(r"\b(?:1n|1 n)\s*4007\b", "1N4007", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:1n|1 n)\s*4148\b", "1N4148", t, flags=re.IGNORECASE)
 
-    # Electrical units & values
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:oms|homes?|ohms?)\b", r"\1 ohms", t, flags=re.IGNORECASE)
     t = re.sub(r"\boms\b", "ohms", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:kilo\s*(?:ohms?|homes?)|k\s*ohms?|kilo)\b", r"\1kΩ", t, flags=re.IGNORECASE)
@@ -95,14 +93,12 @@ def normalize_ece_speech(text: str) -> str:
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:kilo\s*hertz|khz)\b", r"\1kHz", t, flags=re.IGNORECASE)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*(?:mega\s*hertz|mhz)\b", r"\1MHz", t, flags=re.IGNORECASE)
 
-    # Multi-Discipline Engineering terms
     t = re.sub(r"\b(?:la\s*place)\b", "Laplace", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:reynolds?|raynolds?)\s*(?:number)?\b", "Reynolds number", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:car\s*no|carnot)\b", "Carnot", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:big\s*o)\b", "Big-O", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:youngs?|young's)\s*modulus\b", "Young's modulus", t, flags=re.IGNORECASE)
 
-    # Clean whitespace & punctuation
     t = re.sub(r"\s+", " ", t).strip()
     return t
 
@@ -110,34 +106,27 @@ def normalize_ece_speech(text: str) -> str:
 def format_for_voice(text: str) -> str:
     """
     Sanitizes Markdown, tables, and LaTeX math into natural spoken English for Sonia Neural TTS.
-    Converts mathematical symbols and fractions into spoken words, strips formatting syntax,
-    and caps length at clean sentence boundaries.
     """
     if not text or not text.strip():
         return "Specifications and calculations are displayed on screen."
 
     t = text
-    # 1. Pronounce Jarvis smoothly
     t = re.sub(r"J\.A\.R\.V\.I\.S\.?", "Jarvis", t, flags=re.IGNORECASE)
     t = re.sub(r"\bJARVIS\b", "Jarvis", t)
 
-    # 2. Replace fenced code blocks and inline code
     t = re.sub(r"```[\s\S]*?```", " See the code block on screen. ", t)
     t = re.sub(r"`([^`]+)`", r"\1", t)
 
-    # 3. Strip Markdown tables completely including all pipe characters
     t = re.sub(r"^\s*\|.*\|\s*$", " ", t, flags=re.MULTILINE)
     t = re.sub(r"\|[^\n]+\|", " ", t)
     t = re.sub(r"\|+", " ", t)
 
-    # 4. Strip headers, confidence badges, and list bullets
     t = re.sub(r"(?:^|\n)\s*#{1,6}\s*", " ", t)
     t = re.sub(r"\[\s*(?:CONFIRMED|LIKELY|CANNOT CONFIRM)\s*\]\s*[:\-\u2013\u2014]?", "", t, flags=re.IGNORECASE)
     t = re.sub(r"\b(?:CONFIRMED|CANNOT CONFIRM|LIKELY)\b\s*[:\-\u2013\u2014]?", "", t)
     t = re.sub(r"(?:^|\n)\s*[-*+]\s+", " ", t)
     t = re.sub(r"(?:^|\n)\s*\d+\.\s+", " ", t)
 
-    # 5. LaTeX math conversion to natural spoken English
     while re.search(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", t):
         t = re.sub(r"\\frac\{([^{}]+)\}\{([^{}]+)\}", r"\1 over \2", t)
     t = re.sub(r"\\sqrt\{([^{}]+)\}", r"square root of \1", t)
@@ -155,12 +144,10 @@ def format_for_voice(text: str) -> str:
     t = re.sub(r"\\[,;!]", " ", t)
     t = re.sub(r"\\[a-zA-Z]+", " ", t)
 
-    # Remove LaTeX delimiters $ and $$
     t = re.sub(r"\$\$([\s\S]*?)\$\$", r" \1 ", t)
     t = re.sub(r"\$([^$]+)\$", r" \1 ", t)
     t = t.replace("$", "")
 
-    # 6. Spoken electrical units
     t = re.sub(r"(\d+(?:\.\d+)?)\s*MΩ", r"\1 mega-ohms", t)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*kΩ", r"\1 kilo-ohms", t)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*Ω", r"\1 ohms", t)
@@ -180,20 +167,17 @@ def format_for_voice(text: str) -> str:
     t = re.sub(r"(\d+(?:\.\d+)?)\s*V(?![a-zA-Z])", r"\1 volts", t)
     t = re.sub(r"(\d+(?:\.\d+)?)\s*W(?![a-zA-Z])", r"\1 watts", t)
 
-    # 7. Strip Markdown bullets, HTML tags & symbols
     t = re.sub(r"<[^>]+>", " ", t)
     t = re.sub(r"[*_~`>#]+", " ", t)
     t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
     t = t.replace("\\", " ")
 
-    # 8. Normalize all line breaks into a single space and collapse extra whitespace
     t = re.sub(r"[\r\n]+", " ", t)
     t = re.sub(r"\s+", " ", t).strip()
 
     if len(t) < 5:
         return "Specifications and calculations are displayed on screen."
 
-    # Cap spoken text to ~480 characters at a clean sentence boundary
     if len(t) > 480:
         cut = t[:480]
         match = list(re.finditer(r"[.!?](?:\s|$)", cut))
@@ -203,9 +187,6 @@ def format_for_voice(text: str) -> str:
             t = cut.rsplit(" ", 1)[0].rstrip(",;:-") + "."
 
     return t
-
-
-clean_tts_text = format_for_voice
 
 
 SUPPORTED_VOICES: Dict[str, Dict[str, str]] = {
@@ -281,13 +262,6 @@ def _transcribe_file(file_path: str) -> str:
             vad_filter=True,
             no_speech_threshold=0.75,
             condition_on_previous_text=False,
-            initial_prompt=(
-                "Jarvis, CircuitSnap, Laplace, eigenvalue, Reynolds number, Bernoulli, "
-                "stress, strain, Young's modulus, Carnot, binary, hexadecimal, subnet, CIDR, "
-                "Big-O, truth table, NE555, LM741, LM358, TL072, LM7805, BC547, "
-                "IRFZ44N, MOSFET, BJT, resistor, capacitor, inductor, diode, "
-                "ohms, kilo-ohms, microfarads, astable, cutoff frequency"
-            ),
             language="en",
         )
         raw_text = " ".join([seg.text for seg in segments]).strip()
@@ -296,38 +270,40 @@ def _transcribe_file(file_path: str) -> str:
             return ""
         return normalize_ece_speech(filtered)
     except Exception as err:
-        logger.warning("Whisper transcription error: %s", err)
-        return ""
+        logger.error("Whisper transcription error: %s", err)
+        raise
 
 
 @router.post("/stt", response_model=STTResponse)
 async def speech_to_text(file: UploadFile = File(...)) -> STTResponse:
     """
     Sub-200ms local speech-to-text using faster-whisper and ECE phonetic normalizer.
-    Accepts raw audio blob from VAD recorder (webm/wav/ogg).
     """
-    content = await file.read()
-    if len(content) < 512:
-        return STTResponse(text="")
-
-    suffix = ".webm"
-    if file.filename and "." in file.filename:
-        suffix = f".{file.filename.rsplit('.', 1)[-1]}"
-
-    tmp_path = None
     try:
+        content = await file.read()
+        if len(content) < 512:
+            return STTResponse(text="")
+
+        suffix = ".webm"
+        if file.filename and "." in file.filename:
+            suffix = f".{file.filename.rsplit('.', 1)[-1]}"
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp_path = tmp.name
             tmp.write(content)
 
-        clean_text = await asyncio.to_thread(_transcribe_file, tmp_path)
-        return STTResponse(text=clean_text)
-    finally:
-        if tmp_path and os.path.exists(tmp_path):
-            try:
+        try:
+            clean_text = await asyncio.to_thread(_transcribe_file, tmp_path)
+            return STTResponse(text=clean_text)
+        finally:
+            if os.path.exists(tmp_path):
                 os.remove(tmp_path)
-            except Exception:
-                pass
+    except Exception as e:
+        logger.error("STT endpoint error: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Transcription failed: {str(e)}"
+        )
 
 
 async def _fetch_tts_bytes(communicate: edge_tts.Communicate) -> bytes:
@@ -342,12 +318,9 @@ async def _fetch_tts_bytes(communicate: edge_tts.Communicate) -> bytes:
 @router.post("/tts")
 async def text_to_speech(payload: TTSRequest):
     """
-    Neural Text-to-Speech using edge-tts with selectable persona (default: en-GB-SoniaNeural).
-    Streams MP3 audio with 8.0s timeout safety to eliminate hanging connections.
+    Neural Text-to-Speech using edge-tts.
     """
     cleaned_text = format_for_voice(payload.text)
-    if not cleaned_text:
-        cleaned_text = "Specifications and calculations are displayed on screen."
 
     voice = payload.voice if payload.voice in SUPPORTED_VOICES else DEFAULT_VOICE
     profile = SUPPORTED_VOICES[voice]
@@ -364,29 +337,17 @@ async def text_to_speech(payload: TTSRequest):
     try:
         audio_bytes = await asyncio.wait_for(_fetch_tts_bytes(communicate), timeout=8.0)
     except asyncio.TimeoutError:
-        logger.warning("TTS generation timed out after 8.0s for voice %s", voice)
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Neural TTS synthesis timed out after 8.0 seconds.",
-        )
+        logger.warning("TTS generation timed out")
+        raise HTTPException(status_code=status.HTTP_504_GATEWAY_TIMEOUT, detail="TTS timed out.")
     except Exception as err:
         logger.error("TTS generation error: %s", err)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Neural TTS synthesis failed: {str(err)}",
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"TTS failed: {str(err)}")
 
     if not audio_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Neural TTS returned empty audio payload.",
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="TTS returned empty payload.")
 
     return Response(
         content=audio_bytes,
         media_type="audio/mpeg",
-        headers={
-            "Content-Length": str(len(audio_bytes)),
-            "Cache-Control": "no-cache",
-        },
+        headers={"Content-Length": str(len(audio_bytes)), "Cache-Control": "no-cache"},
     )

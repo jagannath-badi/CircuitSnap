@@ -50,8 +50,8 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
   return (
     <footer className="w-full bg-[#070C18]/95 border-t border-cyan-950/70 p-2 sm:p-3 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] sm:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] font-mono z-30 select-none flex-shrink-0">
       <div className="max-w-7xl mx-auto flex flex-col gap-2">
-        {/* Top Controls Row */}
-        <div className="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 text-xs w-full">
+        {/* Top Controls Row (Desktop only — mobile tucks toggles into the drawer) */}
+        <div className="hidden md:flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 text-xs w-full">
           {/* Voice & Auto-approve Toggles */}
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* Talk to Jarvis Button */}
@@ -126,8 +126,44 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
         {/* Input Bar & Actions */}
         <div className="relative flex items-end gap-2 bg-slate-900/90 border border-slate-800 focus-within:border-cyan-500/60 rounded-xl p-1.5 sm:p-2 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform shadow-inner w-full">
           <button
+            onClick={onToggleListening}
+            className={`md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition-all ${
+              _isSpeaking
+                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 animate-pulse'
+                : isListening
+                ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
+                : 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+            }`}
+            title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
+          >
+            <Mic className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={onAttachClick}
-            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
+            className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
+            title="Attach diagram, circuit photo, free-body sketch, or PDF notes"
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onToggleListening}
+            className={`hidden md:flex p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition-all ${
+              _isSpeaking
+                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 animate-pulse'
+                : isListening
+                ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
+                : 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+            }`}
+            title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
+          >
+            <Mic className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onAttachClick}
+            className="hidden md:flex p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
             title="Attach diagram, circuit photo, free-body sketch, or PDF notes"
           >
             <Paperclip className="w-4 h-4" />
@@ -144,7 +180,7 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
                 : 'Ask anything — derivations, diagrams, mechanics, circuits, code, or lab diagnostics...'
             }
             rows={1}
-            className="flex-1 w-full min-w-0 bg-transparent text-slate-100 text-xs sm:text-sm placeholder-slate-500 focus:outline-none resize-none min-h-[40px] max-h-[120px] py-2 font-sans"
+            className="flex-1 w-full min-w-0 bg-transparent text-slate-100 text-base placeholder-slate-500 focus:outline-none resize-none min-h-[44px] max-h-[120px] py-2 font-sans"
           />
 
           <button

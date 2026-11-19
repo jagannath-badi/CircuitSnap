@@ -38,7 +38,7 @@ export const AiVoiceSettingsModal: React.FC<AiVoiceSettingsModalProps> = ({
               <p className="text-[11px] text-slate-400">Configure neural persona, speech recognition, and wake-word trigger</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <button onClick={onClose} className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 min-h-[44px] min-w-[44px] flex items-center justify-center">
             <X className="w-4 h-4" />
           </button>
         </div>

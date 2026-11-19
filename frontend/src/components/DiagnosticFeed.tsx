@@ -67,6 +67,7 @@ export interface DiagnosticFeedProps {
   voiceError?: string | null;
   onClearVoiceError?: () => void;
   hideInput?: boolean;
+  mobileFullBleed?: boolean;
 }
 
 /**
@@ -191,10 +192,10 @@ function normalizeProseContent(raw: string): string {
 
 const markdownComponents: Components = {
   p: ({ children }) => (
-    <p className="my-2 text-slate-200 leading-relaxed text-sm">{children}</p>
+    <p className="my-2 text-slate-200 leading-relaxed text-base">{children}</p>
   ),
   li: ({ children }) => (
-    <li className="my-1 text-slate-200 leading-relaxed text-sm">{children}</li>
+    <li className="my-1 text-slate-200 leading-relaxed text-base">{children}</li>
   ),
   span: ({ children, className, ...props }) => (
     <span className={className} {...props}>
@@ -214,7 +215,7 @@ const markdownComponents: Components = {
     <h2 className="text-base font-bold text-cyan-300 mt-3.5 mb-1.5">{children}</h2>
   ),
   h3: ({ children }) => (
-    <h3 className="text-sm font-semibold text-cyan-400 mt-3 mb-1">{children}</h3>
+    <h3 className="text-base font-semibold text-cyan-400 mt-3 mb-1">{children}</h3>
   ),
   h4: ({ children }) => (
     <h4 className="text-xs font-semibold text-cyan-400 mt-2 mb-1">{children}</h4>
@@ -226,7 +227,7 @@ const markdownComponents: Components = {
     <ol className="list-decimal list-outside space-y-1.5 my-2 ml-5 text-slate-200">{children}</ol>
   ),
   blockquote: ({ children }) => (
-    <blockquote className="border-l-2 border-cyan-400/60 pl-3 py-1 my-2 text-slate-300 bg-white/[0.02] rounded-r text-sm italic">
+    <blockquote className="border-l-2 border-cyan-400/60 pl-3 py-1 my-2 text-slate-300 bg-white/[0.02] rounded-r text-base italic">
       {children}
     </blockquote>
   ),
@@ -317,6 +318,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   voiceError = null,
   onClearVoiceError,
   hideInput = false,
+  mobileFullBleed = false,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [savedMsgIds, setSavedMsgIds] = useState<Set<string>>(new Set());
@@ -347,44 +349,46 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   };
 
   return (
-    <section className="flex flex-col h-full min-h-0 overflow-hidden rounded-3xl border border-white/10 bg-[#060911]/85 backdrop-blur-2xl specular-glass shadow-2xl flow-bento-card flow-stagger-2">
-      {/* Feed Header */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-[#00A6E8]" />
-          <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-200">
-            J.A.R.V.I.S. Assistant
-          </h2>
+    <section className={`flex flex-col h-full min-h-0 overflow-hidden ${mobileFullBleed ? 'border-0 rounded-none bg-transparent shadow-none' : 'rounded-3xl border border-white/10 bg-[#060911]/85 backdrop-blur-2xl specular-glass shadow-2xl flow-bento-card flow-stagger-2'}`}>
+      {/* Feed Header (Desktop only) */}
+      {!mobileFullBleed && (
+        <div className="flex-shrink-0 px-4 py-3 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[#00A6E8]" />
+            <h2 className="text-xs font-mono font-semibold tracking-wider uppercase text-cyan-200">
+              J.A.R.V.I.S. Assistant
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+            <span>
+              {messages.length === 0
+                ? 'Ready'
+                : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-          <span>
-            {messages.length === 0
-              ? 'Ready'
-              : `${messages.length} message${messages.length === 1 ? '' : 's'}`}
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* Message Feed Container */}
       <div
         ref={scrollContainerRef}
-        className={`flex-1 min-h-0 overflow-y-auto p-4 space-y-4 overscroll-contain diagnostic-feed-scrollbar ${
+        className={`flex-1 min-h-0 overflow-y-auto overscroll-contain diagnostic-feed-scrollbar ${
           messages.length === 0
-            ? 'flex flex-col items-center justify-center'
-            : ''
+            ? 'flex flex-col'
+            : 'p-4 space-y-4'
         }`}
       >
         {messages.length === 0 ? (
           /* Empty Feed State - Glowing J.A.R.V.I.S. Core Emblem & 4 Clickable Starter Cards */
-          <div className="flex flex-col items-center justify-center text-center p-6 max-w-2xl mx-auto">
+          <div className="flex flex-col items-center justify-center text-center p-4 my-auto max-w-2xl mx-auto">
             {/* Glowing Concentric SVG Arc Core with Cerulean, Electric Violet & Neon Rose */}
-            <div className="relative w-16 h-16 flex items-center justify-center mb-4 gpu-composited select-none">
+            <div className="relative w-12 h-12 flex items-center justify-center mb-3 gpu-composited select-none">
               {/* Outer Pulse */}
               <div className="absolute inset-0 rounded-full border border-[#00A6E8]/20 animate-ping pointer-events-none" />
 
               {/* Concentric Rotating SVG Arc Rings */}
-              <svg className="absolute inset-0 w-16 h-16 pointer-events-none" viewBox="0 0 64 64">
+              <svg className="absolute inset-0 w-12 h-12 pointer-events-none" viewBox="0 0 64 64">
                 {/* Outer Cerulean Ring (#00A6E8) - 14s clockwise */}
                 <circle
                   cx="32"
@@ -412,66 +416,91 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
               </svg>
 
               {/* Inner Glowing Core (#FF2D95) */}
-              <div className="relative w-10 h-10 rounded-full bg-gradient-to-br from-[#00A6E8]/25 via-[#9D4EDD]/30 to-[#FF2D95]/30 border border-[#FF2D95]/60 flex items-center justify-center text-[#00A6E8] shadow-[0_0_20px_rgba(0,166,232,0.4),0_0_12px_rgba(255,45,149,0.35)] animate-jarvis-glow">
-                <Sparkles className="w-5 h-5 text-cyan-300 animate-pulse" />
+              <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-[#00A6E8]/25 via-[#9D4EDD]/30 to-[#FF2D95]/30 border border-[#FF2D95]/60 flex items-center justify-center text-[#00A6E8] shadow-[0_0_20px_rgba(0,166,232,0.4),0_0_12px_rgba(255,45,149,0.35)] animate-jarvis-glow">
+                <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
               </div>
             </div>
 
-            <h3 className="text-base font-bold text-white tracking-wide font-display">
+            <h3 className="text-sm font-bold text-white tracking-wide font-display">
               J.A.R.V.I.S. Multi-Discipline Engineering Core
             </h3>
-            <p className="text-xs text-slate-400 mt-1.5 mb-5 leading-relaxed">
+            <p className="text-[11px] text-slate-400 mt-1 mb-4 leading-relaxed">
               First-principles intelligence for Mathematics, Mechanics, Electronics, Civil, Chemical, and Computing.
             </p>
 
-            {/* 4 Clickable Multi-Discipline Starter Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 w-full mb-2">
+            {/* Mobile: airy hero + 2 compact quick-prompt pills (desktop keeps full grid) */}
+            <div className="md:hidden flex flex-col items-center gap-2 w-full mb-2">
+              <p className="text-[10px] text-slate-500 text-center -mt-1 mb-1">
+                What circuit or engineering problem are we solving?
+              </p>
+              <div className="flex flex-row gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={() => onQuickAction?.('Solve Laplace transform of sin(2*t)')}
+                  className="flex-1 px-3 py-2 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass text-left group"
+                >
+                  <div className="text-[11px] font-semibold text-slate-200 group-hover:text-cyan-300 whitespace-nowrap">Applied Math</div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 leading-snug">Calculus &amp; transforms</div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onQuickAction?.('Calculate normal stress and strain for F=50kN A=0.001m^2')}
+                  className="flex-1 px-3 py-2 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass text-left group"
+                >
+                  <div className="text-[11px] font-semibold text-slate-200 group-hover:text-amber-300 whitespace-nowrap">Mechanics</div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 leading-snug">Stress &amp; strain</div>
+                </button>
+              </div>
+            </div>
+
+            {/* Desktop: full multi-discipline starter grid */}
+            <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 gap-2 w-full mb-2">
               <button
                 type="button"
                 onClick={() => onQuickAction?.('Solve Laplace transform of sin(2*t)')}
-                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
+                className="p-2.5 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
-                <div className="w-7 h-7 rounded-lg bg-[#00A6E8]/20 flex items-center justify-center text-[#00A6E8] mb-2 group-hover:scale-110 transition-transform">
-                  <Calculator className="w-4 h-4" />
+                <div className="w-6 h-6 rounded-lg bg-[#00A6E8]/20 flex items-center justify-center text-[#00A6E8] mb-1.5 group-hover:scale-110 transition-transform">
+                  <Calculator className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-cyan-300 whitespace-nowrap">Applied Mathematics</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Calculus, linear algebra, transforms &amp; ODEs</div>
+                <div className="text-[11px] font-semibold text-slate-200 group-hover:text-cyan-300 whitespace-nowrap">Applied Mathematics</div>
+                <div className="text-[9px] text-slate-400 mt-0.5 leading-snug">Calculus, linear algebra, transforms &amp; ODEs</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => onQuickAction?.('Calculate normal stress and strain for F=50kN A=0.001m^2')}
-                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
+                className="p-2.5 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
-                <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
-                  <Compass className="w-4 h-4" />
+                <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 mb-1.5 group-hover:scale-110 transition-transform">
+                  <Compass className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-amber-300 whitespace-nowrap">Mechanics &amp; Thermo</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Statics, dynamics, fluids &amp; heat transfer</div>
+                <div className="text-[11px] font-semibold text-slate-200 group-hover:text-amber-300 whitespace-nowrap">Mechanics &amp; Thermo</div>
+                <div className="text-[9px] text-slate-400 mt-0.5 leading-snug">Statics, dynamics, fluids &amp; heat transfer</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => onQuickAction?.('Subnet 192.168.1.0/24')}
-                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
+                className="p-2.5 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
-                <div className="w-7 h-7 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 mb-2 group-hover:scale-110 transition-transform">
-                  <Binary className="w-4 h-4" />
+                <div className="w-6 h-6 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-400 mb-1.5 group-hover:scale-110 transition-transform">
+                  <Binary className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-purple-300 whitespace-nowrap">Computing &amp; Logic</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Algorithms, systems, architecture &amp; digital logic</div>
+                <div className="text-[11px] font-semibold text-slate-200 group-hover:text-purple-300 whitespace-nowrap">Computing &amp; Logic</div>
+                <div className="text-[9px] text-slate-400 mt-0.5 leading-snug">Algorithms, systems, architecture &amp; digital logic</div>
               </button>
 
               <button
                 type="button"
                 onClick={() => onQuickAction?.('NE555 pinout & specs')}
-                className="p-3 rounded-2xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
+                className="p-2.5 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass hover:-translate-y-0.5 transition-transform duration-200 text-left group shadow-sm"
               >
-                <div className="w-7 h-7 rounded-lg bg-[#FF2D95]/20 flex items-center justify-center text-[#FF2D95] mb-2 group-hover:scale-110 transition-transform">
-                  <BookOpen className="w-4 h-4" />
+                <div className="w-6 h-6 rounded-lg bg-[#FF2D95]/20 flex items-center justify-center text-[#FF2D95] mb-1.5 group-hover:scale-110 transition-transform">
+                  <BookOpen className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200 group-hover:text-rose-300 whitespace-nowrap">Circuits &amp; Systems</div>
-                <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">Networks, signals, control &amp; hardware diagnostics</div>
+                <div className="text-[11px] font-semibold text-slate-200 group-hover:text-rose-300 whitespace-nowrap">Circuits &amp; Systems</div>
+                <div className="text-[9px] text-slate-400 mt-0.5 leading-snug">Networks, signals, control &amp; hardware diagnostics</div>
               </button>
             </div>
           </div>
@@ -503,11 +532,11 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                         />
                       </div>
                     )}
-                    <p className="whitespace-pre-wrap break-words text-sm leading-relaxed">{msg.content}</p>
+                    <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere text-base leading-relaxed">{msg.content}</p>
                   </>
                 ) : (
                   /* Assistant message rendering with KaTeX and Markdown */
-                  <div className="text-sm break-words">
+                  <div className="text-base break-words">
                     {!msg.content && isLoading ? (
                       <div className="flex items-center gap-2 text-xs font-mono text-cyan-300 py-1">
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00A6E8]" />
@@ -633,32 +662,34 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
       {/* Footer Input Composer */}
       <div className="flex-shrink-0 p-4 border-t border-white/10 bg-black/20">
         <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)] rounded-2xl p-2.5 mx-auto max-w-full focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/30 transition-all specular-glass">
-          {/* Google Flow Demand Mode Selector Bar */}
-          <div className="flex items-center gap-1 mb-2 overflow-x-auto scrollbar-none pb-0.5">
-            <span className="text-[10px] font-mono uppercase text-slate-500 mr-1 flex-shrink-0">
-              Style:
-            </span>
-            {DEMAND_MODES.map((dm) => {
-              const Icon = dm.icon;
-              const isSelected = (responseStyle || 'auto') === dm.id;
-              return (
-                <button
-                  key={dm.id}
-                  type="button"
-                  onClick={() => onResponseStyleChange?.(dm.id)}
-                  title={dm.desc}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-mono flex items-center gap-1.5 border transition-all flow-pill flex-shrink-0 ${
-                    isSelected
-                      ? 'bg-gradient-to-r from-[#00A6E8]/25 to-[#FF2D95]/20 text-cyan-200 border-[#00A6E8]/60 shadow-[0_0_12px_rgba(0,166,232,0.25)] font-semibold'
-                      : 'bg-white/[0.03] text-slate-400 border-white/[0.06] hover:text-slate-200 hover:border-white/20'
-                  }`}
-                >
-                  <Icon className={`w-3 h-3 ${isSelected ? 'text-[#00A6E8]' : 'text-slate-400'}`} />
-                  <span>{dm.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          {/* Google Flow Demand Mode Selector Bar (Desktop only) */}
+          {!mobileFullBleed && (
+            <div className="flex items-center gap-1 mb-2 overflow-x-auto scrollbar-none pb-0.5">
+              <span className="text-[10px] font-mono uppercase text-slate-500 mr-1 flex-shrink-0">
+                Style:
+              </span>
+              {DEMAND_MODES.map((dm) => {
+                const Icon = dm.icon;
+                const isSelected = (responseStyle || 'auto') === dm.id;
+                return (
+                  <button
+                    key={dm.id}
+                    type="button"
+                    onClick={() => onResponseStyleChange?.(dm.id)}
+                    title={dm.desc}
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-mono flex items-center gap-1.5 border transition-all flow-pill flex-shrink-0 ${
+                      isSelected
+                        ? 'bg-gradient-to-r from-[#00A6E8]/25 to-[#FF2D95]/20 text-cyan-200 border-[#00A6E8]/60 shadow-[0_0_12px_rgba(0,166,232,0.25)] font-semibold'
+                        : 'bg-white/[0.03] text-slate-400 border-white/[0.06] hover:text-slate-200 hover:border-white/20'
+                    }`}
+                  >
+                    <Icon className={`w-3 h-3 ${isSelected ? 'text-[#00A6E8]' : 'text-slate-400'}`} />
+                    <span>{dm.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Active Scope Attachment Indicator in Composer */}
           {attachedFile && (
@@ -754,7 +785,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                   onClick={onAttachClick}
                   disabled={isLoading}
                   title="Upload Circuit Photo (JPEG, PNG, WEBP, GIF up to 10 MB)"
-                  className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
+                  className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
                     attachedFile
                       ? 'bg-[#00A6E8]/20 text-[#00A6E8] border-[#00A6E8]/50 shadow-[0_0_12px_rgba(0,166,232,0.3)]'
                       : 'bg-white/[0.03] text-slate-400 border-white/[0.08] hover:text-[#00A6E8] hover:border-[#00A6E8]/40 hover:bg-white/[0.05]'
@@ -768,7 +799,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                     type="button"
                     onClick={onToggleListening}
                     title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
-                    className={`p-2 min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
+                    className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border transition-all flex-shrink-0 tactile-spring ${
                       isListening
                         ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/60 animate-pulse-ring-rose shadow-[0_0_14px_rgba(255,45,149,0.4)]'
                         : isSpeaking
@@ -794,7 +825,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                   }
                   rows={1}
                   disabled={isLoading}
-                  className="flex-1 bg-transparent resize-none outline-none text-sm text-slate-100 placeholder:text-slate-500 max-h-32 py-1.5 px-2 font-sans leading-relaxed"
+                  className="flex-1 bg-transparent resize-none outline-none text-base text-slate-100 placeholder:text-slate-500 max-h-32 py-1.5 px-2 font-sans leading-relaxed"
                 />
 
                 {/* Flagship #00A6E8 Cerulean Send Trigger */}
@@ -802,7 +833,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                   type="button"
                   onClick={onSendMessage}
                   disabled={isLoading || (!inputPrompt.trim() && !attachedFile)}
-                  className={`p-2 min-h-[40px] min-w-[40px] rounded-xl font-bold flex-shrink-0 flex items-center justify-center transition-all tactile-spring ${
+                  className={`p-2 min-h-[44px] min-w-[44px] rounded-xl font-bold flex-shrink-0 flex items-center justify-center transition-all tactile-spring ${
                     !isLoading && (inputPrompt.trim() || attachedFile)
                       ? 'bg-gradient-to-r from-[#00A6E8] to-[#0284c7] hover:from-[#00A6E8] hover:to-[#38bdf8] text-slate-950 font-bold shadow-[0_0_18px_rgba(0,166,232,0.45)]'
                       : 'bg-[#00A6E8]/10 border border-white/10 text-slate-500 shadow-none cursor-not-allowed'

@@ -693,5 +693,53 @@ export async function resetOperations(): Promise<void> {
   if (!res.ok) throw new Error('Failed to reset operations');
 }
 
+export interface VoicePersona {
+  id: string;
+  name: string;
+  default_pitch: string;
+  default_rate: string;
+  gender: string;
+  accent: string;
+}
+
+export interface VoicesResponse {
+  default: string;
+  personas: VoicePersona[];
+}
+
+export interface STTResponse {
+  text: string;
+}
+
+export async function fetchVoices(): Promise<VoicesResponse> {
+  const res = await fetch('/api/voices');
+  if (!res.ok) throw new Error('Failed to fetch voices');
+  return res.json();
+}
+
+export async function speechToText(blob: Blob, filename = 'speech.webm'): Promise<STTResponse> {
+  const formData = new FormData();
+  formData.append('file', blob, filename);
+  const res = await fetch('/api/stt', { method: 'POST', body: formData });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || `STT failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function textToSpeech(text: string, voice?: string, rate?: string, pitch?: string): Promise<Blob> {
+  const res = await fetch('/api/tts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice, rate, pitch }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || `TTS failed: ${res.status}`);
+  }
+  return res.blob();
+}
+
 
 

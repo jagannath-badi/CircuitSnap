@@ -22,6 +22,7 @@ load_dotenv(override=True)
 from backend.database import init_db
 from backend.routers import analyze, auth, chat, learn, operations, telemetry, vault, voice
 from backend.schemas import HealthResponse, ModelOption, ModelsResponse
+from models import get_default_model
 
 
 @asynccontextmanager
@@ -102,6 +103,13 @@ DEFAULT_MODEL_ROSTER: list[ModelOption] = [
         specialty="IC pinouts, Big-O tables, material & thermo constants",
         supports_vision=False,
     ),
+    ModelOption(
+        id="openjarvis-qwen3:8b",
+        label="OpenJarvis Local (qwen3:8b)",
+        provider="OpenJarvis",
+        specialty="Local private neural inference with zero cloud telemetry",
+        supports_vision=False,
+    ),
 ]
 
 
@@ -115,8 +123,8 @@ def health_check():
     return HealthResponse(
         status="healthy",
         models={
-            "default": "jarvis-auto",
-            "model_id": "jarvis-auto",
+            "default": "Gemini",
+            "model_id": get_default_model(),
             "provider": "J.A.R.V.I.S. Core",
             "openjarvis_local": oj_status,
         },

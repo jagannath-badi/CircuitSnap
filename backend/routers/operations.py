@@ -6,6 +6,7 @@ and the Mark 85 Emergency Stop circuit.
 
 import logging
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, status
@@ -116,7 +117,7 @@ def record_decision(op_id: str, payload: DecisionRequest):
                 {
                     "id": f"act-{int(time.time())}",
                     "title": f"{appr['title']} ({payload.decision.upper()})",
-                    "timestamp": "Just now",
+                    "timestamp": datetime.now().isoformat(),
                     "status": "completed" if payload.decision == "approve" else "declined",
                     "result": f"Action {payload.decision}d by operator",
                 },

@@ -358,6 +358,7 @@ def ask_gemini(
             max_output_tokens=4096,
             tools=None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+            timeout=300.0,  # 5-minute timeout triggers fallback on 429/503/500
         ),
     )
 

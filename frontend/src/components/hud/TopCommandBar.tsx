@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Shield, ShieldAlert, ShieldCheck, Terminal, Cpu, Mic, Settings, Search, RefreshCw, Zap, Lock } from 'lucide-react';
-import type { SystemTelemetry } from '../../api';
+import { Shield, ShieldAlert, ShieldCheck, Terminal, Cpu, Mic, Settings, Search, RefreshCw, Zap, Lock, Menu } from 'lucide-react';
+import type { SystemTelemetry, ModelOption } from '../../api';
 
 export type HudTab = 'command' | 'core' | 'voice' | 'settings';
 
@@ -13,6 +13,9 @@ interface TopCommandBarProps {
   onResetBench: () => void;
   emergencyStop: boolean;
   onOpenQuickSearch?: () => void;
+  onToggleMobileDrawer?: () => void;
+  availableModels?: ModelOption[];
+  selectedModel?: string;
 }
 
 export const TopCommandBar: React.FC<TopCommandBarProps> = ({
@@ -24,8 +27,21 @@ export const TopCommandBar: React.FC<TopCommandBarProps> = ({
   onResetBench,
   emergencyStop,
   onOpenQuickSearch,
+  onToggleMobileDrawer,
+  availableModels = [],
+  selectedModel = 'auto',
 }) => {
   const [isTrustOpen, setIsTrustOpen] = useState(false);
+
+  const DEFAULT_MODEL_ROSTER: ModelOption[] = [
+    { id: 'jarvis-auto', label: 'Auto (J.A.R.V.I.S. Smart Router)', provider: 'J.A.R.V.I.S. Core', specialty: 'Smart router across all engineering branches', supports_vision: true },
+    { id: 'jarvis-math', label: 'J.A.R.V.I.S. Math Engine', provider: 'J.A.R.V.I.S. Core', specialty: 'Symbolic calculus, Laplace, circuits & mechanics math', supports_vision: false },
+    { id: 'jarvis-vision', label: 'J.A.R.V.I.S. Optical Vision', provider: 'J.A.R.V.I.S. Core', specialty: 'Scan diagrams, circuits, lab setups & handwritten notes', supports_vision: true },
+    { id: 'jarvis-datasheets', label: 'J.A.R.V.I.S. Datasheet Archive', provider: 'J.A.R.V.I.S. Core', specialty: 'IC pinouts, Big-O tables, material & thermo constants', supports_vision: false },
+  ];
+
+  const modelsToDisplay = availableModels.length > 0 ? availableModels : DEFAULT_MODEL_ROSTER;
+  const selectedOption = modelsToDisplay.find((opt) => opt.id === selectedModel) || modelsToDisplay[0];
 
   const tabs: Array<{ id: HudTab; label: string; icon: React.ReactNode }> = [
     { id: 'command', label: 'Command Center', icon: <Terminal className="w-4 h-4" /> },
@@ -38,6 +54,14 @@ export const TopCommandBar: React.FC<TopCommandBarProps> = ({
     <header className="min-h-[56px] h-auto border-b border-cyan-950/60 bg-[#070C18]/90 backdrop-blur-md px-3 sm:px-4 py-1.5 sm:py-0 flex items-center justify-between gap-3 sm:gap-4 z-40 select-none overflow-x-auto no-scrollbar scroll-smooth">
       {/* Brand & Tabs */}
       <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 flex-shrink-0">
+        {/* Mobile: Hamburger Menu */}
+        <button
+          onClick={onToggleMobileDrawer}
+          className="md:hidden w-11 h-11 flex items-center justify-center text-slate-300 hover:text-cyan-400"
+          title="Open menu"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
         <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
           <div className="relative flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-950/40 border border-cyan-500/30 flex-shrink-0">
             <Zap className="w-4 h-4 text-cyan-400 animate-pulse" />
@@ -48,12 +72,26 @@ export const TopCommandBar: React.FC<TopCommandBarProps> = ({
               <span className="font-mono text-xs font-bold tracking-wider text-cyan-300">MARK 85</span>
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-400 border border-cyan-800/40 whitespace-nowrap">PRO</span>
             </div>
-            <div className="text-[10px] text-slate-400 font-mono tracking-tight whitespace-nowrap">Multi-Discipline Engineering OS</div>
+            <div className="hidden sm:block text-[10px] text-slate-400 font-mono tracking-tight whitespace-nowrap">Multi-Discipline Engineering OS</div>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <nav className="flex items-center gap-1 p-1 rounded-lg bg-slate-900/60 border border-slate-800/60 flex-shrink-0">
+        {/* Mobile: Compact Model Label (clickable to open drawer) */}
+        <div className="md:hidden flex-1 flex justify-center min-w-0">
+          <button
+            onClick={onToggleMobileDrawer}
+            className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] hover:border-cyan-500/40 transition-all"
+            title="Open model selector"
+          >
+            <Zap className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-xs font-mono text-slate-300 truncate max-w-[120px]">
+              {selectedOption.label.replace(/\s*\([^)]*\)/, '')}
+            </span>
+          </button>
+        </div>
+
+        {/* Navigation Tabs (Desktop only) */}
+        <nav className="hidden md:flex items-center gap-1 p-1 rounded-lg bg-slate-900/60 border border-slate-800/60 flex-shrink-0">
           {tabs.map((t) => (
             <button
               key={t.id}

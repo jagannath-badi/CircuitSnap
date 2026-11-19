@@ -53,6 +53,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Lock the root document viewport so the app shell is a single scroll container.
+   Prevents the browser from scrolling the pinned TelemetryHeader off-screen or
+   pushing BottomCommandDock below the fold on mobile (390x738). */
+html,
+body,
+#root {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
 /* 24px Engineering Dot-Matrix Grid with Dual-Tone Atmospheric Diffusion */
 .bg-\[\#050811\] {
   background-color: #060911;
