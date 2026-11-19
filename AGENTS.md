@@ -89,7 +89,7 @@ The Vite server (port `5173`) proxies all `/api` traffic directly to `http://127
 
 ### FastAPI Endpoints (`backend/`)
 1. **`GET /api/health`**
-   - Returns: `HealthResponse` (`{ status: "healthy", models: { default: "Gemini", model_id: "gemini-2.5-flash", provider: "Gemini" } }`)
+   - Returns: `HealthResponse` (`{ status: "healthy", models: { default: "Gemini", model_id: "gemini-3.8-flash", provider: "Gemini" } }`)
 2. **`POST /api/chat`**
    - Accepts JSON `ChatRequest`:
      - `message`: `str` (1 to 20,000 characters, required)

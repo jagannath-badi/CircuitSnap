@@ -61,7 +61,7 @@ The core reasoning logic is completely decoupled from presentation frameworks, p
 
 1. **`models.py` (Model Registry)**:
    - Configures model identifiers, fallback cascades, vision flags, and human-readable metadata.
-   - **Primary Model**: `Gemini` (`gemini-2.5-flash`) with fallback to `gemini-2.5-pro` and `gemini-2.0-flash`.
+   - **Primary Model**: `Gemini` (`gemini-3.8-flash`) with fallback to `gemini-3.1-flash-lite` and `gemini-3.6-flash`.
    - **Local Alternative**: `OpenJarvis` (`qwen3:8b`) acting as a high-speed local alternative and cross-provider fallback.
 2. **`prompts.py` (Prompt Engineering & Output Calibration)**:
    - Establishes the CircuitSnap system prompt and adaptive output calibration.

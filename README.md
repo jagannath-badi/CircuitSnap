@@ -48,7 +48,7 @@ CircuitSnap routes queries through an **LLM-First RAG Pipeline** backed by deter
 
 | Engine / Model                                    | Provider / Runtime               | Vision | Role                                                      |
 | :------------------------------------------------ | :------------------------------- | :----: | :-------------------------------------------------------- |
-| **Gemini (`gemini-2.5-flash` / `pro`)** | Google GenAI (Cloud)             |   ✅   | Primary multi-discipline reasoning & optical scope vision |
+| **Gemini (`gemini-3.8-flash` / `3.1-flash-lite`)** | Google GenAI (Cloud)             |   ✅   | Primary multi-discipline reasoning & optical scope vision |
 | **OpenJarvis (`qwen3:8b`)**               | Local OpenAI-Compatible Endpoint |   ❌   | Offline/local LLM fallback                                |
 | **J.A.R.V.I.S. Deterministic Core**         | Local Python (SymPy / NumPy)     |   ❌   | Exact symbolic math, numerical physics & datasheet lookup |
 

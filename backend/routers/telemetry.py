@@ -137,7 +137,7 @@ def get_system_telemetry() -> SystemTelemetry:
 
     services = {
         "gemini": {
-            "name": "Google Gemini 2.5 Flash",
+            "name": "Google Gemini 3.8 Flash",
             "provider": "Google GenAI",
             "status": gemini_status,
             "type": "cloud",

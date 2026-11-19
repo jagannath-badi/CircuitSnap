@@ -569,7 +569,7 @@ def process_jarvis_query(
         target_model = active_model
     else:
         target_provider = "Gemini"
-        target_model = "gemini-2.5-flash"
+        target_model = "gemini-3.8-flash"
 
     try:
         from engine import run_engine
