@@ -19,8 +19,8 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional
 
-from google import genai
-from google.genai import types
+# from google import genai
+# from google.genai import types
 
 from models import get_model
 from prompts import SYSTEM_PROMPT
@@ -263,6 +263,9 @@ def _get_api_key(name: str) -> Optional[str]:
 
 def get_gemini_client():
     """Create and cache the Gemini client with a hard 25s HTTP timeout."""
+    from google import genai
+    from google.genai import types
+
     api_key = _get_api_key("GEMINI_API_KEY")
     if not api_key:
         raise KeyError("GEMINI_API_KEY")
@@ -310,6 +313,8 @@ def ask_gemini(
     relying on a provider-specific chat session.
     Returns the answer text.
     """
+    from google import genai
+    from google.genai import types
 
     client = get_gemini_client()
 
