@@ -7,11 +7,6 @@ import math
 import re
 from typing import Optional
 
-try:
-    import sympy as sp
-except ImportError:
-    sp = None
-
 
 def solve_555_astable(r1: float = 10_000, r2: float = 10_000, c: float = 10e-6) -> str:
     """Calculates frequency, high/low time, and duty cycle for a 555 timer in astable mode."""

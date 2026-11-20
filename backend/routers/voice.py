@@ -17,8 +17,17 @@ _whisper_model = None
 
 
 def get_whisper_model():
-    """Lazy singleton initializer for faster-whisper on CPU with int8 quantization."""
+    """Lazy singleton initializer for faster-whisper on CPU with int8 quantization.
+
+    On memory-constrained cloud hosts (Render free tier), loading the Whisper
+    model into RAM would blow the 512 MB budget, so STT is disabled there.
+    """
     global _whisper_model
+    if os.getenv("RENDER"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cloud voice transcription disabled to preserve server memory; use browser speech input.",
+        )
     if _whisper_model is None:
         try:
             from faster_whisper import WhisperModel

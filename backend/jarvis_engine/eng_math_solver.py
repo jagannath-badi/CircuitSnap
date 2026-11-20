@@ -8,18 +8,33 @@ import math
 import re
 from typing import Optional, Dict, Any, List
 
-try:
-    import sympy as sp
-    from sympy.parsing.sympy_parser import (
-        parse_expr,
-        standard_transformations,
-        implicit_multiplication_application,
-        convert_xor,
-    )
-    _SYMPY_TRANSFORMS = standard_transformations + (implicit_multiplication_application, convert_xor)
-except ImportError:
-    sp = None
-    _SYMPY_TRANSFORMS = None
+# SymPy is a heavy dependency. It is imported lazily only inside functions that
+# actually need it, so `import backend.main` never pulls sympy into RAM on the
+# memory-constrained Render free tier.
+_sp = None
+_parse_expr = None
+_SYMPY_TRANSFORMS = None
+
+
+def _load_sympy():
+    """Lazily import sympy and its parser on first use. Returns True if available."""
+    global _sp, _parse_expr, _SYMPY_TRANSFORMS
+    if _sp is not None:
+        return True
+    try:
+        import sympy as sp
+        from sympy.parsing.sympy_parser import (
+            parse_expr,
+            standard_transformations,
+            implicit_multiplication_application,
+            convert_xor,
+        )
+        _sp = sp
+        _parse_expr = parse_expr
+        _SYMPY_TRANSFORMS = standard_transformations + (implicit_multiplication_application, convert_xor)
+        return True
+    except ImportError:
+        return False
 
 
 # -----------------------------------------------------------------------------
@@ -260,19 +275,19 @@ def solve_differentiation(expr_str: str, var_str: str = "x") -> str:
     if not clean or is_pure_conversational(clean):
         return get_differentiation_conceptual_explanation()
 
-    if sp is None:
+    if not _load_sympy():
         return "SymPy is not installed for symbolic differentiation."
-    
-    x = sp.Symbol(var_str)
-    local_dict = {var_str: x, 'exp': sp.exp, 'sin': sp.sin, 'cos': sp.cos, 'tan': sp.tan, 'e': sp.E, 'pi': sp.pi}
+
+    x = _sp.Symbol(var_str)
+    local_dict = {var_str: x, 'exp': _sp.exp, 'sin': _sp.sin, 'cos': _sp.cos, 'tan': _sp.tan, 'e': _sp.E, 'pi': _sp.pi}
     try:
-        expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
-        d1 = sp.diff(expr, x)
-        d2 = sp.diff(d1, x)
+        expr = _parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+        d1 = _sp.diff(expr, x)
+        d2 = _sp.diff(d1, x)
         
-        latex_orig = sp.latex(expr)
-        latex_d1 = sp.latex(d1)
-        latex_d2 = sp.latex(d2)
+        latex_orig = _sp.latex(expr)
+        latex_d1 = _sp.latex(d1)
+        latex_d2 = _sp.latex(d2)
         
         return (
             f"### [CONFIRMED] Symbolic Differentiation Analysis\n\n"
@@ -298,22 +313,22 @@ def solve_integration(expr_str: str, var_str: str = "x", lower: Optional[str] = 
     if not clean or is_pure_conversational(clean):
         return get_integration_conceptual_explanation()
 
-    if sp is None:
+    if not _load_sympy():
         return "SymPy is not installed for symbolic integration."
 
-    x = sp.Symbol(var_str)
-    local_dict = {var_str: x, 'exp': sp.exp, 'sin': sp.sin, 'cos': sp.cos, 'tan': sp.tan, 'e': sp.E, 'pi': sp.pi}
+    x = _sp.Symbol(var_str)
+    local_dict = {var_str: x, 'exp': _sp.exp, 'sin': _sp.sin, 'cos': _sp.cos, 'tan': _sp.tan, 'e': _sp.E, 'pi': _sp.pi}
     try:
-        expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
-        latex_orig = sp.latex(expr)
+        expr = _parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+        latex_orig = _sp.latex(expr)
 
         if lower is not None and upper is not None:
-            a = parse_expr(lower, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
-            b = parse_expr(upper, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
-            res = sp.integrate(expr, (x, a, b))
-            latex_res = sp.latex(res)
-            latex_a = sp.latex(a)
-            latex_b = sp.latex(b)
+            a = _parse_expr(lower, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            b = _parse_expr(upper, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            res = _sp.integrate(expr, (x, a, b))
+            latex_res = _sp.latex(res)
+            latex_a = _sp.latex(a)
+            latex_b = _sp.latex(b)
 
             return (
                 f"### [CONFIRMED] Definite Integral Derivation\n\n"
@@ -322,8 +337,8 @@ def solve_integration(expr_str: str, var_str: str = "x", lower: Optional[str] = 
                 f"> **Geometric Evaluation**: Represents the signed net area bounded by the curve."
             )
         else:
-            anti = sp.integrate(expr, x)
-            latex_anti = sp.latex(anti)
+            anti = _sp.integrate(expr, x)
+            latex_anti = _sp.latex(anti)
             return (
                 f"### [CONFIRMED] Indefinite Integral (Antiderivative)\n\n"
                 f"Integrating $f({var_str}) = {latex_orig}$ with respect to ${var_str}$:\n\n"
@@ -336,18 +351,18 @@ def solve_integration(expr_str: str, var_str: str = "x", lower: Optional[str] = 
 
 def solve_limit(expr_str: str, var_str: str = "x", point_str: str = "0") -> str:
     """Computes symbolic limits as var approaches point."""
-    if sp is None:
+    if not _load_sympy():
         return "SymPy is not installed for limits."
 
-    x = sp.Symbol(var_str)
+    x = _sp.Symbol(var_str)
     try:
-        expr = parse_expr(expr_str, transformations=_SYMPY_TRANSFORMS)
-        point = parse_expr(point_str, transformations=_SYMPY_TRANSFORMS)
-        res = sp.limit(expr, x, point)
+        expr = _parse_expr(expr_str, transformations=_SYMPY_TRANSFORMS)
+        point = _parse_expr(point_str, transformations=_SYMPY_TRANSFORMS)
+        res = _sp.limit(expr, x, point)
 
-        latex_orig = sp.latex(expr)
-        latex_pt = sp.latex(point)
-        latex_res = sp.latex(res)
+        latex_orig = _sp.latex(expr)
+        latex_pt = _sp.latex(point)
+        latex_res = _sp.latex(res)
 
         return (
             f"### [CONFIRMED] Mathematical Limit Evaluation\n\n"
@@ -364,15 +379,15 @@ def solve_taylor_series(expr_str: str, var_str: str = "x", point_str: str = "0",
     if sp is None:
         return "SymPy is not installed for Taylor series."
 
-    x = sp.Symbol(var_str)
+    x = _sp.Symbol(var_str)
     try:
-        expr = parse_expr(expr_str, transformations=_SYMPY_TRANSFORMS)
-        pt = parse_expr(point_str, transformations=_SYMPY_TRANSFORMS)
-        ser = sp.series(expr, x, pt, n=order).removeO()
+        expr = _parse_expr(expr_str, transformations=_SYMPY_TRANSFORMS)
+        pt = _parse_expr(point_str, transformations=_SYMPY_TRANSFORMS)
+        ser = _sp.series(expr, x, pt, n=order).removeO()
 
-        latex_orig = sp.latex(expr)
-        latex_pt = sp.latex(pt)
-        latex_ser = sp.latex(ser)
+        latex_orig = _sp.latex(expr)
+        latex_pt = _sp.latex(pt)
+        latex_ser = _sp.latex(ser)
 
         title = "Maclaurin Series" if str(pt) == "0" else f"Taylor Series about ${var_str} = {latex_pt}$"
         return (
@@ -476,23 +491,23 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"$$f(t) = \\mathbf{{u(t) = 1}} \\quad (t \\ge 0)$$"
             )
 
-    if sp is None:
+    if not _load_sympy():
         return "SymPy is not installed for Laplace transforms."
 
-    t = sp.Symbol('t', real=True, positive=True)
-    s = sp.Symbol('s')
+    t = _sp.Symbol('t', real=True, positive=True)
+    s = _sp.Symbol('s')
     local_dict = {
-        't': t, 's': s, 'exp': sp.exp, 'sin': sp.sin, 'cos': sp.cos,
-        'tan': sp.tan, 'e': sp.E, 'pi': sp.pi, 'u': sp.Heaviside,
-        'heaviside': sp.Heaviside
+        't': t, 's': s, 'exp': _sp.exp, 'sin': _sp.sin, 'cos': _sp.cos,
+        'tan': _sp.tan, 'e': _sp.E, 'pi': _sp.pi, 'u': _sp.Heaviside,
+        'heaviside': _sp.Heaviside
     }
 
     try:
         if inverse:
-            expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
-            res = sp.simplify(sp.inverse_laplace_transform(expr, s, t))
-            latex_in = sp.latex(expr)
-            latex_out = sp.latex(res)
+            expr = _parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            res = _sp.simplify(_sp.inverse_laplace_transform(expr, s, t))
+            latex_in = _sp.latex(expr)
+            latex_out = _sp.latex(res)
             return (
                 f"### [CONFIRMED] Inverse Laplace Transform $\\mathcal{{L}}^{{-1}}\\{{F(s)\\}}$\n\n"
                 f"S-domain transfer function:\n"
@@ -502,12 +517,12 @@ def solve_laplace(expr_str: str, inverse: bool = False) -> str:
                 f"> **System Dynamics**: Applies for $t \\ge 0$ (Heaviside step excitation)."
             )
         else:
-            expr = parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
-            res = sp.simplify(sp.laplace_transform(expr, t, s, noconds=True))
+            expr = _parse_expr(clean, local_dict=local_dict, transformations=_SYMPY_TRANSFORMS)
+            res = _sp.simplify(_sp.laplace_transform(expr, t, s, noconds=True))
             if hasattr(res, "__class__") and res.__class__.__name__ == "LaplaceTransform":
                 return _analytical_laplace_table(clean, inverse=inverse)
-            latex_in = sp.latex(expr)
-            latex_out = sp.latex(res)
+            latex_in = _sp.latex(expr)
+            latex_out = _sp.latex(res)
             return (
                 f"### [CONFIRMED] Forward Laplace Transform $\\mathcal{{L}}\\{{f(t)\\}}$\n\n"
                 f"Continuous-time signal:\n"
@@ -558,11 +573,11 @@ def solve_ode(ode_str: str) -> str:
     if not raw or is_pure_conversational(raw) or not any(k in raw.lower() for k in ["y'", "y''", "dy", "y", "="]):
         return get_ode_conceptual_explanation()
 
-    if sp is None:
+    if not _load_sympy():
         return "SymPy is not installed for ODE solving."
 
-    t = sp.Symbol('t')
-    y = sp.Function('y')
+    t = _sp.Symbol('t')
+    y = _sp.Function('y')
 
     # Common canonical patterns: y' + a*y = b, y'' + w^2*y = 0
     clean = ode_str.replace("y''", "Diff2").replace("y'", "Diff1")
