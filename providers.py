@@ -476,6 +476,21 @@ def _classify_provider_error(error):
             )
         )
 
+        # Rate limiting / quota exhaustion takes precedence over
+        # authentication hints: a 429 with "billing" or "plan" in the
+        # message is a quota failure, not a credential problem.
+        if status == 429 or any(
+            term in error_text
+            for term in (
+                "quota",
+                "rate limit",
+                "resource exhausted",
+                "too many requests",
+                "429",
+            )
+        ) or "ratelimit" in error_name:
+            return "rate_limited"
+
         missing_secret = (
             isinstance(current_error, KeyError)
             and str(current_error).strip("'\" ").upper()
@@ -554,18 +569,6 @@ def _classify_provider_error(error):
             or status in {400, 422}
         ):
             return "invalid_request"
-
-        if status == 429 or any(
-            term in error_text
-            for term in (
-                "quota",
-                "rate limit",
-                "resource exhausted",
-                "too many requests",
-                "429",
-            )
-        ) or "ratelimit" in error_name:
-            return "rate_limited"
 
         if (
             isinstance(current_error, (TimeoutError, ConnectionError))
