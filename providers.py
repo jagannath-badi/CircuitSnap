@@ -209,9 +209,9 @@ def ask_groq(
             role = message.get("role", "user")
             content = message.get("content", "")
             if content and role in {"user", "assistant"}:
-                messages.append({"role": role, "content": content})
+                messages.append({"role": role, "content": redact_secrets(str(content))})
 
-    messages.append({"role": "user", "content": prompt})
+    messages.append({"role": "user", "content": redact_secrets(prompt)})
 
     payload = {
         "model": target_model,
@@ -956,7 +956,7 @@ def ask_provider(
             raise RuntimeError("Gemini fallback exhausted - no fallback provider configured")
 
         # Groq as an intermediate cloud fallback before OpenJarvis
-        if image_bytes is None and os.environ.get("GROQ_API_KEY") and fallback_provider != "Groq":
+        if image_bytes is None and os.environ.get("GROQ_API_KEY") and fallback_provider != "Groq" and privacy_mode != "strict":
             groq_fallback_config = get_model("Groq")
             groq_fallback_model = groq_fallback_config["model_id"]
             fallback_used = True
