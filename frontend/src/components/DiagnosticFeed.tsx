@@ -56,6 +56,7 @@ export interface DiagnosticFeedProps {
   onToggleListening?: () => void;
   onQuickAction?: (prompt: string) => void;
   speakingMessageId?: string | null;
+  streamingMessageId?: string | null;
   onReadAloud?: (id: string, text: string) => void;
   responseStyle?: string;
   onResponseStyleChange?: (style: string) => void;
@@ -307,6 +308,7 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
   onToggleListening,
   onQuickAction,
   speakingMessageId = null,
+  streamingMessageId = null,
   onReadAloud,
   responseStyle = 'auto',
   onResponseStyleChange,
@@ -587,13 +589,13 @@ export const DiagnosticFeed: React.FC<DiagnosticFeedProps> = ({
                         type="button"
                         onClick={() => onReadAloud(msg.id, msg.content)}
                         className={`flex items-center gap-1 px-2.5 py-0.5 rounded-full border transition-all tactile-spring flex-shrink-0 ${
-                          speakingMessageId === msg.id
+                          speakingMessageId === msg.id || streamingMessageId === msg.id
                             ? 'bg-[#FF2D95]/20 text-[#FF2D95] border-[#FF2D95]/50 animate-pulse'
                             : 'bg-white/[0.04] text-slate-400 hover:text-[#00A6E8] border-white/[0.08] hover:border-[#00A6E8]/40'
                         }`}
-                        title={speakingMessageId === msg.id ? 'Stop audio playback' : 'Read aloud with J.A.R.V.I.S. British voice'}
+                        title={speakingMessageId === msg.id || streamingMessageId === msg.id ? 'Stop audio playback' : 'Read aloud with J.A.R.V.I.S. British voice'}
                       >
-                        {speakingMessageId === msg.id ? (
+                        {speakingMessageId === msg.id || streamingMessageId === msg.id ? (
                           <>
                             <Square className="w-2.5 h-2.5 fill-current" />
                             <span className="text-[10px] font-sans">Stop</span>

@@ -32,6 +32,15 @@ MODELS = {
         "reasoning": True,
         "status": "Local",
     },
+
+    "Groq": {
+        "provider": "Groq",
+        "model_id": "llama-3.3-70b-versatile",
+        "fallback_provider": "OpenJarvis",
+        "vision": False,
+        "reasoning": True,
+        "status": "Cloud",
+    },
 }
 
 

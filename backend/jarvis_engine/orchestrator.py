@@ -340,14 +340,15 @@ def process_jarvis_query(
     privacy_mode: str = "guarded",
 ) -> Dict[str, Any]:
     """
-    Main offline entry point for all CircuitSnap engineering queries.
-    Executes entirely in local Python memory with sub-20ms response latency.
+    Main entry point for all CircuitSnap engineering queries.
+    Routes genuine questions directly to frontier LLM with optional
+    deterministic symbolic verification for explicit component values/equations.
     """
     text = (user_text or "").strip()
     active_model = model_id or "jarvis-auto"
     detected_style = detect_response_style(text, explicit_style=response_style)
 
-    # 1. Optical vision request
+    # 1. Optical vision request - always use local vision model
     if image_bytes:
         answer = inspect_circuit_image(image_bytes, prompt=text)
         return {
@@ -366,7 +367,7 @@ def process_jarvis_query(
     eval_text = clean_text if clean_text else text
     lower_orig = text.lower().strip()
 
-    # Conversational Greeting & System Status Intent
+    # Conversational Greeting & System Status Intent - keep local response
     greeting_triggers = {
         "hey jarvis", "hi jarvis", "hello jarvis", "jarvis", "hello", "hi", "hey",
         "who are you", "what can you do", "status", "system status", "are you there", "diagnostics",
@@ -401,7 +402,7 @@ def process_jarvis_query(
             "style": detected_style,
         }
 
-    # Dedicated model selection overrides
+    # Dedicated model selection overrides - keep local solvers for explicit requests
     if active_model == "jarvis-math":
         math_res = (
             evaluate_eng_math(eval_text)
@@ -440,121 +441,13 @@ def process_jarvis_query(
                 "style": detected_style,
             }
 
-    # Autonomous Multi-Discipline Smart Router:
-    # 2. Check for registered IC datasheet lookup first (NE555, LM741, LM358, TL072, LM7805, BC547, 2N2222, IRFZ44N, 1N4007)
-    ds_res = lookup_component(eval_text)
-    if ds_res:
-        return {
-            "answer": adapt_response_tone(ds_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-datasheets",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 3. Check for resistor color bands
-    band_res = decode_color_bands(eval_text)
-    if band_res:
-        return {
-            "answer": adapt_response_tone(band_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-datasheets",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 4. Check for SMD resistor markings
-    smd_res = decode_smd_code(eval_text)
-    if smd_res:
-        return {
-            "answer": adapt_response_tone(smd_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-datasheets",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 5. Check for ECE circuit math (555 astable, op-amp gain, BJT biasing, RC filter, RLC resonance)
-    ece_res = evaluate_ece_math(eval_text)
-    if ece_res:
-        return {
-            "answer": adapt_response_tone(ece_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-math",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 6. Check for Engineering Mathematics (differentiation, integration, limits, Taylor, Laplace, ODE, matrices, unit conversion)
-    eng_math_res = evaluate_eng_math(eval_text)
-    if eng_math_res:
-        return {
-            "answer": adapt_response_tone(eng_math_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-math",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 7. Check for Mechanical, Civil, and Thermodynamic formulas (stress/strain, beam deflection, torque/power, Reynolds, Bernoulli, Carnot, ideal gas)
-    mech_res = evaluate_mech_thermo(eval_text)
-    if mech_res:
-        return {
-            "answer": adapt_response_tone(mech_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-math",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 8. Check for Universal Engineering (Civil SFD/BMD, Soil mechanics, Hydraulics, Aerodynamics, 3-Phase power, Control systems, OS, DBMS)
-    univ_res = evaluate_universal_engineering(eval_text)
-    if univ_res:
-        return {
-            "answer": adapt_response_tone(univ_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-math",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
-
-    # 9. Check for Computer Science & Digital Logic (base conversion, IEEE-754, CIDR subnet, Big-O tables, truth tables)
-    cs_res = evaluate_cs_digital(eval_text)
-    if cs_res:
-        return {
-            "answer": adapt_response_tone(cs_res, detected_style, eval_text),
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": "jarvis-datasheets" if "big-o" in eval_text.lower() else "jarvis-math",
-            "status": "success",
-            "error_type": None,
-            "fallback_used": False,
-            "attempts": 1,
-            "style": detected_style,
-        }
+    # By default, 100% of user queries route directly to the live frontier LLM.
+    # Local deterministic solvers are bypassed unless the user explicitly
+    # selects model_id == 'jarvis-math' (handled above).
 
     # 10. LLM-First RAG Pipeline (Google Gemini cloud primary -> OpenJarvis Local)
-    # Never return raw SQLite BM25 rows directly; inject verified knowledge strictly as prompt RAG context
+    # Routes ALL questions (engineering and non-engineering) to the frontier LLM
+    # for structured, grounded, high-accuracy answers.
     rag_hit = retrieve_rag_context(eval_text)
     rag_context_str = ""
     if rag_hit:

@@ -132,17 +132,14 @@ def generate_chat_stream(request: ChatRequest) -> Generator[str, None, None]:
         return
     except Exception as err:
         logger.error("SSE stream encountered unexpected error: %s", err, exc_info=True)
-        fallback_payload = {
-            "answer": "An unexpected error occurred while processing the engineering response. Please try again or rephrase your query.",
-            "provider": "J.A.R.V.I.S. Core",
-            "model_id": model_id,
-            "style": chosen_style,
-            "attempts": 1,
-            "fallback_used": True,
-            "status": "error",
+        error_payload = {
+            "error": "stream_failed",
+            "message": str(err),
             "error_type": type(err).__name__,
+            "model_id": model_id,
         }
-        yield f"event: done\ndata: {json.dumps(fallback_payload)}\n\n"
+        yield f"event: error\ndata: {json.dumps(error_payload)}\n\n"
+        yield f"event: done\ndata: {json.dumps({'answer': '', 'provider': 'J.A.R.V.I.S. Core', 'model_id': model_id, 'status': 'error', 'error_type': type(err).__name__})}\n\n"
 
 
 @router.post("/chat/stream")

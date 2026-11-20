@@ -41,6 +41,7 @@ export default function App() {
   const [responseStyle, setResponseStyle] = useState('auto');
   const [cognitiveStep, setCognitiveStep] = useState<string | null>(null);
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+  const [streamingMsgId, setStreamingMsgId] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<HudTab>('command');
   const [centerView, setCenterView] = useState<'feed' | 'deck'>('feed');
   const [privacyMode, setPrivacyMode] = useState<'strict' | 'guarded' | 'relaxed'>('guarded');
@@ -172,6 +173,7 @@ export default function App() {
       const ctrl = new AbortController(); abortControllerRef.current = ctrl;
       const aId = `assistant-${Date.now()}`;
       setMessages((p) => [...p, { id: aId, role: 'assistant', content: '', metadata: { provider: 'J.A.R.V.I.S. Core', model_id: selectedModel, attempts: 1, fallback_used: false } }]);
+      setStreamingMsgId(aId);
       try {
         await streamChatMessage(text, messages.map((m) => ({ role: m.role, content: m.content })), {
           model: selectedModel, responseStyle, privacyMode, signal: ctrl.signal,
@@ -179,12 +181,13 @@ export default function App() {
           onChunk: (chunk) => setMessages((p) => p.map((m) => (m.id === aId ? { ...m, content: m.content + chunk } : m))),
           onDone: (res) => {
             setCognitiveStep(null);
+            setStreamingMsgId(null);
             setMessages((p) => p.map((m) => (m.id === aId ? { ...m, content: res.answer, metadata: { provider: res.provider, model_id: res.model_id, attempts: res.attempts, fallback_used: res.fallback_used } } : m)));
             if (isVoiceEnabled && res.answer) { setSpeakingMsgId(aId); void speak(res.answer, () => setSpeakingMsgId(null)); }
           },
-          onError: (err) => { setErrorMessage(err.message); setInputPrompt(text); },
+          onError: (err) => { setErrorMessage(err.message); setInputPrompt(text); setStreamingMsgId(null); },
         });
-      } catch (err: unknown) { setErrorMessage(err instanceof Error ? err.message : 'Streaming error.'); setInputPrompt(text); }
+      } catch (err: unknown) { setErrorMessage(err instanceof Error ? err.message : 'Streaming error.'); setInputPrompt(text); setStreamingMsgId(null); }
       finally { setIsLoading(false); setCognitiveStep(null); abortControllerRef.current = null; }
     }
   };
@@ -235,7 +238,7 @@ export default function App() {
             {centerView === 'deck' ? (
               <InspectionDeck activeDutImage={activeDutImage} activeDutName={activeDutName} attachedFile={attachedFile} isLoading={isLoading} onFileSelect={handleFileSelect} onEjectDut={handleEjectDut} onReplaceDut={() => fileInputRef.current?.click()} onQuickAction={(p) => { setInputPrompt(p); setCenterView('feed'); }} vaultConceptCount={vaultConcepts} />
             ) : (
-              <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput />
+              <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} streamingMessageId={streamingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput />
             )}
           </div>
         </div>
@@ -247,7 +250,7 @@ export default function App() {
 
       {/* Mobile: Clean 3-zone layout (Top Bar + Full-Bleed Chat + Bottom Prompt) */}
       <div className="lg:hidden flex-1 min-h-0 flex flex-col">
-        <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput mobileFullBleed />
+        <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} streamingMessageId={streamingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput mobileFullBleed />
       </div>
 
       <BottomCommandDock inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} isLoading={isLoading} isListening={isListening} isSpeaking={isSpeaking} isVoiceEnabled={isVoiceEnabled} onToggleVoiceMode={toggleVoiceMode} onToggleListening={() => (isListening ? stopListening() : void startListening())} autoApprove={autoApprove} onToggleAutoApprove={() => setAutoApprove((a) => !a)} onAttachClick={() => fileInputRef.current?.click()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} liveTranscript={liveTranscript} voiceState={voiceState} />

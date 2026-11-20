@@ -30,68 +30,20 @@ logger = logging.getLogger(__name__)
 
 def load_dotenv(dotenv_path: str | Path | None = None, override: bool = True) -> None:
     """
-    Safely reads environment variables from .env without exposing values.
-    Supports python-dotenv with fallback parser, searches repo root and parent directories,
-    and synchronizes GOOGLE_API_KEY <-> GEMINI_API_KEY.
+    Safely reads environment variables from .env.
     """
-    candidates = []
-    if dotenv_path:
-        candidates.append(Path(dotenv_path))
-    candidates.extend([
-        Path.cwd() / ".env",
-        Path(__file__).resolve().parent / ".env",
-        Path(__file__).resolve().parent.parent / ".env",
-        Path(__file__).resolve().parent.parent.parent / ".env",
-    ])
+    from dotenv import load_dotenv as _lib_load_dotenv
 
-    loaded = False
-    try:
-        from dotenv import load_dotenv as _lib_load_dotenv
-        for cand in candidates:
-            if cand.is_file():
-                _lib_load_dotenv(str(cand), override=override)
-                loaded = True
-                break
-    except ImportError:
-        pass
+    # Target project root explicitly
+    root_env = Path(__file__).resolve().parent / ".env"
 
-    if not loaded:
-        for target_path in candidates:
-            if target_path.is_file():
-                try:
-                    with open(target_path, "r", encoding="utf-8-sig") as f:
-                        for line in f:
-                            line = line.strip()
-                            if not line or line.startswith("#") or "=" not in line:
-                                continue
-                            key, val = line.split("=", 1)
-                            key = key.strip().lstrip("\ufeff")
-                            val = val.strip()
-                            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-                                val = val[1:-1]
-                            else:
-                                val = val.split(" #", 1)[0].split("\t#", 1)[0].strip()
-                            if key:
-                                if override or key not in os.environ or not os.environ[key]:
-                                    os.environ[key] = val
-                    break
-                except Exception:
-                    pass
-
-    # Normalize environment keys stripping any UTF-8 BOM
-    for env_k in list(os.environ.keys()):
-        if env_k.startswith("\ufeff"):
-            clean_k = env_k.lstrip("\ufeff")
-            if clean_k and (override or clean_k not in os.environ):
-                os.environ[clean_k] = os.environ[env_k]
-
-    # Synchronize GEMINI_API_KEY and GOOGLE_API_KEY
-    gemini = os.environ.get("GEMINI_API_KEY", "").strip()
-    google = os.environ.get("GOOGLE_API_KEY", "").strip()
-    if gemini and not google:
-        os.environ["GOOGLE_API_KEY"] = gemini
-    elif google and not gemini:
-        os.environ["GEMINI_API_KEY"] = google
+    if root_env.is_file():
+        _lib_load_dotenv(dotenv_path=str(root_env), override=override)
+    elif dotenv_path and Path(dotenv_path).is_file():
+        _lib_load_dotenv(dotenv_path=str(dotenv_path), override=override)
+    else:
+        # Fallback to current working directory
+        _lib_load_dotenv(dotenv_path=".env", override=override)
 
 
 # Auto-load .env immediately at startup
@@ -227,6 +179,73 @@ def ask_openjarvis(
                 pass
 
 
+def ask_groq(
+    prompt: str,
+    system_prompt: str | None = None,
+    temperature: float = 0.55,
+    model: str | None = None,
+    history: list[dict] | None = None,
+    timeout: float = 20.0,
+) -> tuple[str, str]:
+    """
+    Calls Groq OpenAI-compatible endpoint.
+    Returns (response_text, f"Groq ({model})").
+    """
+    import urllib.request
+
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise KeyError("GROQ_API_KEY")
+
+    target_model = model or "llama-3.3-70b-versatile"
+
+    messages = []
+    sys_content = system_prompt or SYSTEM_PROMPT
+    if sys_content:
+        messages.append({"role": "system", "content": sys_content})
+
+    if history:
+        for message in history:
+            role = message.get("role", "user")
+            content = message.get("content", "")
+            if content and role in {"user", "assistant"}:
+                messages.append({"role": role, "content": content})
+
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": target_model,
+        "messages": messages,
+        "temperature": temperature,
+    }
+
+    req_data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=req_data,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "CircuitSnap-Groq-Client",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            resp_data = resp.read().decode("utf-8")
+            body = json.loads(resp_data)
+            choices = body.get("choices", [])
+            if choices and "message" in choices[0]:
+                content = choices[0]["message"].get("content", "")
+                return content, f"Groq ({target_model})"
+            return "", f"Groq ({target_model})"
+    except urllib.error.HTTPError as err:
+        raise RuntimeError(f"Groq HTTP error ({err.code}): {err.read().decode('utf-8')}") from err
+    except Exception as err:
+        raise ConnectionError(f"Groq connection failed: {err}") from err
+
+
 # ============================================================
 # CLIENTS
 # ============================================================
@@ -243,13 +262,16 @@ def _get_api_key(name: str) -> Optional[str]:
 
 
 def get_gemini_client():
-    """Create and cache the Gemini client."""
+    """Create and cache the Gemini client with a hard 25s HTTP timeout."""
     api_key = _get_api_key("GEMINI_API_KEY")
     if not api_key:
         raise KeyError("GEMINI_API_KEY")
 
     if "gemini" not in _CLIENT_CACHE or _CLIENT_CACHE.get("gemini_key") != api_key:
-        _CLIENT_CACHE["gemini"] = genai.Client(api_key=api_key)
+        _CLIENT_CACHE["gemini"] = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=25000),
+        )
         _CLIENT_CACHE["gemini_key"] = api_key
 
     return _CLIENT_CACHE["gemini"]
@@ -283,10 +305,10 @@ def ask_gemini(
     temperature: float = 0.55,
 ):
     """
-    Send a request to Gemini.
-
+    Send a request to Gemini with a clean, fast config (no tools, no thinking).
     Conversation history is supplied by CircuitSnap rather than
     relying on a provider-specific chat session.
+    Returns the answer text.
     """
 
     client = get_gemini_client()
@@ -346,7 +368,7 @@ def ask_gemini(
     )
 
     # --------------------------------------------------------
-    # Request
+    # Request - clean config, no tools/thinking
     # --------------------------------------------------------
 
     response = client.models.generate_content(
@@ -356,13 +378,13 @@ def ask_gemini(
             system_instruction=SYSTEM_PROMPT,
             temperature=temperature,
             max_output_tokens=4096,
-            tools=None,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-            timeout=300.0,  # 5-minute timeout triggers fallback on 429/503/500
         ),
     )
 
-    return getattr(response, "text", "") or ""
+    answer_text = getattr(response, "text", "") or ""
+
+    return answer_text
 
 
 # ============================================================
@@ -737,26 +759,9 @@ def ask_provider(
         failed_model,
         error,
         error_type,
-        *,
-        fallback_used,
-        attempts,
     ):
-        return deliver(
-            _provider_result(
-                _format_provider_error(
-                    failed_provider,
-                    error,
-                    error_type=error_type,
-                    model_id=failed_model,
-                ),
-                failed_provider,
-                failed_model,
-                status="error",
-                error_type=error_type,
-                fallback_used=fallback_used,
-                attempts=attempts,
-            )
-        )
+        # Raise instead of returning error text so callers can handle it
+        raise RuntimeError(f"{failed_provider} ({failed_model}) failed: {error_type} - {error}")
 
     active_mode = os.getenv("PROVIDER_MODE", PROVIDER_MODE).lower().strip()
     oj_model = os.getenv("OPENJARVIS_MODEL", OPENJARVIS_MODEL)
@@ -811,14 +816,7 @@ def ask_provider(
                     )
                 )
             except Exception as err:
-                return failure(
-                    "J.A.R.V.I.S. Core",
-                    "jarvis-offline",
-                    err,
-                    "offline_error",
-                    fallback_used=True,
-                    attempts=2,
-                )
+                raise RuntimeError(f"J.A.R.V.I.S. Core (jarvis-offline) failed: offline_error - {err}")
 
         local_fallback_triggered = True
 
@@ -903,10 +901,7 @@ def ask_provider(
             )
 
         if not _is_fallback_eligible(error_type):
-            return failure(
-                "Gemini", model_id, error, error_type,
-                fallback_used=fallback_used, attempts=attempts,
-            )
+            raise RuntimeError(f"Gemini ({model_id}) failed: {error_type} - {error}")
 
         # Retry the selected Gemini model once if temporary unavailability (not if rate-limited).
         if error_type == "temporary_unavailability":
@@ -929,10 +924,7 @@ def ask_provider(
                 )
 
             if not _is_fallback_eligible(error_type):
-                return failure(
-                    "Gemini", model_id, error, error_type,
-                    fallback_used=fallback_used, attempts=attempts,
-                )
+                raise RuntimeError(f"Gemini ({model_id}) failed: {error_type} - {error}")
 
         # The registry keeps these models internal to provider fallback.
         for fallback_model in gemini_config.get("fallback_models", []):
@@ -956,27 +948,35 @@ def ask_provider(
                 )
 
             if not _is_fallback_eligible(error_type):
-                return failure(
-                    "Gemini", fallback_model, error, error_type,
-                    fallback_used=fallback_used, attempts=attempts,
-                )
+                raise RuntimeError(f"Gemini ({fallback_model}) failed: {error_type} - {error}")
 
         fallback_provider = gemini_config.get("fallback_provider")
 
         if not fallback_provider:
-            return deliver(
-                _provider_result(
-                    _format_provider_error(
-                        "Gemini", error_type="fallback_exhausted"
-                    ),
-                    "Gemini",
-                    model_id,
-                    status="error",
-                    error_type="fallback_exhausted",
-                    fallback_used=fallback_used,
-                    attempts=attempts,
-                )
+            raise RuntimeError("Gemini fallback exhausted - no fallback provider configured")
+
+        # Groq as an intermediate cloud fallback before OpenJarvis
+        if image_bytes is None and os.environ.get("GROQ_API_KEY") and fallback_provider != "Groq":
+            groq_fallback_config = get_model("Groq")
+            groq_fallback_model = groq_fallback_config["model_id"]
+            fallback_used = True
+            attempts += 1
+            success_flag, answer, error, error_type = _attempt_provider(
+                lambda: ask_groq(
+                    prompt=prompt,
+                    system_prompt=SYSTEM_PROMPT,
+                    temperature=temperature,
+                    model=groq_fallback_model,
+                    history=history,
+                )[0]
             )
+            if success_flag:
+                return success(
+                    answer, "Groq", groq_fallback_model,
+                    fallback_used=fallback_used, attempts=attempts,
+                )
+            if not _is_fallback_eligible(error_type):
+                raise RuntimeError(f"Groq ({groq_fallback_model}) failed: {error_type} - {error}")
 
         fallback_config = get_model(fallback_provider)
         fallback_model = fallback_config["model_id"]
@@ -989,6 +989,10 @@ def ask_provider(
             )[0]
         elif fallback_provider == "Gemini":
             fallback_call = ask_gemini
+        elif fallback_provider == "Groq":
+            fallback_call = lambda model_id, prompt, history, image_bytes, mime_type, temperature: ask_groq(
+                prompt=prompt, system_prompt=SYSTEM_PROMPT, temperature=temperature, model=fallback_model, history=history
+            )[0]
         else:
             fallback_call = None
 
@@ -1015,27 +1019,9 @@ def ask_provider(
             )
 
         if not _is_fallback_eligible(error_type):
-            return failure(
-                fallback_provider, fallback_model, error, error_type,
-                fallback_used=fallback_used, attempts=attempts,
-            )
+            raise RuntimeError(f"{fallback_provider} ({fallback_model}) failed: {error_type} - {error}")
 
-        return deliver(
-            _provider_result(
-                _format_provider_error(
-                    fallback_provider,
-                    error,
-                    error_type="fallback_exhausted",
-                    model_id=fallback_model,
-                ),
-                fallback_provider,
-                fallback_model,
-                status="error",
-                error_type="fallback_exhausted",
-                fallback_used=fallback_used,
-                attempts=attempts,
-            )
-        )
+        raise RuntimeError(f"Gemini fallback exhausted: {fallback_provider} ({fallback_model}) failed: {error_type} - {error}")
 
     # ========================================================
     # OPENJARVIS (Fallback when local unavailable)
@@ -1062,22 +1048,63 @@ def ask_provider(
                 answer, fallback_provider, fallback_model,
                 fallback_used=True, attempts=2,
             )
-        return failure(
-            fallback_provider, fallback_model, error, error_type,
-            fallback_used=True, attempts=2,
+        raise RuntimeError(f"{fallback_provider} ({fallback_model}) failed: {error_type} - {error}")
+
+    # ========================================================
+    # GROQ (Direct selection)
+    # ========================================================
+    if provider == "Groq":
+        groq_config = get_model("Groq")
+        groq_model = groq_config.get("model_id", "llama-3.3-70b-versatile")
+
+        success_flag, answer_tuple, error, error_type = _attempt_provider(
+            lambda: ask_groq(
+                prompt=prompt,
+                system_prompt=SYSTEM_PROMPT,
+                temperature=temperature,
+                model=groq_model,
+                history=history,
+            )
         )
 
-    return deliver(
-        _provider_result(
-            _format_provider_error(
-                provider,
-                error_type="unsupported_provider",
-            ),
-            provider,
-            model_id,
-            status="error",
-            error_type="unsupported_provider",
-            fallback_used=False,
-            attempts=0,
+        if success_flag and answer_tuple:
+            text, provider_label = answer_tuple
+            return deliver(
+                _provider_result(
+                    text,
+                    provider_label,
+                    groq_model,
+                    status="success",
+                    fallback_used=False,
+                    attempts=1,
+                )
+            )
+
+        if not _is_fallback_eligible(error_type):
+            raise RuntimeError(f"Groq ({groq_model}) failed: {error_type} - {error}")
+
+        # Fallback to OpenJarvis
+        oj_config = get_model("OpenJarvis")
+        fallback_provider = oj_config.get("fallback_provider", "Gemini")
+        fallback_config = get_model(fallback_provider)
+        fallback_model = fallback_config["model_id"]
+        fallback_call = ask_gemini
+
+        success_flag, answer, error, error_type = _attempt_provider(
+            lambda: fallback_call(
+                model_id=fallback_model,
+                prompt=prompt,
+                history=history,
+                image_bytes=image_bytes,
+                mime_type=mime_type,
+                temperature=temperature,
+            )
         )
-    )
+        if success_flag:
+            return success(
+                answer, fallback_provider, fallback_model,
+                fallback_used=True, attempts=2,
+            )
+        raise RuntimeError(f"{fallback_provider} ({fallback_model}) failed: {error_type} - {error}")
+
+    raise RuntimeError(f"Unsupported provider: {provider}")

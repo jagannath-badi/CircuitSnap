@@ -576,12 +576,15 @@ export async function streamChatMessage(
             onStep?.(parsed.step);
           } else if (eventType === 'chunk' && parsed.chunk) {
             onChunk?.(parsed.chunk);
+          } else if (eventType === 'error' && onError) {
+            onError(new Error(parsed.message || 'Stream error'));
           } else if (eventType === 'done') {
             const chatRes: ChatResponse = {
               answer: parsed.answer || '',
               provider: parsed.provider || 'J.A.R.V.I.S. Core',
               model_id: parsed.model_id || 'jarvis-auto',
-              status: 'success',
+              status: parsed.status || 'success',
+              error_type: parsed.error_type || null,
               fallback_used: parsed.fallback_used ?? false,
               attempts: parsed.attempts ?? 1,
             };
