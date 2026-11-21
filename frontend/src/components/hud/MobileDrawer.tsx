@@ -146,7 +146,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </button>
             {onToggleCenterView && (
               <button
-                onClick={() => { onToggleCenterView('deck'); onClose(); }}
+                onClick={() => onToggleCenterView('deck')}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
                   centerView === 'deck'
                     ? 'bg-cyan-500/15 border border-cyan-500/30 text-cyan-300'
@@ -173,7 +173,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 <button
                   key={dm.id}
                   type="button"
-                  onClick={() => { onResponseStyleChange?.(dm.id); onClose(); }}
+                  onClick={() => onResponseStyleChange?.(dm.id)}
                   title={dm.desc}
                   className={`px-3 py-1.5 rounded-full text-[11px] font-mono flex items-center gap-1.5 border transition-all flow-pill ${
                     isSelected
@@ -235,7 +235,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           <div className="space-y-1.5">
             {onToggleListening && (
               <button
-                onClick={() => { onToggleListening(); onClose(); }}
+                onClick={onToggleListening}
                 className="w-full flex items-center gap-2 p-2.5 min-h-[44px] rounded-lg bg-slate-800/60 hover:bg-cyan-950/40 border border-slate-700/60 hover:border-cyan-500/40 text-xs text-slate-200 hover:text-cyan-300 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
               >
                 <Mic className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
@@ -244,7 +244,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             )}
             {onSystemScan && (
               <button
-                onClick={() => { onSystemScan(); onClose(); }}
+                onClick={onSystemScan}
                 className="w-full flex items-center gap-2 p-2.5 min-h-[44px] rounded-lg bg-slate-800/60 hover:bg-cyan-950/40 border border-slate-700/60 hover:border-cyan-500/40 text-xs text-slate-200 hover:text-cyan-300 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
               >
                 <Search className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
@@ -253,7 +253,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             )}
             {onClearContext && (
               <button
-                onClick={() => { onClearContext(); onClose(); }}
+                onClick={onClearContext}
                 className="w-full flex items-center gap-2 p-2.5 min-h-[44px] rounded-lg bg-slate-800/60 hover:bg-rose-950/40 border border-slate-700/60 hover:border-rose-500/40 text-xs text-slate-200 hover:text-rose-300 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
               >
                 <Trash2 className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
@@ -271,7 +271,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               <span>Emergency Controls</span>
             </div>
             <button
-              onClick={() => { onEmergencyStop(); onClose(); }}
+              onClick={onEmergencyStop}
               className={`w-full py-2.5 px-3 min-h-[44px] rounded-xl flex items-center justify-center gap-2 text-xs font-bold font-mono tracking-wider transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform shadow-lg ${
                 emergencyStop
                   ? 'bg-rose-600 text-white animate-pulse border border-rose-400 shadow-[0_0_15px_#e11d48] scale-[1.02]'
@@ -283,7 +283,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </button>
             {onTakeControl && (
               <button
-                onClick={() => { onTakeControl(); onClose(); }}
+                onClick={onTakeControl}
                 className="w-full py-2.5 px-3 min-h-[44px] rounded-xl flex items-center justify-center gap-2 text-xs font-mono font-semibold bg-cyan-950/60 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
               >
                 <Power className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
@@ -297,7 +297,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         {onToggleAutoApprove !== undefined && (
           <div className="p-3 rounded-xl bg-[#0B132B]/72 border border-sky-400/15 specular-glass shadow-md">
             <button
-              onClick={() => { onToggleAutoApprove(); onClose(); }}
+              onClick={onToggleAutoApprove}
               className={`w-full flex items-center justify-between gap-1.5 px-3 py-2 min-h-[44px] rounded-lg border text-xs transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
                 autoApprove
                   ? 'bg-amber-950/60 border-amber-500/50 text-amber-300'
@@ -325,7 +325,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => { onSelectModel?.(opt.id); onClose(); }}
+                  onClick={() => onSelectModel?.(opt.id)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-start justify-between gap-2.5 tactile-spring ${
                     isSelected
                       ? 'bg-cyan-500/15 border border-cyan-500/30 text-white'
@@ -386,14 +386,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                     </span>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => { onDecision(appr.id, 'decline'); onClose(); }}
+                        onClick={() => onDecision(appr.id, 'decline')}
                         className="flex items-center gap-1 px-2.5 py-1 min-h-[44px] rounded bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 hover:border-rose-600/40 text-xs transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform"
                       >
                         <X className="w-3 h-3" />
                         <span>Decline</span>
                       </button>
                       <button
-                        onClick={() => { onDecision(appr.id, 'approve'); onClose(); }}
+                        onClick={() => onDecision(appr.id, 'approve')}
                         className="flex items-center gap-1 px-2.5 py-1 min-h-[44px] rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 text-xs font-bold transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform shadow-[0_0_8px_rgba(0,166,232,0.2)]"
                       >
                         <Check className="w-3 h-3" />

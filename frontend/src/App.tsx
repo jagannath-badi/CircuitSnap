@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { AlertCircle, X } from 'lucide-react';
 import {
   analyzeImage, fetchAvailableModels, fetchCurrentOperator,
-  ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_BYTES, streamChatMessage, fetchVaultStats,
+  streamChatMessage, fetchVaultStats,
   ingestVaultDocument, sendFeedbackToVault, fetchSystemTelemetry, fetchOperations,
   submitDecision, triggerEmergencyStop, resetOperations,
   type ChatResponse, type ModelOption, type OperatorUser, type SystemTelemetry, type OperationsState
@@ -20,13 +20,12 @@ import { DiagnosticFeed, type DisplayMessage } from './components/DiagnosticFeed
 import { AuthModal } from './components/AuthModal';
 import { VaultDrawer } from './components/VaultDrawer';
 import { useJarvisVoice } from './hooks/useJarvisVoice';
+import { useFileAttachment } from './hooks/useFileAttachment';
 import { MobileDrawer } from './components/hud/MobileDrawer';
 
 export default function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputPrompt, setInputPrompt] = useState('');
-  const [attachedFile, setAttachedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeDutImage, setActiveDutImage] = useState<string | null>(null);
   const [activeDutName, setActiveDutName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,12 +49,23 @@ export default function App() {
   const [emergencyStop, setEmergencyStop] = useState(false);
   const [autoApprove, setAutoApprove] = useState(false);
   const [isTelemetryLoading, setIsTelemetryLoading] = useState(false);
-    const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const activeObjectUrlsRef = useRef<Set<string>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const { attachment, setAttachment: handleFileSelect, clearAttachment: removeAttachedFile } = useFileAttachment({
+    onFileSelect: (file, previewUrl) => {
+      const isDoc = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf') || file.name.toLowerCase().endsWith('.txt') || file.name.toLowerCase().endsWith('.md');
+      setActiveDutImage(previewUrl);
+      setActiveDutName(file.name);
+      setCenterView('deck');
+      if (isDoc) { void ingestVaultDocument(file).then((r) => setVaultConcepts((c) => c + r.chunks_indexed)).catch(() => {}); }
+    },
+    onError: setErrorMessage,
+  });
 
   const { isVoiceEnabled, voiceState, isListening, isSpeaking, voiceSettings, liveTranscript, voiceError, clearVoiceError, updateVoiceSettings, toggleVoiceMode, startListening, stopListening, speak, cancelSpeech, hardResetVoice, testVoicePersona } = useJarvisVoice({
     onTranscript: (t) => { setInputPrompt(t); textareaRef.current?.focus(); },
@@ -84,28 +94,11 @@ export default function App() {
   }, [pollSystem]);
 
   useEffect(() => {
-    return () => { if (imagePreview && imagePreview !== activeDutImage) URL.revokeObjectURL(imagePreview); };
-  }, [imagePreview, activeDutImage]);
-
-  useEffect(() => {
     const urls = activeObjectUrlsRef.current;
     return () => {
       urls.forEach((url) => URL.revokeObjectURL(url)); urls.clear();
       if (abortControllerRef.current) abortControllerRef.current.abort();
     };
-  }, []);
-
-  const handleFileSelect = useCallback((file: File) => {
-    setErrorMessage(null);
-    const isImg = ALLOWED_IMAGE_TYPES.includes(file.type);
-    const isDoc = file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.name.endsWith('.txt') || file.name.endsWith('.md');
-    if (!isImg && !isDoc) { setErrorMessage('Unsupported file. Use JPG/PNG/WEBP or PDF/TXT/MD notes.'); return; }
-    if (file.size > MAX_FILE_SIZE_BYTES) { setErrorMessage(`File exceeds 10 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`); return; }
-    const objectUrl = URL.createObjectURL(file);
-    activeObjectUrlsRef.current.add(objectUrl);
-    setAttachedFile(file); setImagePreview(objectUrl); setActiveDutImage(objectUrl); setActiveDutName(file.name);
-    setCenterView('deck');
-    if (isDoc) { void ingestVaultDocument(file).then((r) => setVaultConcepts((c) => c + r.chunks_indexed)).catch(() => {}); }
   }, []);
 
   useEffect(() => {
@@ -117,14 +110,12 @@ export default function App() {
     return () => window.removeEventListener('paste', handlePaste);
   }, [handleFileSelect]);
 
-  const removeAttachedFile = () => {
-    setAttachedFile(null);
-    if (imagePreview && imagePreview !== activeDutImage) URL.revokeObjectURL(imagePreview);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+  const handleEjectDut = () => {
+    setActiveDutImage(null);
+    setActiveDutName(null);
+    removeAttachedFile();
+    setCenterView('feed');
   };
-
-  const handleEjectDut = () => { setActiveDutImage(null); setActiveDutName(null); removeAttachedFile(); setCenterView('feed'); };
 
   const handleEmergencyStop = async () => {
     if (abortControllerRef.current) { abortControllerRef.current.abort(); abortControllerRef.current = null; }
@@ -151,13 +142,13 @@ export default function App() {
   const handleSendMessage = async (overridePrompt?: string) => {
     if (emergencyStop) { setErrorMessage('Cannot send: Command Center is in Emergency Stop state.'); return; }
     const text = (overridePrompt !== undefined ? overridePrompt : inputPrompt).trim();
-    if (!text && !attachedFile) return;
+    if (!text && !attachment.file) return;
     setErrorMessage(null); setIsLoading(true); setCenterView('feed');
     let msgImg: string | undefined = undefined;
-    if (attachedFile) { msgImg = URL.createObjectURL(attachedFile); activeObjectUrlsRef.current.add(msgImg); }
+    if (attachment.file) { msgImg = URL.createObjectURL(attachment.file); activeObjectUrlsRef.current.add(msgImg); }
     setMessages((p) => [...p, { id: `user-${Date.now()}`, role: 'user', content: text || '(Inspection artifact)', imagePreviewUrl: msgImg }]);
     setInputPrompt('');
-    const fileToUpload = attachedFile;
+    const fileToUpload = attachment.file;
     removeAttachedFile();
 
     if (fileToUpload) {
@@ -236,9 +227,9 @@ export default function App() {
           </div>
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             {centerView === 'deck' ? (
-              <InspectionDeck activeDutImage={activeDutImage} activeDutName={activeDutName} attachedFile={attachedFile} isLoading={isLoading} onFileSelect={handleFileSelect} onEjectDut={handleEjectDut} onReplaceDut={() => fileInputRef.current?.click()} onQuickAction={(p) => { setInputPrompt(p); setCenterView('feed'); }} vaultConceptCount={vaultConcepts} />
+              <InspectionDeck activeDutImage={activeDutImage} activeDutName={activeDutName} attachedFile={attachment.file} isLoading={isLoading} onFileSelect={handleFileSelect} onEjectDut={handleEjectDut} onReplaceDut={() => fileInputRef.current?.click()} onQuickAction={(p) => { setInputPrompt(p); setCenterView('feed'); }} vaultConceptCount={vaultConcepts} />
             ) : (
-              <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} streamingMessageId={streamingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput />
+              <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachment.file} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} streamingMessageId={streamingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput />
             )}
           </div>
         </div>
@@ -250,10 +241,10 @@ export default function App() {
 
       {/* Mobile: Clean 3-zone layout (Top Bar + Full-Bleed Chat + Bottom Prompt) */}
       <div className="lg:hidden flex-1 min-h-0 flex flex-col">
-        <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} streamingMessageId={streamingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput mobileFullBleed />
+        <DiagnosticFeed messages={messages} isLoading={isLoading} inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} attachedFile={attachment.file} onRemoveAttachment={removeAttachedFile} onAttachClick={() => fileInputRef.current?.click()} textareaRef={textareaRef} isVoiceEnabled={isVoiceEnabled} isListening={isListening} isSpeaking={isSpeaking} onToggleListening={() => (isListening ? stopListening() : void startListening())} onQuickAction={(p) => setInputPrompt(p)} speakingMessageId={speakingMsgId} streamingMessageId={streamingMsgId} onReadAloud={handleReadAloud} responseStyle={responseStyle} onResponseStyleChange={setResponseStyle} cognitiveStep={cognitiveStep} onSaveToVault={async (t) => { await sendFeedbackToVault(t); setVaultConcepts((c) => c + 1); }} voiceState={voiceState} onHardResetVoice={hardResetVoice} liveTranscript={liveTranscript} voiceError={voiceError} onClearVoiceError={clearVoiceError} hideInput mobileFullBleed />
       </div>
 
-      <BottomCommandDock inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} isLoading={isLoading} isListening={isListening} isSpeaking={isSpeaking} isVoiceEnabled={isVoiceEnabled} onToggleVoiceMode={toggleVoiceMode} onToggleListening={() => (isListening ? stopListening() : void startListening())} autoApprove={autoApprove} onToggleAutoApprove={() => setAutoApprove((a) => !a)} onAttachClick={() => fileInputRef.current?.click()} attachedFile={attachedFile} onRemoveAttachment={removeAttachedFile} liveTranscript={liveTranscript} voiceState={voiceState} />
+      <BottomCommandDock inputPrompt={inputPrompt} onInputChange={setInputPrompt} onSendMessage={() => void handleSendMessage()} isLoading={isLoading} isListening={isListening} isSpeaking={isSpeaking} isVoiceEnabled={isVoiceEnabled} onToggleVoiceMode={toggleVoiceMode} onToggleListening={() => (isListening ? stopListening() : void startListening())} autoApprove={autoApprove} onToggleAutoApprove={() => setAutoApprove((a) => !a)} onAttachClick={() => fileInputRef.current?.click()} attachedFile={attachment.file} onRemoveAttachment={removeAttachedFile} liveTranscript={liveTranscript} />
       <AiCoreSettingsModal isOpen={currentTab === 'core' || currentTab === 'settings'} onClose={() => setCurrentTab('command')} availableModels={availableModels} selectedModel={selectedModel} onSelectModel={setSelectedModel} privacyMode={privacyMode} onPrivacyModeChange={setPrivacyMode} />
       <AiVoiceSettingsModal isOpen={currentTab === 'voice'} onClose={() => setCurrentTab('command')} voiceSettings={voiceSettings} onUpdateVoiceSettings={updateVoiceSettings} onTestVoice={testVoicePersona} />
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={setCurrentUser} />

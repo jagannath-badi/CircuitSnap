@@ -17,7 +17,6 @@ interface BottomCommandDockProps {
   attachedFile: File | null;
   onRemoveAttachment: () => void;
   liveTranscript?: string;
-  voiceState?: 'idle' | 'listening' | 'transcribing' | 'speaking';
 }
 
 export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
@@ -26,7 +25,7 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
   onSendMessage,
   isLoading,
   isListening,
-  isSpeaking: _isSpeaking,
+  isSpeaking,
   isVoiceEnabled,
   onToggleVoiceMode,
   onToggleListening,
@@ -36,7 +35,6 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
   attachedFile,
   onRemoveAttachment,
   liveTranscript,
-  voiceState: _voiceState,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -60,11 +58,13 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 py-2 min-h-[44px] rounded-lg text-xs font-bold transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform shadow-md ${
                 isListening
                   ? 'bg-rose-600 text-white animate-pulse shadow-[0_0_12px_#e11d48] scale-[1.02]'
+                  : isSpeaking
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse-ring-cerulean shadow-[0_0_8px_rgba(0,166,232,0.3)]'
                   : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 shadow-[0_0_8px_rgba(0,166,232,0.2)]'
               }`}
             >
-              {isListening ? <Mic className="w-3.5 h-3.5 animate-bounce flex-shrink-0" /> : <Mic className="w-3.5 h-3.5 flex-shrink-0" />}
-              <span className="whitespace-nowrap">{isListening ? 'LISTENING (STOP)' : 'TALK TO JARVIS'}</span>
+              {isListening ? <Mic className="w-3.5 h-3.5 animate-bounce flex-shrink-0" /> : isSpeaking ? <Volume2 className="w-3.5 h-3.5 flex-shrink-0" /> : <Mic className="w-3.5 h-3.5 flex-shrink-0" />}
+              <span className="whitespace-nowrap">{isListening ? 'LISTENING (STOP)' : isSpeaking ? 'SPEAKING...' : 'TALK TO JARVIS'}</span>
             </button>
 
             {/* Speak Responses Toggle */}
@@ -84,7 +84,7 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
             {/* Free Hand Hey Jarvis */}
             <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-2 min-h-[44px] rounded-lg bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
               <Sparkles className="w-3 h-3 text-cyan-400 flex-shrink-0" />
-              <span className="whitespace-nowrap">Wake-Word: &quot;Hey Jarvis&quot; Active</span>
+              <span className="whitespace-nowrap">Wake-Word: "Hey Jarvis" Active</span>
             </div>
           </div>
 
@@ -110,7 +110,7 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
           <div className="px-3 py-1.5 rounded bg-cyan-950/40 border border-cyan-800/40 text-cyan-300 text-xs flex items-center gap-2 animate-pulse w-full">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping flex-shrink-0" />
             <span className="font-semibold text-slate-400 flex-shrink-0">Heard:</span>
-            <span className="truncate">&quot;{liveTranscript}&quot;</span>
+            <span className="truncate">"{liveTranscript}"</span>
           </div>
         )}
 
@@ -127,43 +127,23 @@ export const BottomCommandDock: React.FC<BottomCommandDockProps> = ({
         <div className="relative flex items-end gap-2 bg-slate-900/90 border border-slate-800 focus-within:border-cyan-500/60 rounded-xl p-1.5 sm:p-2 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform shadow-inner w-full">
           <button
             onClick={onToggleListening}
-            className={`md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition-all ${
-              _isSpeaking
+            className={`p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition-all ${
+              isSpeaking
                 ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 animate-pulse'
                 : isListening
                 ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
-                : 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                : isVoiceEnabled
+                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-500/40'
             }`}
-            title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
+            title={isListening ? 'Listening... (Click to stop)' : isSpeaking ? 'Speaking...' : 'Speak to J.A.R.V.I.S.'}
           >
             <Mic className="w-4 h-4" />
           </button>
 
           <button
             onClick={onAttachClick}
-            className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
-            title="Attach diagram, circuit photo, free-body sketch, or PDF notes"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={onToggleListening}
-            className={`hidden md:flex p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border transition-all ${
-              _isSpeaking
-                ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300 animate-pulse'
-                : isListening
-                ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
-                : 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-            }`}
-            title={isListening ? 'Listening... (Click to stop)' : 'Speak to J.A.R.V.I.S.'}
-          >
-            <Mic className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={onAttachClick}
-            className="hidden md:flex p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
+            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform flex-shrink-0"
             title="Attach diagram, circuit photo, free-body sketch, or PDF notes"
           >
             <Paperclip className="w-4 h-4" />
